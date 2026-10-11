@@ -143,8 +143,34 @@ def clear_settings(db=Depends(get_db), user=Depends(current_user)):
     return {"ok": True}
 
 
+class TestIn(BaseModel):
+    provider: str | None = Field(default=None, max_length=120)
+    api_key: str | None = Field(default=None, max_length=1000)
+    model: str | None = Field(default=None, max_length=200)
+    base_url: str | None = Field(default=None, max_length=500)
+
+
 @router.post("/me/suggestions/test")
-def test_settings(db=Depends(get_db), user=Depends(current_user)):
+def test_settings(data: TestIn = TestIn(), db=Depends(get_db), user=Depends(current_user)):
+    if data.provider:
+        # Test exactly what's in the form right now, not what's been saved -
+        # a key that hasn't been saved yet still needs to be testable.
+        saved = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
+        base_url = (data.base_url or "").strip()
+        same_scope = saved and saved["provider"] == data.provider and saved["base_url"] == base_url
+        key = data.api_key.strip() if data.api_key else (saved["api_key"] if same_scope else "")
+        settings = dict(provider=data.provider, api_key=key, model=(data.model or "").strip(), base_url=base_url)
+        try:
+            providers.validate_settings(settings["provider"], settings["model"], settings["base_url"])
+            if settings["api_key"]:
+                providers.validate_key(settings["api_key"])
+        except providers.ProviderError as e:
+            raise HTTPException(400, str(e))
+        try:
+            result = providers.ask_with_provenance(settings, "Reply with just the word: ok", None)
+        except providers.ProviderError as e:
+            raise HTTPException(502, str(e))
+        return {"reply": "Connection responded", "provenance": {k: v for k, v in result.items() if k != "text"}}
     text = _run(db, user, "Reply with just the word: ok", None)
     return {"reply": "Connection responded", "provenance": getattr(text,"provenance",None)}
 

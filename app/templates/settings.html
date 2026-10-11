@@ -165,7 +165,9 @@ function settingsPage() {
     async testSuggest() {
       this.testing = true;
       try {
-        const r = await api('/api/me/suggestions/test', { method: 'POST' });
+        const r = await api('/api/me/suggestions/test', { method: 'POST', body: {
+          provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
+          model: this.sg.model || '', base_url: this.sg.base_url || '' } });
         this.sg.state = 'Connection responded';
         this.connectionRoute = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : ''; toast(r.reply);
       } catch (e) { oops(e); }

@@ -543,6 +543,30 @@ class SuggestionSettings(MemoryDB):
         moved = sg.save_settings(sg.SettingsIn(provider='openai', base_url='https://93.184.216.34/v1'), self.db, USER)
         self.assertFalse(moved['has_key'])
 
+    def test_can_test_a_key_before_saving_it(self):
+        from app.routes import suggestions as sg
+        import httpx
+        # nothing saved yet, and nothing is sent in the test body either
+        with self.assertRaises(HTTPException) as e:
+            sg.test_settings(sg.TestIn(), self.db, USER)
+        self.assertEqual(e.exception.status_code, 400)
+        # a key typed into the form but never saved should still be testable
+        handler = lambda request: httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
+        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
+            result = sg.test_settings(sg.TestIn(provider='openai', api_key='sk-unsaved'), self.db, USER)
+        self.assertEqual(result['reply'], 'Connection responded')
+        self.assertIsNone(sg.get_settings(self.db, USER).get('api_key'))  # still never saved
+        self.assertFalse(sg.get_settings(self.db, USER)['has_key'])
+        # a bad base_url in the test body is rejected the same as on save
+        with self.assertRaises(HTTPException) as e:
+            sg.test_settings(sg.TestIn(provider='openai', api_key='sk-x', base_url='https://127.0.0.1'), self.db, USER)
+        self.assertEqual(e.exception.status_code, 400)
+        # re-testing a saved provider without retyping the key reuses the saved one
+        sg.save_settings(sg.SettingsIn(provider='openai', api_key='sk-saved'), self.db, USER)
+        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
+            result = sg.test_settings(sg.TestIn(provider='openai'), self.db, USER)
+        self.assertEqual(result['reply'], 'Connection responded')
+
 
 class Pictures(unittest.TestCase):
     PNG = b'\x89PNG\r\n\x1a\n' + b'\x00' * 32
