@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="managePage()" x-init="load()">
+  <h1>Locations &amp; units</h1>
+
+  <h2>Locations</h2>
+  <div class="card">
+    <template x-for="l in locations" :key="l.id">
+      <div class="row" style="margin-bottom: .4rem">
+        <input class="grow" x-model="l.name">
+        <label class="inline small"><input type="checkbox" x-model="l.is_freezer"> freezer</label>
+        <input type="number" x-model.number="l.sort" style="width: 4.5rem" title="Sort order">
+        <button class="small" @click="saveLoc(l)">Save</button>
+        <button class="small danger" @click="delLoc(l)">Delete</button>
+      </div>
+    </template>
+    <form class="row" @submit.prevent="addLoc()" style="margin-top: .8rem">
+      <input class="grow" placeholder="New location, e.g. Garage freezer" x-model="newLoc">
+      <label class="inline small"><input type="checkbox" x-model="newLocFreezer"> freezer</label>
+      <button class="primary">Add</button>
+    </form>
+  </div>
+
+  <h2>Units</h2>
+  <div class="card">
+    <template x-for="u in units" :key="u.id">
+      <div class="row" style="margin-bottom: .4rem">
+        <input class="grow" x-model="u.name" placeholder="singular">
+        <input class="grow" x-model="u.name_plural" placeholder="plural">
+        <button class="small" @click="saveUnit(u)">Save</button>
+        <button class="small danger" @click="delUnit(u)">Delete</button>
+      </div>
+    </template>
+    <form class="row" @submit.prevent="addUnit()" style="margin-top: .8rem">
+      <input class="grow" placeholder="New unit, e.g. slice" x-model="newUnit">
+      <input class="grow" placeholder="plural (slices)" x-model="newUnitPlural">
+      <button class="primary">Add</button>
+    </form>
+  </div>
+
+  <h2>Conversions</h2>
+  <p class="muted small">General ones that hold for anything, like 1 kg = 1000 g. Pack sizes go on the product itself
+    ("bought as"), since a pack of chicken strips and a pack of mince aren't the same.</p>
+  <div class="card">
+    <template x-for="c in conversions" :key="c.id">
+      <div class="row" style="margin-bottom: .3rem">
+        <span class="grow" x-text="'1 ' + c.from_unit + ' = ' + num(c.factor) + ' ' + c.to_unit"></span>
+        <button class="small danger" @click="delConv(c)">Delete</button>
+      </div>
+    </template>
+    <form class="row" @submit.prevent="addConv()" style="margin-top: .8rem">
+      <span>1</span>
+      <select x-model="conv.from" style="width: auto" required>
+        <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+      </select>
+      <span>=</span>
+      <input type="number" step="any" min="0" x-model="conv.factor" style="width: 6rem" required>
+      <select x-model="conv.to" style="width: auto" required>
+        <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+      </select>
+      <button class="primary">Add</button>
+    </form>
+  </div>
+</div>
+<script>
+function managePage() {
+  return {
+    locations: [], units: [], conversions: [], newLoc: '', newLocFreezer: false, newUnit: '', newUnitPlural: '',
+    conv: { from: '', to: '', factor: '' },
+    async load() {
+      [this.locations, this.units, this.conversions] = await Promise.all([
+        api('/api/locations'), api('/api/units'), api('/api/conversions')]);
+      this.locations.forEach(l => l.is_freezer = !!l.is_freezer);
+    },
+    async run(fn, msg) {
+      try { await fn(); if (msg) toast(msg); await this.load(); } catch (e) { oops(e); }
+    },
+    addLoc() {
+      return this.run(async () => {
+        await api('/api/locations', { method: 'POST', body: { name: this.newLoc, is_freezer: this.newLocFreezer, sort: this.locations.length } });
+        this.newLoc = ''; this.newLocFreezer = false;
+      });
+    },
+    saveLoc(l) {
+      return this.run(() => api('/api/locations/' + l.id, { method: 'PUT', body: { name: l.name, is_freezer: l.is_freezer, sort: l.sort } }), 'Saved');
+    },
+    delLoc(l) {
+      if (!confirm('Delete ' + l.name + '? Stock in it stays but loses its location.')) return;
+      return this.run(() => api('/api/locations/' + l.id, { method: 'DELETE' }));
+    },
+    addUnit() {
+      return this.run(async () => {
+        await api('/api/units', { method: 'POST', body: { name: this.newUnit, name_plural: this.newUnitPlural } });
+        this.newUnit = ''; this.newUnitPlural = '';
+      });
+    },
+    saveUnit(u) {
+      return this.run(() => api('/api/units/' + u.id, { method: 'PUT', body: { name: u.name, name_plural: u.name_plural } }), 'Saved');
+    },
+    delUnit(u) {
+      return this.run(() => api('/api/units/' + u.id, { method: 'DELETE' }));
+    },
+    addConv() {
+      return this.run(async () => {
+        await api('/api/conversions', { method: 'POST', body: {
+          from_unit_id: Number(this.conv.from), to_unit_id: Number(this.conv.to), factor: Number(this.conv.factor) } });
+        this.conv.factor = '';
+      });
+    },
+    delConv(c) {
+      return this.run(() => api('/api/conversions/' + c.id, { method: 'DELETE' }));
+    },
+  };
+}
+</script>
+{% endblock %}
