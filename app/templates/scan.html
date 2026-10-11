@@ -115,56 +115,87 @@
         </template>
       </div>
 
-      <form @submit.prevent="create()">
-        <h2>Or make a new product</h2>
-        <label>Name</label>
-        <input x-model="np.name" required>
+      <p class="small" x-show="mode == 'consume'">
+        This barcode has no stock to consume. Link it to an existing product above, or switch to Purchase to add stock.
+      </p>
+      <div class="row" x-show="mode == 'consume'">
+        <button type="button" @click="setMode('purchase')">Switch to Purchase</button>
+        <button type="button" @click="reset(true)">Cancel</button>
+      </div>
+
+      <form x-show="mode == 'purchase'" @submit.prevent="create()">
+        <h2 x-text="createdProduct ? 'Add stock to ' + createdProduct.name : 'Or make a new product'"></h2>
+        <p class="small muted" x-show="createdProduct">Product and barcode saved. Stock has not been added yet; retry below.</p>
+        <fieldset :disabled="!!createdProduct" style="border: 0; padding: 0; margin: 0">
+          <label>Name</label>
+          <input x-model="np.name" required>
+          <div class="grid2">
+            <div>
+              <label>Count it in</label>
+              <select x-model="np.unit_id">
+                <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name" :selected="u.id == np.unit_id"></option></template>
+              </select>
+            </div>
+          </div>
+          <div class="grid2">
+            <div>
+              <label>Bought as (optional)</label>
+              <select x-model="np.purchase_unit_id">
+                <option value="">Same</option>
+                <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+              </select>
+            </div>
+            <div x-show="np.purchase_unit_id && np.purchase_unit_id != np.unit_id">
+              <label>How many in one?</label>
+              <input type="number" step="any" min="0" x-model.number="np.purchase_factor">
+            </div>
+          </div>
+          <div class="grid2">
+            <div>
+              <label>Date type</label>
+              <select x-model="np.shelf_life_kind">
+                <option value="best_by">Best by</option>
+                <option value="use_by">Use by</option>
+              </select>
+            </div>
+          </div>
+          <label class="inline" style="margin-top: .6rem" x-show="unknown.off && unknown.off.image_url">
+            <input type="checkbox" x-model="np.use_pic"> Use the OpenFoodFacts picture
+          </label>
+          <details style="margin-top: .6rem">
+            <summary>Advanced product settings</summary>
+            <label>Default shelf life (days, optional)</label>
+            <input type="number" min="0" x-model="np.default_days">
+            <p class="small muted">For future purchases when no packet date is entered.</p>
+          </details>
+        </fieldset>
         <div class="grid2">
           <div>
-            <label>Count it in</label>
-            <select x-model="np.unit_id">
-              <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name" :selected="u.id == np.unit_id"></option></template>
-            </select>
+            <label>Quantity</label>
+            <input type="number" step="any" min="0.000001" x-model.number="amount" required>
+            <p class="small muted" x-text="'In ' + ((units.find(u => u.id == (np.purchase_unit_id || np.unit_id)) || {}).name || '')"></p>
           </div>
           <div>
-            <label>Location</label>
+            <label x-text="shelfLabel(np.shelf_life_kind)"></label>
+            <input type="date" x-model="expires_on">
+            <p class="small muted">Date printed on this packet.</p>
+          </div>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>Price (optional)</label>
+            <input type="number" step="0.01" min="0" x-model="price">
+          </div>
+          <div>
+            <label>Stock location</label>
             <select x-model="np.location_id">
-              <option value="">None</option>
+              <option value="">Default</option>
               <template x-for="l in locations" :key="l.id"><option :value="l.id" x-text="l.name" :selected="l.id == np.location_id"></option></template>
             </select>
           </div>
         </div>
-        <div class="grid2">
-          <div>
-            <label>Bought as (optional)</label>
-            <select x-model="np.purchase_unit_id">
-              <option value="">Same</option>
-              <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
-            </select>
-          </div>
-          <div x-show="np.purchase_unit_id && np.purchase_unit_id != np.unit_id">
-            <label>How many in one?</label>
-            <input type="number" step="any" min="0" x-model.number="np.purchase_factor">
-          </div>
-        </div>
-        <div class="grid2">
-          <div>
-            <label>Date type</label>
-            <select x-model="np.shelf_life_kind">
-              <option value="best_by">Best by</option>
-              <option value="use_by">Use by</option>
-            </select>
-          </div>
-          <div>
-            <label>Usually keeps (days)</label>
-            <input type="number" min="0" x-model="np.default_days">
-          </div>
-        </div>
-        <label class="inline" style="margin-top: .6rem" x-show="unknown.off && unknown.off.image_url">
-          <input type="checkbox" x-model="np.use_pic"> Use the OpenFoodFacts picture
-        </label>
         <div class="row" style="margin-top: 1rem">
-          <button class="primary" :disabled="busy">Create</button>
+          <button class="primary" :disabled="busy" x-text="createdProduct ? 'Retry adding to stock' : 'Create product and add to stock'"></button>
           <button type="button" @click="reset(true)">Cancel</button>
         </div>
       </form>
@@ -189,7 +220,7 @@ function scanPage() {
     stream: null, detector: null, zx: null, timer: null,
     code: '', product: null, unknown: null, picture: '',
     amount: 1, unit_id: null, location_id: '', expires_on: '', spoiled: false,
-    units: [], locations: [], np: {}, linkQ: '', linkFound: [],
+    units: [], locations: [], np: {}, linkQ: '', linkFound: [], createdProduct: null, price: '',
 
     async init() {
       if (!this.hasNative) this.engine = 'zxing';
@@ -210,6 +241,11 @@ function scanPage() {
     // --- camera ---
     async start() {
       this.camErr = '';
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        this.stop(true);
+        this.camErr = 'Camera access needs HTTPS (or localhost) and a browser with camera support. Open Larder over HTTPS, or type a barcode manually below.';
+        return;
+      }
       this.reset(false);
       this.camOn = true;
       try {
@@ -348,6 +384,7 @@ function scanPage() {
     },
 
     async create() {
+      if (this.busy || this.mode != 'purchase') return;
       this.busy = true;
       const n = this.np;
       const body = {
@@ -361,11 +398,23 @@ function scanPage() {
         picture_url: (n.use_pic && this.unknown.off) ? this.unknown.off.image_url : null,
       };
       try {
-        const p = await api('/api/products', { method: 'POST', body });
-        toast('Made ' + p.name);
-        this.showProduct(p, null);
-      } catch (e) { oops(e); }
-      this.busy = false;
+        // Retain the successful create across purchase failures; retries only add stock.
+        if (!this.createdProduct) {
+          this.createdProduct = await api('/api/products', { method: 'POST', body });
+        }
+        const p = this.createdProduct;
+        const r = await api('/api/stock/purchase', { method: 'POST', body: {
+          product_id: p.id, amount: this.amount,
+          unit_id: p.purchase_unit_id || p.unit_id,
+          location_id: n.location_id ? Number(n.location_id) : null,
+          expires_on: this.expires_on || null,
+          price: this.price === '' ? null : Number(this.price),
+        } });
+        if (n.location_id) localStorage.setItem('larder.loc.' + this.code, n.location_id);
+        toast('Added ' + qty(r.added, p.unit, p.unit_plural) + ' ' + p.name);
+        this.busy = false;
+        this.reset(true);
+      } catch (e) { oops(e); this.busy = false; }
     },
     async link(productId) {
       try {
@@ -388,6 +437,7 @@ function scanPage() {
     reset(restart) {
       this.product = null; this.unknown = null; this.picture = ''; this.manual = '';
       this.linkQ = ''; this.linkFound = []; this.barcodeAmount = null;
+      this.createdProduct = null; this.amount = 1; this.expires_on = ''; this.price = '';
       // go straight back to scanning if the camera was in use
       if (restart && this.camOn && !this.scanning) this.start();
     },
