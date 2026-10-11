@@ -1,7 +1,13 @@
-"""Optional native Hermes text transports, with standalone direct API backends."""
-import httpx
+"""Plain direct API backends for meal/recipe suggestions. No Hermes involved.
+
+Each provider is a small function: (prompt, key, model, base_url, system) -> text.
+Plain HTTP calls with httpx, no vendor SDKs. Add another one by writing the
+function, adding it to PROVIDERS, and (optionally) giving it a model list.
+"""
+import uuid
 from urllib.parse import urlsplit
-from .hermes_bridge import catalogue as hermes_catalog, call as hermes_call, BridgeError
+
+import httpx
 
 TIMEOUT = 90
 
@@ -10,9 +16,9 @@ class ProviderError(Exception):
     pass
 
 
-def _post(url, headers, body):
+def _post(url, headers, body, params=None):
     try:
-        r = httpx.post(url, headers=headers, json=body, timeout=TIMEOUT)
+        r = httpx.post(url, headers=headers, json=body, params=params, timeout=TIMEOUT)
     except httpx.HTTPError:
         raise ProviderError("Provider request failed or timed out")
     if r.status_code >= 400:
@@ -23,13 +29,15 @@ def _post(url, headers, body):
         raise ProviderError("Provider sent back something that isn't json")
 
 
-def _chat_completions(url, prompt, key, model, system):
+def _chat_completions(url, prompt, key, model, system, extra_headers=None):
     """The openai style /chat/completions api, which a lot of providers copy."""
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
     headers = {"Authorization": f"Bearer {key}"} if key else {}
+    if extra_headers:
+        headers.update(extra_headers)
     data = _post(url, headers, {"model": model, "messages": messages})
     try:
         return data["choices"][0]["message"]["content"] or ""
@@ -45,11 +53,6 @@ def openai(prompt, key, model, base_url, system=None):
 def openrouter(prompt, key, model, base_url, system=None):
     base = (base_url or "https://openrouter.ai/api/v1").rstrip("/")
     return _chat_completions(base + "/chat/completions", prompt, key, model or "openai/gpt-4o-mini", system)
-
-
-def deepseek(prompt, key, model, base_url, system=None):
-    base = (base_url or "https://api.deepseek.com").rstrip("/")
-    return _chat_completions(base + "/chat/completions", prompt, key, model or "deepseek-chat", system)
 
 
 def anthropic(prompt, key, model, base_url, system=None):
@@ -79,113 +82,141 @@ def ollama(prompt, key, model, base_url, system=None):
         raise ProviderError("Unexpected reply format")
 
 
+def gemini(prompt, key, model, base_url, system=None):
+    base = (base_url or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
+    model = model or "gemini-3-flash-preview"
+    body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
+    if system:
+        body["systemInstruction"] = {"parts": [{"text": system}]}
+    data = _post(f"{base}/models/{model}:generateContent", {}, body, params={"key": key})
+    try:
+        parts = data["candidates"][0]["content"]["parts"]
+        return "".join(p.get("text", "") for p in parts)
+    except (KeyError, IndexError, TypeError):
+        raise ProviderError("Unexpected reply format")
+
+
+def opencode_go(prompt, key, model, base_url, system=None):
+    """OpenCode Go. Openai-compatible, but the relay needs a session header on
+    every request or it answers 400 MissingSessionID - there's no multi-turn
+    conversation here, so a fresh id per call is fine."""
+    base = (base_url or "https://opencode.ai/zen/go/v1").rstrip("/")
+    session = "larder-" + uuid.uuid4().hex[:24]
+    return _chat_completions(base + "/chat/completions", prompt, key, model or "deepseek-v4.1-flash", system,
+                              extra_headers={"x-opencode-session": session})
+
+
 PROVIDERS = {
-    "openai": openai,
     "anthropic": anthropic,
-    "openrouter": openrouter,
-    "deepseek": deepseek,
+    "openai": openai,
     "ollama": ollama,
+    "opencode-go": opencode_go,
+    "gemini": gemini,
+    "openrouter": openrouter,
 }
 
 # ollama runs locally and doesn't need a key
-NEEDS_KEY = {"openai", "anthropic", "openrouter", "deepseek"}
+NEEDS_KEY = {"anthropic", "openai", "opencode-go", "gemini", "openrouter"}
+
+LABELS = {
+    "anthropic": "Claude (Anthropic)",
+    "openai": "OpenAI",
+    "ollama": "Local LLM (Ollama)",
+    "opencode-go": "OpenCode Go",
+    "gemini": "Gemini (Google)",
+    "openrouter": "OpenRouter",
+}
+
+DEFAULT_MODELS = {
+    "anthropic": "claude-sonnet-5",
+    "openai": "gpt-4o-mini",
+    "ollama": "llama3.1",
+    "opencode-go": "deepseek-v4.1-flash",
+    "gemini": "gemini-3-flash-preview",
+    "openrouter": "openai/gpt-4o-mini",
+}
+
+SETUP_TEXT = {
+    "anthropic": "Paste an Anthropic API key from console.anthropic.com.",
+    "openai": "Paste an OpenAI API key from platform.openai.com.",
+    "ollama": "Runs on your own machine or network. Enter the address if it's not on this server.",
+    "opencode-go": "Paste an OpenCode Go API key from opencode.ai. Pick any model from its lineup below.",
+    "gemini": "Paste a Google AI Studio API key (aistudio.google.com/apikey).",
+    "openrouter": "Paste an OpenRouter API key from openrouter.ai.",
+}
+
+# Shown as suggestions in the model field; any model name the provider actually
+# serves can still be typed in. Kept short and current rather than exhaustive.
+PROVIDER_MODELS = {
+    "anthropic": ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"],
+    "gemini": ["gemini-3-flash-preview", "gemini-3-pro-preview"],
+    "opencode-go": [
+        "deepseek-v4.1-flash", "deepseek-v4-flash", "deepseek-v4-pro", "deepseek-v4-flash-vision-exp",
+        "glm-5.3-flash", "glm-5.3", "glm-5.2", "glm-5.1", "glm-5",
+        "qwen3.8-max", "qwen3.8-flash", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-plus", "qwen3.5-plus",
+        "kimi-k3", "kimi-k2.7-code", "kimi-k2.6", "kimi-k2.5",
+        "grok-4.7", "grok-4.6", "grok-4.5",
+        "minimax-m3", "minimax-m2.7", "minimax-m2.5",
+        "mimo-v2.6-pro", "mimo-v2.6-flash", "mimo-v2.5-pro", "mimo-v2.5", "mimo-v2-pro", "mimo-v2-omni",
+        "gpt-6-luna", "gpt-5.6-luna",
+        "claude-haiku-5-5", "hy4-preview", "hy3", "hy3-preview",
+        "longcat-2.5-preview-free", "longcat-2.0", "step-5-preview-free",
+        "space-bunny", "space-bunny-free",
+    ],
+}
 
 
 def catalogue():
-    native = hermes_catalog()
-    result = []
-    for p in native:
-        p = dict(p, backend='hermes', state='Unsupported' if p.get('reason') else 'Setup required')
-        p['setup'] = setup_text(p)
-        result.append(p)
-    # Standalone direct settings remain available under their existing identities.
+    out = []
     for slug in PROVIDERS:
-        if not any(p['slug'] == slug for p in result):
-            p = dict(slug=slug, label=slug.title() + ' (direct)', backend='direct',
-                     auth_type='local' if slug == 'ollama' else 'api_key', models=[],
-                     api_mode='anthropic_messages' if slug == 'anthropic' else 'chat_completions',
-                     reason='', state='Setup required', default_model='')
-            p['setup'] = setup_text(p)
-            result.append(p)
-    return result
-
-
-def setup_text(p):
-    slug, auth = p['slug'], p['auth_type']
-    if p.get('reason'):
-        return p['reason']
-    if slug == 'claude-subscription-directsdk-experimental':
-        return 'Sign in with claude auth login in the server terminal. Requires the experimental Hermes plugin and Claude Code. Admin must explicitly enable server account reuse.'
-    if slug == 'anthropic':
-        return 'Anthropic API key, or native Claude sign-in with extra usage billing. This is separate from the Claude subscription DirectSDK plugin.'
-    if auth.startswith('oauth') or slug == 'copilot':
-        return 'Sign in using hermes auth add ' + slug + ' in the server terminal, then an admin can enable server account reuse. No browser login is launched here.'
-    if auth in {'aws_sdk', 'vertex'}:
-        return 'Cloud SDK credentials are required in a dedicated runtime profile; ambient server credentials are not inherited.'
-    if slug in {'lmstudio', 'custom', 'ollama'}:
-        return 'Configure a local endpoint and model; enter a key only if the endpoint requires it.'
-    return 'Enter a provider API key and model, or ask an admin to explicitly enable an existing server account.'
+        out.append(dict(
+            slug=slug, label=LABELS.get(slug, slug.title()),
+            auth_type="local" if slug == "ollama" else "api_key",
+            models=PROVIDER_MODELS.get(slug, []), default_model=DEFAULT_MODELS.get(slug, ""),
+            setup=SETUP_TEXT.get(slug, "Enter a provider API key and model."),
+        ))
+    return out
 
 
 def validate_settings(provider, model, base_url):
-    if provider not in {p['slug'] for p in catalogue()}:
-        raise ProviderError('Provider is unavailable in the installed catalogue')
-    if provider in {'custom', 'lmstudio'} and not base_url:
-        raise ProviderError('This provider requires an explicit endpoint')
+    if provider not in PROVIDERS:
+        raise ProviderError("Unknown provider")
     if len(model) > 200 or any(ord(c) < 32 for c in model):
-        raise ProviderError('Invalid model name')
+        raise ProviderError("Invalid model name")
     if base_url:
         try:
             u = urlsplit(base_url)
         except ValueError:
-            raise ProviderError('Invalid base URL')
-        if u.scheme not in {'http', 'https'} or not u.hostname or u.username or u.password or u.query or u.fragment:
-            raise ProviderError('Use an HTTP(S) base URL without credentials, query or fragment')
-        if u.scheme == 'http' and u.hostname not in {'localhost', '127.0.0.1', '::1'}:
-            raise ProviderError('Remote endpoints require HTTPS')
+            raise ProviderError("Invalid base URL")
+        if u.scheme not in {"http", "https"} or not u.hostname or u.username or u.password or u.query or u.fragment:
+            raise ProviderError("Use an HTTP(S) base URL without credentials, query or fragment")
+        if u.scheme == "http" and u.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            raise ProviderError("Remote endpoints require HTTPS")
 
 
 def is_configured(settings):
-    if not settings:
+    if not settings or settings.get("provider") not in PROVIDERS:
         return False
-    p = next((p for p in catalogue() if p['slug'] == settings['provider']), None)
-    if not p or p.get('reason'):
-        return False
-    if p['backend'] == 'hermes':
-        if settings['provider'] in {'custom', 'lmstudio'} and not settings.get('base_url'):
-            return False
-        model = settings.get('model') or p.get('default_model') or next(iter(p.get('models', [])), '')
-        return bool(model and (settings.get('reuse_account') or settings.get('api_key') or
-                    (settings['provider'] in {'lmstudio','custom'} and settings.get('base_url'))))
-    return bool(settings.get('api_key')) if settings['provider'] in NEEDS_KEY else True
+    if settings["provider"] in NEEDS_KEY:
+        return bool(settings.get("api_key"))
+    return True
 
 
 def ask_with_provenance(settings, prompt, system=None):
     if not is_configured(settings):
-        raise ProviderError('Suggestions unavailable; connect a provider in Settings or use saved recipes/manual ingredients')
+        raise ProviderError("Suggestions unavailable; connect a provider in Settings or use saved recipes/manual ingredients")
     if len(prompt) > 80000:
-        raise ProviderError('Suggestion request is too large')
-    validate_settings(settings['provider'], settings['model'], settings['base_url'])
-    p = next(p for p in catalogue() if p['slug'] == settings['provider'])
-    if p['backend'] == 'hermes':
-        try:
-            return hermes_call(dict(action='generate', provider=settings['provider'], model=settings.get('model') or p.get('default_model') or next(iter(p.get('models', [])), ''),
-                               api_key=settings['api_key'], base_url=settings['base_url'], prompt=prompt, system=system,
-                               account_owner=settings.get('user_id')),
-                               reuse=bool(settings.get('reuse_account')))
-        except (BridgeError, OSError):
-            raise ProviderError('Hermes provider unavailable or timed out; check sign-in, plugin and runtime dependencies. No fallback was used.')
-    text = PROVIDERS[settings['provider']](prompt, settings['api_key'], settings['model'], settings['base_url'], system)
+        raise ProviderError("Suggestion request is too large")
+    validate_settings(settings["provider"], settings.get("model") or "", settings.get("base_url") or "")
+    model = (settings.get("model") or "").strip() or DEFAULT_MODELS.get(settings["provider"], "")
+    text = PROVIDERS[settings["provider"]](prompt, settings.get("api_key"), model, settings.get("base_url"), system)
     if not isinstance(text, str) or len(text) > 100000:
-        raise ProviderError('Provider returned invalid or oversized text')
-    defaults = {'openai':'gpt-4o-mini','anthropic':'claude-sonnet-5','openrouter':'openai/gpt-4o-mini',
-                'deepseek':'deepseek-chat','ollama':'llama3.1'}
-    model = settings['model'] or defaults[settings['provider']]
-    if settings.get('api_key'):
-        text = text.replace(settings['api_key'], '[redacted]')
-    return dict(text=text, requested_provider=settings['provider'], served_provider=settings['provider'],
+        raise ProviderError("Provider returned invalid or oversized text")
+    if settings.get("api_key"):
+        text = text.replace(settings["api_key"], "[redacted]")
+    return dict(text=text, requested_provider=settings["provider"], served_provider=settings["provider"],
                 requested_model=model, served_model=model, fallback=False)
 
 
 def ask(settings, prompt, system=None):
-    return ask_with_provenance(settings, prompt, system)['text']
+    return ask_with_provenance(settings, prompt, system)["text"]

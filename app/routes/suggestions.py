@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 import math
 
 from .. import providers
-from ..hermes_bridge import discard_account, BridgeError
 from ..auth import current_user
 from ..db import get_db, row, rows
 from .mealplan import PORTION_FACTOR, SLOTS
@@ -18,12 +17,11 @@ router = APIRouter(prefix="/api", tags=["suggestions"])
 
 
 class SettingsIn(BaseModel):
-    provider: str = Field(default="openai", max_length=120)
+    provider: str = Field(default="anthropic", max_length=120)
     api_key: str | None = None  # None = keep the one that's saved
     model: str = ""
     base_url: str = ""
     shared: bool = False
-    reuse_account: bool = False
 
 
 class MealIdeasIn(BaseModel):
@@ -40,11 +38,9 @@ class RecipeIdeaIn(BaseModel):
 def settings_for(db, user):
     """The user's own provider settings, or a household-shared one if they don't have any."""
     s = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
-    if s and (not s.get("reuse_account") or user.get("is_admin")) and providers.is_configured(s):
+    if s and providers.is_configured(s):
         return s
-    if s:
-        return None  # A selected but unavailable provider must not silently switch accounts.
-    for s in rows(db.execute("SELECT s.* FROM suggestion_settings s JOIN users u ON u.id=s.user_id WHERE s.shared = 1 AND (s.reuse_account=0 OR u.is_admin=1) ORDER BY s.user_id")):
+    for s in rows(db.execute("SELECT * FROM suggestion_settings WHERE shared = 1 ORDER BY user_id")):
         if providers.is_configured(s):
             return s
     return None
@@ -108,11 +104,10 @@ def status(db=Depends(get_db), user=Depends(current_user)):
 def get_settings(db=Depends(get_db), user=Depends(current_user)):
     s = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
     if not s:
-        s = dict(provider="openai", model="", base_url="", shared=False, reuse_account=False, api_key="")
+        s = dict(provider="anthropic", model="", base_url="", shared=False, api_key="")
     key = s.pop('api_key')
     s['has_key'] = bool(key)
     s['shared'] = bool(s['shared'])
-    s['reuse_account'] = bool(s['reuse_account'])
     s['providers'] = providers.catalogue()
     s['state'] = 'Connection not verified' if providers.is_configured(dict(s,api_key=key)) else 'Setup required'
     return s
@@ -120,40 +115,24 @@ def get_settings(db=Depends(get_db), user=Depends(current_user)):
 
 @router.put("/me/suggestions")
 def save_settings(data: SettingsIn, db=Depends(get_db), user=Depends(current_user)):
-    if data.reuse_account and not user.get('is_admin'):
-        raise HTTPException(403, 'Only an administrator can enable server account reuse')
     try:
         providers.validate_settings(data.provider, data.model.strip(), data.base_url.strip())
     except providers.ProviderError as e:
         raise HTTPException(400, str(e))
-    if data.reuse_account and data.base_url.strip():
-        raise HTTPException(400, 'Server account reuse uses the provider endpoint; custom origins require a separate key')
     old = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
-    if old and old['reuse_account'] and (not data.reuse_account or old['provider'] != data.provider):
-        try:
-            discard_account(user['id'], old['provider'])
-        except (BridgeError, OSError):
-            raise HTTPException(409, 'Provider account is busy; retry shortly')
     same_scope = old and old['provider'] == data.provider and old['base_url'] == data.base_url.strip()
     key = data.api_key.strip() if data.api_key is not None else (old['api_key'] if same_scope else '')
-    db.execute("""INSERT INTO suggestion_settings (user_id, provider, api_key, model, base_url, shared, reuse_account)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)
+    db.execute("""INSERT INTO suggestion_settings (user_id, provider, api_key, model, base_url, shared)
+                  VALUES (?, ?, ?, ?, ?, ?)
                   ON CONFLICT(user_id) DO UPDATE SET provider = excluded.provider, api_key = excluded.api_key,
-                      model = excluded.model, base_url = excluded.base_url, shared = excluded.shared,
-                      reuse_account = excluded.reuse_account""",
-               (user['id'], data.provider, key, data.model.strip(), data.base_url.strip(), int(data.shared), int(data.reuse_account)))
+                      model = excluded.model, base_url = excluded.base_url, shared = excluded.shared""",
+               (user['id'], data.provider, key, data.model.strip(), data.base_url.strip(), int(data.shared)))
     db.commit()
     return get_settings(db, user)
 
 
 @router.delete("/me/suggestions")
 def clear_settings(db=Depends(get_db), user=Depends(current_user)):
-    old = row(db.execute('SELECT * FROM suggestion_settings WHERE user_id=?', (user['id'],)))
-    if old and old['reuse_account']:
-        try:
-            discard_account(user['id'], old['provider'])
-        except (BridgeError, OSError):
-            raise HTTPException(409, 'Provider account is busy; retry shortly')
     db.execute("DELETE FROM suggestion_settings WHERE user_id = ?", (user["id"],))
     db.commit()
     return {"ok": True}

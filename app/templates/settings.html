@@ -56,12 +56,12 @@
 
   <h2>Suggestions</h2>
   <div class="card">
-    <p class="muted small">Connect a provider for draft meal and ingredient suggestions. Keys stay on this server. Subscription sign-in uses the server terminal; saved recipes and manual ingredients work without a connection.</p>
+    <p class="muted small">Connect a provider for draft meal and ingredient suggestions. Keys stay on this server. Saved recipes and manual ingredients work without a connection.</p>
     <form @submit.prevent="saveSuggest()">
       <div class="grid2">
         <div>
-          <label class="field">Provider<select x-model="sg.provider" @change="sg.api_key = ''; sg.has_key = false; sg.state = 'Setup required'; sg.base_url = ''; sg.model = ''; sg.reuse_account = false; sg.shared = false; connectionRoute = ''">
-            <template x-for="p in (sg.providers || [])" :key="p.slug"><option :value="p.slug" x-text="p.label + ' — ' + p.auth_type"></option></template>
+          <label class="field">Provider<select x-model="sg.provider" @change="sg.api_key = ''; sg.has_key = false; sg.state = 'Setup required'; sg.base_url = ''; sg.model = ''; sg.shared = false; connectionRoute = ''">
+            <template x-for="p in (sg.providers || [])" :key="p.slug"><option :value="p.slug" x-text="p.label"></option></template>
           </select></label>
         </div>
         <div>
@@ -72,11 +72,6 @@
       <p class="muted small" x-text="selectedProvider().setup"></p>
 <p class="small" role="status" x-text="sg.state || 'Setup required'"></p>
       <p class="muted small" x-text="connectionRoute"></p>
-      <p class="muted small">Model choices come from the installed catalogue; account availability is checked only by an explicit connection test. Automatic fallback is disabled.</p>
-      {% if user.is_admin %}
-      <label class="inline"><input type="checkbox" x-model="sg.reuse_account"> Reuse this server's signed-in provider account (admin only)</label>
-      <p class="muted small">Private by default. Household use requires the separate sharing option below.</p>
-      {% endif %}
       <label class="field"><span x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></span>
       <input :aria-label="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'" type="password" x-model="sg.api_key" autocomplete="off"
              :placeholder="sg.has_key ? 'saved (' + (sg.key_hint || 'hidden') + '), leave blank to keep it' : ''"></label>
@@ -156,15 +151,13 @@ function settingsPage() {
     },
     selectedProvider() { return (this.sg.providers || []).find(p => p.slug === this.sg.provider) || {}; },
     modelHint() {
-      if (this.selectedProvider().default_model) return this.selectedProvider().default_model;
-      return ({ openai: 'gpt-4o-mini', anthropic: 'claude-sonnet-5', openrouter: 'openai/gpt-4o-mini',
-                deepseek: 'deepseek-chat', ollama: 'llama3.1' })[this.sg.provider] || '';
+      return this.selectedProvider().default_model || '';
     },
     async saveSuggest() {
       try {
         this.sg = await api('/api/me/suggestions', { method: 'PUT', body: {
           provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
-          model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared, reuse_account: !!this.sg.reuse_account } });
+          model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared } });
         this.sg.api_key = '';
         toast('Saved');
       } catch (e) { oops(e); }

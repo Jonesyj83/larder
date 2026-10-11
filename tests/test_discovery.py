@@ -51,9 +51,18 @@ class ProviderSafety(unittest.TestCase):
             with self.assertRaises(providers.ProviderError) as e: providers._post('https://example.invalid',{}, {})
         self.assertNotIn('secret-token',str(e.exception))
     def test_standalone_and_configuration(self):
-        with patch.object(providers,'hermes_catalog',return_value=[]):
-            self.assertEqual({p['slug'] for p in providers.catalogue()},set(providers.PROVIDERS))
+        self.assertEqual({p['slug'] for p in providers.catalogue()},set(providers.PROVIDERS))
         with self.assertRaises(providers.ProviderError): providers.validate_settings('openai','m','https://user:secret@example.invalid')
+    def test_opencode_go_sends_session_header(self):
+        import httpx
+        captured = {}
+        def fake_post(url, headers=None, json=None, params=None, timeout=None):
+            captured['headers'] = headers
+            return httpx.Response(200, json={'choices':[{'message':{'content':'ok'}}]})
+        with patch.object(httpx,'post',side_effect=fake_post):
+            text = providers.opencode_go('hi','key','deepseek-v4.1-flash',None)
+        self.assertEqual(text,'ok')
+        self.assertIn('x-opencode-session',captured['headers'])
 
 class Provenance(unittest.TestCase):
     setUp = test_planning.Planning.setUp
