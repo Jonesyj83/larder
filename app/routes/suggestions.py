@@ -8,8 +8,9 @@ from pydantic import BaseModel, Field
 import math
 
 from .. import providers
+from .. import stock as st
 from ..auth import current_user
-from ..db import get_db, row, rows
+from ..db import begin, get_db, row, rows
 from .mealplan import PORTION_FACTOR, SLOTS
 from .recipes import list_recipes
 
@@ -220,16 +221,23 @@ def _parse_json(text):
 
 @router.post("/suggestions/recipe")
 def recipe_idea(data: RecipeIdeaIn, db=Depends(get_db), user=Depends(current_user)):
-    prompt = f"""Draft a proposed recipe for user review. Amounts are estimates, not authoritative nutrition or medical advice. Ingredients may be out of stock.
-{('What I fancy: ' + data.idea) if data.idea.strip() else ''}
-{'Try to use up the things going off soonest.' if data.use_expiring else ''}
+    ask = data.idea.strip()
+    prompt = f"""Draft a proposed recipe for user review. Amounts are estimates, not authoritative
+nutrition or medical advice.
+{('The main thing: ' + ask + '. This is what they actually want - give them that dish, even if we '
+  "don't have everything for it. Don't substitute a different dish just because of what's in stock.")
+ if ask else 'Suggest something using what is in stock.'}
+{("Where it fits the dish above, lean towards using things that are going off soonest, "
+  "but don't change what dish this is just to use them up.") if data.use_expiring else ''}
 
-In stock:
+In stock right now (for reference - it's fine, expected even, if the dish above needs things we
+don't have; list them as normal ingredients, don't leave them out or swap them for what we have):
 {_kitchen(db)}
 
 Reply with only JSON, nothing before or after, like this:
 {{"name": "...", "servings": 2, "ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ...\\n2. ..."}}
-Use the same ingredient names as the stock list where you can. Units should be simple: piece, g, kg, ml, l, tin, pack."""
+Use the same ingredient names as the stock list where an ingredient is something we already have.
+Units should be simple: piece, g, kg, ml, l, tin, pack."""
     text = _run(db, user, prompt, SYSTEM)
     parsed = _parse_json(text)
     if not parsed or not isinstance(parsed.get("ingredients"), list):
@@ -272,12 +280,68 @@ def review_recipe(db, parsed, wanted=None):
             raise HTTPException(502, 'Invalid ingredient unit; nothing was saved')
         name = item['name'].strip()
         match = next((p for p in products if p['name'].casefold() == name.casefold()),None)
-        ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=units.get(unit.strip().casefold()),
+        unit_id = units.get(unit.strip().casefold())
+        have = short = None
+        if match:
+            try:
+                need = st.to_stock_units(db, match, amount, unit_id)
+                have = st.in_stock(db, match['id'])
+                short = max(0.0, need - have)
+            except st.StockError:
+                pass  # a unit we can't convert just skips the have/short hint
+        ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=unit_id,
                                 product_id=None, product=match['name'] if match else None,
                                 suggested_product_id=match['id'] if match else None,
+                                have=have, short=short if match else amount,
                                 note='' if unit.strip().casefold() in units else 'Proposed unit: ' + unit + '. Choose a valid unit.'))
     return dict(name=str(parsed.get('name') or 'Proposed recipe')[:200], servings=wanted or servings,
                 ingredients=ingredients, instructions=str(parsed.get('instructions') or '')[:20000])
+
+
+class MissingIngredientIn(BaseModel):
+    name: str = Field(default="", max_length=200)
+    amount: float = Field(gt=0, le=1000000, allow_inf_nan=False)
+    unit: str = Field(default="", max_length=80)
+    unit_id: int | None = None
+    suggested_product_id: int | None = None
+
+
+class AddMissingIn(BaseModel):
+    name: str = Field(default="Suggested recipe", max_length=200)
+    ingredients: list[MissingIngredientIn] = Field(default_factory=list, max_length=50)
+
+
+@router.post("/suggestions/add-missing")
+def add_missing_from_suggestion(data: AddMissingIn, db=Depends(get_db), user=Depends(current_user)):
+    """Put a suggested recipe's shortfall onto the shopping list, without saving it
+    as a recipe first. The amount sent for each line is already net of what's in
+    stock (the review screen already worked that out) - this only avoids double
+    counting against whatever's already sitting on the shopping list."""
+    from .shopping import add_item, listed_amount
+    begin(db)
+    added = 0
+    for item in data.ingredients:
+        pid = item.suggested_product_id
+        if pid:
+            p = row(db.execute("SELECT * FROM products WHERE id = ?", (pid,)))
+            if not p:
+                pid = None
+        if pid:
+            try:
+                need = st.to_stock_units(db, p, item.amount, item.unit_id)
+            except st.StockError:
+                continue
+            extra = need - listed_amount(db, pid)
+            if extra > 1e-9:
+                add_item(db, pid, extra, p["unit_id"], user_id=user["id"],
+                         source="suggestion", source_label=data.name)
+                added += 1
+        elif item.name.strip():
+            add_item(db, None, item.amount, item.unit_id, name=item.name.strip(),
+                     user_id=user["id"], source="suggestion", source_label=data.name)
+            added += 1
+    db.commit()
+    return {"added": added}
 
 
 @router.post('/suggestions/ingredients')

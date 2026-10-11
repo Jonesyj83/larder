@@ -160,13 +160,18 @@
               <template x-for="i in idea.result.recipe.ingredients">
                 <li>
                   <span x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></span>
-                  <span x-show="i.product" class="ok" x-text="'- ' + i.product"></span>
-                  <span x-show="!i.product" class="muted">- not a product yet</span>
+                  <span x-show="i.product && !(i.short > 0)" class="ok" x-text="'- ' + i.product"></span>
+                  <span x-show="i.product && i.short > 0" class="bad" x-text="'- have ' + num(i.have) + ' ' + i.unit + ', short ' + num(i.short)"></span>
+                  <span x-show="!i.product" class="bad">- don't have this yet</span>
                 </li>
               </template>
             </ul>
             <pre class="suggestion small" x-text="idea.result.recipe.instructions"></pre>
-            <button class="primary" style="margin-top: .6rem" @click="saveIdea()">Review before saving</button>
+            <p class="muted small" x-show="shortCount(idea.result.recipe)" x-text="shortCount(idea.result.recipe) + ' thing(s) short or missing'"></p>
+            <div class="row" style="margin-top: .6rem">
+              <button class="primary" @click="saveIdea()">Review before saving</button>
+              <button type="button" x-show="shortCount(idea.result.recipe)" :disabled="idea.addingMissing" @click="addMissingFromIdea()" x-text="idea.addingMissing ? 'Adding...' : 'Add what we need to shopping'"></button>
+            </div>
           </div>
         </template>
         <template x-if="idea.result && !idea.result.recipe">
@@ -281,6 +286,20 @@ function recipesPage() {
         instructions: r.instructions, reviewing: true,
         ingredients: r.ingredients.map(i => ({...i, product_id: i.product_id || '', unit_id: i.unit_id || ''}))};
       this.ideaOpen = false; this.idea.result = null;
+    },
+    shortCount(r) { return (r.ingredients || []).filter(i => !i.product || i.short > 0).length; },
+    async addMissingFromIdea() {
+      const r = this.idea.result.recipe;
+      this.idea.addingMissing = true;
+      try {
+        const res = await api('/api/suggestions/add-missing', { method: 'POST', body: {
+          name: r.name,
+          ingredients: r.ingredients.filter(i => !i.product || i.short > 0).map(i => ({
+            name: i.name, amount: i.short > 0 ? i.short : i.amount, unit: i.unit,
+            unit_id: i.unit_id || null, suggested_product_id: i.suggested_product_id || null })) } });
+        toast(res.added ? res.added + ' added to the shopping list' : 'Already on the list');
+      } catch (e) { oops(e); }
+      this.idea.addingMissing = false;
     },
   };
 }

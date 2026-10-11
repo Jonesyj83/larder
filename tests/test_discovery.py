@@ -44,6 +44,32 @@ class Discovery(unittest.TestCase):
         draft=sg.review_recipe(self.db,{'servings':1,'ingredients':[{'name':'Flour','amount':2,'unit':'handful'}]},1)
         self.assertIsNone(draft['ingredients'][0]['unit_id'])
 
+    def test_review_recipe_shows_what_is_short_and_add_missing(self):
+        from app.stock import purchase
+        from app.routes.shopping import list_items
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.commit()
+        purchase(self.db,1,3,1,user_id=1)  # 3 slices on hand
+        draft = sg.review_recipe(self.db,{'servings':1,'ingredients':[
+            {'name':'Bread','amount':6,'unit':'slice'}, {'name':'Chicken','amount':500,'unit':'piece'}]})
+        bread, chicken = draft['ingredients']
+        self.assertEqual((bread['have'],bread['short']),(3,3))  # have 3, need 6, short 3
+        self.assertIsNone(chicken['product'])
+        self.assertEqual(chicken['short'],500)  # don't have it at all - short the full amount
+        added = sg.add_missing_from_suggestion(sg.AddMissingIn(name=draft['name'],ingredients=[
+            sg.MissingIngredientIn(name=i['name'],amount=i['short'],unit=i['unit'],unit_id=i['unit_id'],
+                                    suggested_product_id=i['suggested_product_id'])
+            for i in draft['ingredients'] if not i['product'] or i['short'] > 0]),self.db,self.user)
+        self.assertEqual(added['added'],2)
+        items = {i['label']: i for i in list_items(self.db,self.user)}
+        self.assertEqual(items['Bread']['amount'],3)
+        self.assertEqual(items['Chicken']['amount'],500)
+        # asking again shouldn't double it up - listed_amount already covers it
+        again = sg.add_missing_from_suggestion(sg.AddMissingIn(name=draft['name'],ingredients=[
+            sg.MissingIngredientIn(name='Bread',amount=3,unit='slice',unit_id=1,suggested_product_id=1)]),self.db,self.user)
+        self.assertEqual(again['added'],0)
+        self.assertEqual({i['label']: i['amount'] for i in list_items(self.db,self.user)}['Bread'],3)
+
 class ProviderSafety(unittest.TestCase):
     def test_sanitized_upstream_errors(self):
         import httpx
