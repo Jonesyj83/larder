@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="shoppingPage()" x-init="init()">
+  <div class="row">
+    <h1 class="grow">Shopping list</h1>
+    <button @click="addMissing()">Add what's running low</button>
+  </div>
+
+  <form class="card" @submit.prevent="add()">
+    <div class="row">
+      <input class="grow" placeholder="Add something" x-model="text" list="product-names" autocomplete="off">
+      <input type="number" step="any" min="0" x-model.number="amount" style="width: 5rem">
+      <select x-model="unit_id" style="width: auto">
+        <option value="">unit</option>
+        <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+      </select>
+      <button class="primary">Add</button>
+    </div>
+    <datalist id="product-names">
+      <template x-for="p in products" :key="p.id"><option :value="p.name"></option></template>
+    </datalist>
+  </form>
+
+  <div class="card">
+    <p class="muted" x-show="!items.length">The list is empty.</p>
+    <template x-for="i in items" :key="i.id">
+      <div class="list-item" :style="i.done && 'opacity: .55'">
+        <input type="checkbox" :checked="i.done" @change="toggle(i)" style="width: 1.3rem; height: 1.3rem">
+        <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
+        <div class="grow">
+          <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
+          <span class="muted small" x-text="num(i.amount) + (i.unit ? ' ' + i.unit : '')"></span>
+          <span class="pill" x-show="!i.product_id">not a product</span>
+          <div class="small muted" x-show="i.note" x-text="i.note"></div>
+        </div>
+        <button class="small" x-show="i.product_id" @click="bought(i)" title="Tick off and add to stock">Got it</button>
+        <button class="small danger" @click="remove(i)">x</button>
+      </div>
+    </template>
+    <div class="row" style="margin-top: .6rem" x-show="items.some(i => i.done)">
+      <button class="small" @click="clearDone()">Clear ticked items</button>
+    </div>
+  </div>
+  <p class="muted small">"Got it" ticks the item off and puts it into stock in one go.</p>
+</div>
+<script>
+function shoppingPage() {
+  return {
+    items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
+    async init() {
+      [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
+      this.load();
+    },
+    async load() {
+      try { this.items = await api('/api/shopping'); } catch (e) { oops(e); }
+    },
+    async add() {
+      const name = this.text.trim();
+      if (!name) return;
+      const p = this.products.find(x => x.name.toLowerCase() == name.toLowerCase());
+      const body = { amount: this.amount || 1, unit_id: this.unit_id ? Number(this.unit_id) : null };
+      if (p) body.product_id = p.id; else body.name = name;
+      if (p && !body.unit_id) body.unit_id = p.purchase_unit_id || p.unit_id;
+      try {
+        await api('/api/shopping', { method: 'POST', body });
+        this.text = ''; this.amount = 1; this.unit_id = '';
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async toggle(i) {
+      try {
+        await api('/api/shopping/' + i.id, { method: 'PUT', body: { done: !i.done } });
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async bought(i) {
+      try {
+        await api('/api/shopping/' + i.id + '/bought', { method: 'POST', body: {} });
+        toast(i.label + ' added to stock');
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async remove(i) {
+      try { await api('/api/shopping/' + i.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
+    },
+    async clearDone() {
+      try { await api('/api/shopping/done', { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
+    },
+    async addMissing() {
+      try {
+        const r = await api('/api/shopping/add-missing', { method: 'POST' });
+        toast(r.added ? 'Added ' + r.added : 'Nothing new to add');
+        this.load();
+      } catch (e) { oops(e); }
+    },
+  };
+}
+</script>
+{% endblock %}
