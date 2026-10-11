@@ -267,7 +267,8 @@ def review_recipe(db, parsed, wanted=None):
     for u in rows(db.execute('SELECT * FROM units')):
         for name in (u['name'],u['name_plural']):
             if name: units[name.casefold()] = u['id']
-    products = rows(db.execute('SELECT id,name,unit_id FROM products'))
+    products = rows(db.execute('SELECT * FROM products'))
+    stock_units = {u['id']: u for u in rows(db.execute('SELECT * FROM units'))}
     ingredients = []
     for item in items:
         if not isinstance(item,dict) or not isinstance(item.get('name'),str) or not 1 <= len(item['name'].strip()) <= 200:
@@ -281,18 +282,22 @@ def review_recipe(db, parsed, wanted=None):
         name = item['name'].strip()
         match = next((p for p in products if p['name'].casefold() == name.casefold()),None)
         unit_id = units.get(unit.strip().casefold())
-        have = short = None
+        have = short = short_unit_id = short_unit = None
         if match:
             try:
                 need = st.to_stock_units(db, match, amount, unit_id)
                 have = st.in_stock(db, match['id'])
                 short = max(0.0, need - have)
+                short_unit_id = match['unit_id']  # short is in the product's own stock unit
+                short_unit = stock_units.get(short_unit_id, {}).get('name')
             except st.StockError:
                 pass  # a unit we can't convert just skips the have/short hint
         ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=unit_id,
                                 product_id=None, product=match['name'] if match else None,
                                 suggested_product_id=match['id'] if match else None,
                                 have=have, short=short if match else amount,
+                                short_unit=short_unit if match else unit,
+                                short_unit_id=short_unit_id if match else unit_id,
                                 note='' if unit.strip().casefold() in units else 'Proposed unit: ' + unit + '. Choose a valid unit.'))
     return dict(name=str(parsed.get('name') or 'Proposed recipe')[:200], servings=wanted or servings,
                 ingredients=ingredients, instructions=str(parsed.get('instructions') or '')[:20000])

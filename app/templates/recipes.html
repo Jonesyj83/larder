@@ -295,8 +295,9 @@ function recipesPage() {
         const res = await api('/api/suggestions/add-missing', { method: 'POST', body: {
           name: r.name,
           ingredients: r.ingredients.filter(i => !i.product || i.short > 0).map(i => ({
-            name: i.name, amount: i.short > 0 ? i.short : i.amount, unit: i.unit,
-            unit_id: i.unit_id || null, suggested_product_id: i.suggested_product_id || null })) } });
+            name: i.name, amount: i.short > 0 ? i.short : i.amount,
+            unit: i.product ? i.short_unit : i.unit, unit_id: (i.product ? i.short_unit_id : i.unit_id) || null,
+            suggested_product_id: i.suggested_product_id || null })) } });
         toast(res.added ? res.added + ' added to the shopping list' : 'Already on the list');
       } catch (e) { oops(e); }
       this.idea.addingMissing = false;

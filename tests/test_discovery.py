@@ -47,17 +47,19 @@ class Discovery(unittest.TestCase):
     def test_review_recipe_shows_what_is_short_and_add_missing(self):
         from app.stock import purchase
         from app.routes.shopping import list_items
-        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.execute("INSERT INTO units(id,name) VALUES(3,'pack')")
+        self.db.execute("INSERT INTO products(id,name,unit_id,purchase_unit_id,purchase_factor) VALUES(1,'Bread',1,3,6)")
         self.db.commit()
         purchase(self.db,1,3,1,user_id=1)  # 3 slices on hand
         draft = sg.review_recipe(self.db,{'servings':1,'ingredients':[
-            {'name':'Bread','amount':6,'unit':'slice'}, {'name':'Chicken','amount':500,'unit':'piece'}]})
+            {'name':'Bread','amount':1,'unit':'pack'}, {'name':'Chicken','amount':500,'unit':'piece'}]})
         bread, chicken = draft['ingredients']
-        self.assertEqual((bread['have'],bread['short']),(3,3))  # have 3, need 6, short 3
+        self.assertEqual((bread['have'],bread['short']),(3,3))  # 1 pack = 6 slices, have 3, short 3
+        self.assertEqual((bread['short_unit'],bread['short_unit_id']),('slice',1))  # short is in the product's stock unit, not the requested one
         self.assertIsNone(chicken['product'])
         self.assertEqual(chicken['short'],500)  # don't have it at all - short the full amount
         added = sg.add_missing_from_suggestion(sg.AddMissingIn(name=draft['name'],ingredients=[
-            sg.MissingIngredientIn(name=i['name'],amount=i['short'],unit=i['unit'],unit_id=i['unit_id'],
+            sg.MissingIngredientIn(name=i['name'],amount=i['short'],unit=i['short_unit'],unit_id=i['short_unit_id'],
                                     suggested_product_id=i['suggested_product_id'])
             for i in draft['ingredients'] if not i['product'] or i['short'] > 0]),self.db,self.user)
         self.assertEqual(added['added'],2)
