@@ -1,0 +1,121 @@
+{# purchase / consume dialog, opened with: $dispatch('stock-modal', {product_id, mode}) #}
+<div x-data="stockModal()" x-init="init()" @stock-modal.window="open($event.detail)">
+  <template x-if="show">
+    <div class="modal-bg" @click.self="show = false" @keydown.escape.window="show = false">
+      <div class="modal">
+        <div class="row">
+          <img x-show="p.picture" :src="pic(p.picture)" class="thumb">
+          <div class="grow">
+            <b x-text="p.name"></b>
+            <div class="muted small" x-text="'In stock: ' + qty(p.in_stock, p.unit, p.unit_plural)"></div>
+          </div>
+        </div>
+        <div class="tabs" style="margin-top: .8rem">
+          <button type="button" :class="mode == 'purchase' && 'on'" @click="setMode('purchase')">Purchase</button>
+          <button type="button" :class="mode == 'consume' && 'on'" @click="setMode('consume')">Consume</button>
+        </div>
+        <form @submit.prevent="save()">
+          <div class="grid2">
+            <div>
+              <label>Amount</label>
+              <input type="number" step="any" min="0" x-model.number="amount" required>
+            </div>
+            <div>
+              <label>Unit</label>
+              <select x-model.number="unit_id">
+                <template x-for="u in unitChoices()" :key="u.id">
+                  <option :value="u.id" x-text="u.label" :selected="u.id == unit_id"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+          <p class="muted small" x-show="unit_id == p.purchase_unit_id && p.purchase_unit_id != p.unit_id"
+             x-text="'= ' + qty(amount * p.purchase_factor, p.unit, p.unit_plural)"></p>
+          <div class="grid2">
+            <div>
+              <label>Location</label>
+              <select x-model="location_id">
+                <option value="" x-text="mode == 'consume' ? 'Anywhere' : 'Default'"></option>
+                <template x-for="l in locations" :key="l.id">
+                  <option :value="l.id" x-text="l.name" :selected="l.id == location_id"></option>
+                </template>
+              </select>
+            </div>
+            <div x-show="mode == 'purchase'">
+              <label x-text="shelfLabel(p.shelf_life_kind)"></label>
+              <input type="date" x-model="expires_on">
+            </div>
+          </div>
+          <div x-show="mode == 'purchase'">
+            <label>Price (optional)</label>
+            <input type="number" step="any" min="0" x-model="price">
+          </div>
+          <div x-show="mode == 'consume'" style="margin-top: .6rem">
+            <label class="inline"><input type="checkbox" x-model="spoiled"> Spoiled / thrown away</label>
+          </div>
+          <div class="row" style="margin-top: 1rem">
+            <button class="primary" :disabled="busy" x-text="mode == 'purchase' ? 'Add to stock' : (spoiled ? 'Throw out' : 'Use up')"></button>
+            <button type="button" @click="show = false">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </template>
+</div>
+<script>
+function stockModal() {
+  return {
+    show: false, busy: false, mode: 'purchase', p: {}, units: [], locations: [],
+    amount: 1, unit_id: null, location_id: '', expires_on: '', price: '', spoiled: false,
+    async init() {
+      [this.units, this.locations] = await Promise.all([api('/api/units'), api('/api/locations')]);
+    },
+    async open(d) {
+      try {
+        this.p = await api('/api/products/' + d.product_id);
+      } catch (e) { return oops(e); }
+      this.amount = 1; this.price = ''; this.spoiled = !!d.spoiled; this.location_id = '';
+      this.setMode(d.mode || 'purchase');
+      this.show = true;
+    },
+    setMode(m) {
+      this.mode = m;
+      this.unit_id = (m == 'purchase' && this.p.purchase_unit_id) ? this.p.purchase_unit_id : this.p.unit_id;
+      this.expires_on = this.p.default_days ? addDays(today(), this.p.default_days) : '';
+    },
+    unitChoices() {
+      // stock unit and purchase unit first, then everything else in case there's a conversion
+      const seen = new Set(), out = [];
+      const add = (id, extra) => {
+        const u = this.units.find(x => x.id == id);
+        if (u && !seen.has(u.id)) { seen.add(u.id); out.push({ id: u.id, label: u.name + (extra || '') }); }
+      };
+      add(this.p.unit_id);
+      if (this.p.purchase_unit_id) add(this.p.purchase_unit_id, ' (' + num(this.p.purchase_factor) + ' ' + this.p.unit + ')');
+      this.units.forEach(u => add(u.id));
+      return out;
+    },
+    async save() {
+      this.busy = true;
+      const body = { product_id: this.p.id, amount: this.amount, unit_id: this.unit_id,
+                     location_id: this.location_id ? Number(this.location_id) : null };
+      try {
+        let r;
+        if (this.mode == 'purchase') {
+          body.expires_on = this.expires_on || null;
+          body.price = this.price === '' ? null : Number(this.price);
+          r = await api('/api/stock/purchase', { method: 'POST', body });
+          toast('Added ' + qty(r.added, this.p.unit, this.p.unit_plural) + ' ' + this.p.name);
+        } else {
+          body.spoiled = this.spoiled;
+          r = await api('/api/stock/consume', { method: 'POST', body });
+          toast((this.spoiled ? 'Threw out ' : 'Used ') + qty(r.removed, this.p.unit, this.p.unit_plural) + ' ' + this.p.name);
+        }
+        this.show = false;
+        window.dispatchEvent(new CustomEvent('stock-changed'));
+      } catch (e) { oops(e); }
+      this.busy = false;
+    },
+  };
+}
+</script>

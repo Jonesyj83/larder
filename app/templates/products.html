@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="productsPage()" x-init="init()" @stock-changed.window="load()">
+  <div class="row">
+    <h1 class="grow">Products</h1>
+    <button class="primary" @click="edit(null)">New product</button>
+  </div>
+  <input placeholder="Search" x-model="q" style="margin-bottom: .6rem">
+
+  <div class="card">
+    <p class="muted" x-show="loaded && !products.length" x-cloak>No products yet.</p>
+    <template x-for="p in filtered()" :key="p.id">
+      <div class="list-item">
+        <img x-show="p.picture" :src="pic(p.picture)" class="thumb">
+        <div x-show="!p.picture" class="thumb blank"></div>
+        <div class="grow" @click="edit(p)" style="cursor: pointer">
+          <b x-text="p.name"></b>
+          <div class="small muted">
+            <span x-text="qty(p.in_stock, p.unit, p.unit_plural) + ' in stock'"></span>
+            <span x-text="p.location ? ' - ' + p.location : ''"></span>
+            <span x-show="p.purchase_unit" x-text="' - bought by the ' + p.purchase_unit + ' (' + num(p.purchase_factor) + ' ' + p.unit + ')'"></span>
+          </div>
+        </div>
+        <button class="small" @click="$dispatch('stock-modal', {product_id: p.id, mode: 'purchase'})">+</button>
+        <button class="small" :disabled="!p.in_stock" @click="$dispatch('stock-modal', {product_id: p.id, mode: 'consume'})">-</button>
+      </div>
+    </template>
+  </div>
+
+  <template x-if="form">
+    <div class="modal-bg" @click.self="form = null">
+      <div class="modal">
+        <b x-text="form.id ? 'Edit product' : 'New product'"></b>
+        <form @submit.prevent="save()">
+          <label>Name</label>
+          <input x-model="form.name" required x-init="$el.focus()">
+          <div class="grid2">
+            <div>
+              <label>Default location</label>
+              <select x-model="form.location_id">
+                <option value="">None</option>
+                <template x-for="l in locations" :key="l.id">
+                  <option :value="l.id" x-text="l.name" :selected="l.id == form.location_id"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label>Stock unit (what you count it in)</label>
+              <select x-model="form.unit_id" required>
+                <template x-for="u in units" :key="u.id">
+                  <option :value="u.id" x-text="u.name" :selected="u.id == form.unit_id"></option>
+                </template>
+              </select>
+            </div>
+          </div>
+          <div class="grid2">
+            <div>
+              <label>Bought as (optional)</label>
+              <select x-model="form.purchase_unit_id">
+                <option value="">Same as stock unit</option>
+                <template x-for="u in units" :key="u.id">
+                  <option :value="u.id" x-text="u.name" :selected="u.id == form.purchase_unit_id"></option>
+                </template>
+              </select>
+            </div>
+            <div x-show="form.purchase_unit_id && form.purchase_unit_id != form.unit_id">
+              <label x-text="'1 ' + unitName(form.purchase_unit_id) + ' = how many ' + unitName(form.unit_id) + '?'"></label>
+              <input type="number" step="any" min="0" x-model.number="form.purchase_factor">
+            </div>
+          </div>
+          <div class="grid3">
+            <div>
+              <label>Date type</label>
+              <select x-model="form.shelf_life_kind">
+                <option value="best_by">Best by</option>
+                <option value="use_by">Use by</option>
+              </select>
+            </div>
+            <div>
+              <label>Usually keeps (days)</label>
+              <input type="number" min="0" x-model="form.default_days" placeholder="blank = no date">
+            </div>
+            <div>
+              <label>Keep at least</label>
+              <input type="number" step="any" min="0" x-model.number="form.min_stock">
+            </div>
+          </div>
+          <label>Barcodes (one per line)</label>
+          <textarea x-model="form.barcodes" style="min-height: 3rem"></textarea>
+          <label>Notes</label>
+          <input x-model="form.notes">
+
+          <template x-if="form.id">
+            <div>
+              <label>Picture</label>
+              <div class="row">
+                <img x-show="form.picture" :src="pic(form.picture)" class="thumb" style="width: 64px; height: 64px">
+                <input type="file" accept="image/*" @change="upload($event)" class="grow">
+                <button type="button" class="small" x-show="form.picture" @click="removePic()">Remove</button>
+              </div>
+            </div>
+          </template>
+          <template x-if="!form.id">
+            <div>
+              <label>Picture URL (optional, you can upload one after saving)</label>
+              <input x-model="form.picture_url">
+            </div>
+          </template>
+
+          <div class="row" style="margin-top: 1rem">
+            <button class="primary" :disabled="busy">Save</button>
+            <button type="button" @click="form = null">Cancel</button>
+            <button type="button" class="danger right" x-show="form.id" @click="remove()">Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </template>
+
+  {% include "_stock_modal.html" %}
+</div>
+<script>
+function productsPage() {
+  return {
+    products: [], units: [], locations: [], q: '', form: null, busy: false, loaded: false,
+    async init() {
+      [this.units, this.locations] = await Promise.all([api('/api/units'), api('/api/locations')]);
+      await this.load();
+      const params = new URLSearchParams(location.search);
+      if (params.get('new')) this.edit(null);
+      if (params.get('id')) {
+        const p = this.products.find(x => x.id == params.get('id'));
+        if (p) this.edit(p);
+      }
+    },
+    async load() {
+      try {
+        this.products = await api('/api/products');
+        this.loaded = true;
+      } catch (e) { oops(e); }
+    },
+    filtered() {
+      const q = this.q.toLowerCase();
+      return this.products.filter(p => !q || p.name.toLowerCase().includes(q));
+    },
+    unitName(id) {
+      const u = this.units.find(x => x.id == id);
+      return u ? u.name : '';
+    },
+    async edit(p) {
+      if (!p) {
+        const piece = this.units.find(u => u.name == 'piece') || this.units[0] || {};
+        this.form = { id: null, name: '', location_id: '', unit_id: piece.id, purchase_unit_id: '',
+                      purchase_factor: 1, shelf_life_kind: 'best_by', default_days: '', min_stock: 0,
+                      notes: '', barcodes: '', picture_url: '' };
+        return;
+      }
+      const full = await api('/api/products/' + p.id);
+      this.form = { ...full, location_id: full.location_id || '', purchase_unit_id: full.purchase_unit_id || '',
+                    default_days: full.default_days ?? '', barcodes: full.barcodes.map(b => b.code).join('\n') };
+    },
+    body() {
+      const f = this.form;
+      return {
+        name: f.name, unit_id: Number(f.unit_id),
+        location_id: f.location_id ? Number(f.location_id) : null,
+        purchase_unit_id: f.purchase_unit_id ? Number(f.purchase_unit_id) : null,
+        purchase_factor: (f.purchase_unit_id && f.purchase_unit_id != f.unit_id) ? Number(f.purchase_factor || 1) : 1,
+        shelf_life_kind: f.shelf_life_kind,
+        default_days: f.default_days === '' ? null : Number(f.default_days),
+        min_stock: Number(f.min_stock || 0), notes: f.notes || '',
+        barcodes: (f.barcodes || '').split('\n').map(s => s.trim()).filter(Boolean),
+        picture_url: f.picture_url || null,
+      };
+    },
+    async save() {
+      this.busy = true;
+      try {
+        if (this.form.id) await api('/api/products/' + this.form.id, { method: 'PUT', body: this.body() });
+        else await api('/api/products', { method: 'POST', body: this.body() });
+        this.form = null;
+        toast('Saved');
+        this.load();
+      } catch (e) { oops(e); }
+      this.busy = false;
+    },
+    async remove() {
+      if (!confirm('Delete ' + this.form.name + ' and all its stock?')) return;
+      try {
+        await api('/api/products/' + this.form.id, { method: 'DELETE' });
+        this.form = null;
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async upload(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const p = await api('/api/products/' + this.form.id + '/picture', { method: 'POST', body: fd });
+        this.form.picture = p.picture;
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async removePic() {
+      try {
+        await api('/api/products/' + this.form.id + '/picture', { method: 'DELETE' });
+        this.form.picture = null;
+        this.load();
+      } catch (e) { oops(e); }
+    },
+  };
+}
+</script>
+{% endblock %}
