@@ -5,7 +5,7 @@
     <h1 class="grow">Meal plan</h1>
     <button @click="ideasOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
   </div>
-  <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Add an API key in <a href="/settings">Settings</a> to use them.</p>
+  <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Add an API key in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
   <div class="row" style="margin-bottom: .7rem">
     <button @click="move(-7)">&larr;</button>

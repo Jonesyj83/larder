@@ -1,5 +1,7 @@
 // small helpers shared by every page
 
+const BASE = window.BASE_PATH || '';
+
 async function api(path, opts = {}) {
   const o = { method: opts.method || 'GET', headers: {}, credentials: 'same-origin' };
   if (opts.body instanceof FormData) {
@@ -10,12 +12,12 @@ async function api(path, opts = {}) {
   }
   let res;
   try {
-    res = await fetch(path, o);
+    res = await fetch(BASE + path, o);
   } catch (e) {
     throw new Error("Couldn't reach the server");
   }
   if (res.status === 401 && !path.startsWith('/api/auth/')) {
-    location.href = '/login';
+    location.href = BASE + '/login';
     throw new Error('Not logged in');
   }
   let data = null;
@@ -77,7 +79,7 @@ function expiry(iso, kind) {
 }
 
 function pic(name) {
-  return name ? '/uploads/' + encodeURIComponent(name) : '';
+  return name ? BASE + '/uploads/' + encodeURIComponent(name) : '';
 }
 
 document.addEventListener('alpine:init', () => {
@@ -96,9 +98,9 @@ function oops(e) { toast(e.message || String(e), true); }
 
 async function logout() {
   await api('/api/auth/logout', { method: 'POST' });
-  location.href = '/login';
+  location.href = BASE + '/login';
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register(BASE + '/sw.js', { scope: BASE + '/' }).catch(() => {});
 }

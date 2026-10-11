@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
@@ -19,6 +20,9 @@ log = logging.getLogger("larder")
 
 init_db()
 
+# set this if the app is reverse-proxied under a sub-path, e.g. /larder
+BASE_PATH = os.environ.get("LARDER_BASE_PATH", "").rstrip("/")
+
 app = FastAPI(title="Larder", version="0.1", description="Household pantry tracker. "
               "Log in through the web UI, or send an API key from Settings as `X-API-Key` "
               "(or `Authorization: Bearer <key>`).")
@@ -28,6 +32,7 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key(), session_cookie="l
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 templates = Jinja2Templates(directory=HERE / "templates")
+templates.env.globals["base_path"] = BASE_PATH
 
 for r in (account, core, products, stock, shopping, scan, recipes, mealplan, suggestions):
     app.include_router(r.router)
@@ -79,7 +84,7 @@ def page(template, title):
     def view(request: Request, db=Depends(get_db)):
         user = user_from_request(request, db)
         if not user:
-            return RedirectResponse("/login")
+            return RedirectResponse(BASE_PATH + "/login")
         return templates.TemplateResponse(request, template, {"user": user, "title": title})
     return view
 
@@ -95,7 +100,14 @@ def login_page(request: Request):
 
 @app.get("/manifest.webmanifest", include_in_schema=False)
 def manifest():
-    return FileResponse(HERE / "static" / "manifest.webmanifest", media_type="application/manifest+json")
+    import json
+    data = json.loads((HERE / "static" / "manifest.webmanifest").read_text())
+    data["start_url"] = BASE_PATH + "/"
+    data["scope"] = BASE_PATH + "/"
+    for icon in data.get("icons", []):
+        if icon["src"].startswith("/"):
+            icon["src"] = BASE_PATH + icon["src"]
+    return JSONResponse(data, media_type="application/manifest+json")
 
 
 @app.get("/sw.js", include_in_schema=False)

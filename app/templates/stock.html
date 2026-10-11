@@ -3,7 +3,7 @@
 <div x-data="stockPage()" x-init="load()" @stock-changed.window="load()">
   <div class="row">
     <h1 class="grow">Stock</h1>
-    <a class="btn primary" href="/scan">Scan</a>
+    <a class="btn primary" href="{{ base_path }}/scan">Scan</a>
     <button @click="adding = true">Add stock</button>
   </div>
 
@@ -36,7 +36,7 @@
 
   <div class="card">
     <p class="muted" x-show="loaded && !items.length" x-cloak>
-      Nothing in stock yet. Add some <a href="/products">products</a>, then scan or add stock.
+      Nothing in stock yet. Add some <a href="{{ base_path }}/products">products</a>, then scan or add stock.
     </p>
     <template x-for="s in filtered()" :key="s.product_id">
       <div>
@@ -104,7 +104,7 @@
             <span class="grow" x-text="p.name"></span>
           </div>
         </template>
-        <p class="muted small">Not there? <a href="/products?new=1">Make a new product</a>.</p>
+        <p class="muted small">Not there? <a href="{{ base_path }}/products?new=1">Make a new product</a>.</p>
         <button @click="adding = false">Close</button>
       </div>
     </div>

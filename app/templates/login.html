@@ -27,7 +27,7 @@ function loginPage() {
       try {
         await api(this.setup ? '/api/auth/setup' : '/api/auth/login', {
           method: 'POST', body: { username: this.username, password: this.password } });
-        location.href = '/';
+        location.href = BASE + '/';
       } catch (e) {
         this.err = e.message;
       }

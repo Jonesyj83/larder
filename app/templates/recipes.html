@@ -6,7 +6,7 @@
     <button @click="ideaOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Suggest a recipe</button>
     <button class="primary" @click="edit(null)">New recipe</button>
   </div>
-  <p class="muted small" x-show="!suggest" x-cloak>Recipe suggestions are off. Add an API key in <a href="/settings">Settings</a> to use them.</p>
+  <p class="muted small" x-show="!suggest" x-cloak>Recipe suggestions are off. Add an API key in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
   <!-- list -->
   <div x-show="!current">
@@ -29,7 +29,7 @@
   <!-- one recipe -->
   <template x-if="current">
     <div>
-      <p><a href="/recipes" @click.prevent="close()">&larr; all recipes</a></p>
+      <p><a href="{{ base_path }}/recipes" @click.prevent="close()">&larr; all recipes</a></p>
       <div class="card">
         <div class="row">
           <h2 class="grow" style="margin: 0" x-text="current.name"></h2>
@@ -123,7 +123,7 @@
           </div>
         </template>
         <button type="button" class="small" @click="form.ingredients.push({product_id: '', amount: 1, unit_id: '', note: ''})">+ ingredient</button>
-        <p class="muted small" x-show="!products.length">You need some <a href="/products">products</a> first.</p>
+        <p class="muted small" x-show="!products.length">You need some <a href="{{ base_path }}/products">products</a> first.</p>
         <label>Method</label>
         <textarea x-model="form.instructions"></textarea>
         <div class="row" style="margin-top: 1rem">

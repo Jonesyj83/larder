@@ -27,7 +27,7 @@
   <h2>API keys</h2>
   <div class="card">
     <p class="muted small">For phone apps, scripts and so on. Send it as an <code>X-API-Key</code> header.
-      Everything is listed at <a href="/docs">/docs</a>.</p>
+      Everything is listed at <a href="{{ base_path }}/docs">/docs</a>.</p>
     <template x-for="k in keys" :key="k.id">
       <div class="row small" style="margin-bottom: .3rem">
         <code x-text="k.prefix + '...'"></code>
