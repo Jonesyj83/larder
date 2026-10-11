@@ -167,6 +167,14 @@ CREATE TABLE IF NOT EXISTS planning_requests (
     response TEXT NOT NULL,
     PRIMARY KEY(user_id, kind, request_id)
 );
+
+-- recently suggested dish names, so the same recipe doesn't keep coming up
+CREATE TABLE IF NOT EXISTS recent_suggestions (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 DEFAULT_LOCATIONS = [("Fridge", 0), ("Pantry", 0), ("Freezer", 1)]

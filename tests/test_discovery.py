@@ -31,6 +31,29 @@ class Discovery(unittest.TestCase):
         from app.routes.shopping import list_items
         self.assertEqual(list_items(self.db,self.user)[0]['sources'][0]['kind'],'meal_plan')
 
+    def test_recipe_idea_avoids_repeating_recent_suggestions_unless_asked(self):
+        with patch.object(sg,'_run',return_value=json.dumps({'name':'Chilli con carne','servings':2,'ingredients':[{'name':'Beef','amount':500,'unit':'g'}]})):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=True),self.db,self.user)
+        captured = {}
+        def fake_run(db,user,prompt,system):
+            captured['prompt'] = prompt
+            return sg.GeneratedText(json.dumps({'name':'Fried rice','servings':2,'ingredients':[{'name':'Rice','amount':200,'unit':'g'}]}))
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=True),self.db,self.user)
+        self.assertIn('Chilli con carne',captured['prompt'])
+        names = [r['name'] for r in sg.rows(self.db.execute('SELECT name FROM recent_suggestions ORDER BY id'))]
+        self.assertEqual(names,['Chilli con carne','Fried rice'])
+        # an explicit request isn't suppressed by recent history
+        captured.clear()
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='chilli con carne again please',use_expiring=False),self.db,self.user)
+        self.assertNotIn('Already suggested recently',captured['prompt'])
+        # only the last 10 are kept
+        for _ in range(12):
+            with patch.object(sg,'_run',return_value=json.dumps({'name':'X','servings':1,'ingredients':[{'name':'Y','amount':1,'unit':'piece'}]})):
+                sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=False),self.db,self.user)
+        self.assertEqual(self.count('recent_suggestions'),10)
+
     def test_saved_search_without_provider_and_bad_payloads(self):
         self.meal([{'name':'Bread','amount':2,'unit_id':1}])
         with patch.object(sg,'_run',side_effect=AssertionError('no generation')):

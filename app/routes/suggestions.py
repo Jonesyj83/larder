@@ -222,6 +222,8 @@ def _parse_json(text):
 @router.post("/suggestions/recipe")
 def recipe_idea(data: RecipeIdeaIn, db=Depends(get_db), user=Depends(current_user)):
     ask = data.idea.strip()
+    recent = [r["name"] for r in rows(db.execute(
+        "SELECT name FROM recent_suggestions WHERE user_id = ? ORDER BY id DESC LIMIT 5", (user["id"],)))]
     prompt = f"""Draft a proposed recipe for user review. Amounts are estimates, not authoritative
 nutrition or medical advice.
 {('The main thing: ' + ask + '. This is what they actually want - give them that dish, even if we '
@@ -229,6 +231,8 @@ nutrition or medical advice.
  if ask else 'Suggest something using what is in stock.'}
 {("Where it fits the dish above, lean towards using things that are going off soonest, "
   "but don't change what dish this is just to use them up.") if data.use_expiring else ''}
+{('Already suggested recently, so pick something different this time unless the request above '
+  'genuinely only fits one of these: ' + ', '.join(recent) + '.') if recent and not ask else ''}
 
 In stock right now (for reference - it's fine, expected even, if the dish above needs things we
 don't have; list them as normal ingredients, don't leave them out or swap them for what we have):
@@ -243,7 +247,13 @@ Units should be simple: piece, g, kg, ml, l, tin, pack."""
     if not parsed or not isinstance(parsed.get("ingredients"), list):
         raise HTTPException(502, "Malformed provider recipe; nothing was saved")
 
-    return {"recipe": review_recipe(db, parsed), "text": None, "provenance": getattr(text,'provenance',None)}
+    recipe = review_recipe(db, parsed)
+    db.execute("INSERT INTO recent_suggestions (user_id, name) VALUES (?, ?)", (user["id"], recipe["name"]))
+    db.execute("""DELETE FROM recent_suggestions WHERE user_id = ? AND id NOT IN
+                  (SELECT id FROM recent_suggestions WHERE user_id = ? ORDER BY id DESC LIMIT 10)""",
+               (user["id"], user["id"]))
+    db.commit()
+    return {"recipe": recipe, "text": None, "provenance": getattr(text,'provenance',None)}
 
 
 class DiscoveryIn(BaseModel):

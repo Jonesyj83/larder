@@ -10,13 +10,14 @@
 
   <div class="card notice" x-show="expiring.length" x-cloak>
     <b>Going off soon</b>
-    <template x-for="e in expiring" :key="e.id">
+    <template x-for="e in expiring.slice(0, 6)" :key="e.id">
       <div class="small">
         <span x-text="e.name"></span>
         <span class="muted" x-text="'(' + qty(e.amount, e.unit) + (e.location ? ', ' + e.location : '') + ')'"></span>
         <span :class="expiry(e.expires_on, e.shelf_life_kind).cls" x-text="expiry(e.expires_on, e.shelf_life_kind).text"></span>
       </div>
     </template>
+    <p class="muted small" x-show="expiring.length > 6" x-text="'+ ' + (expiring.length - 6) + ' more - see the Overdue and Use soon groups below'"></p>
   </div>
 
   <div class="card" x-show="missing.length" x-cloak>
@@ -41,40 +42,47 @@
       Nothing in stock yet. Add some <a href="{{ base_path }}/products">products</a>, then scan or add stock.
     </p>
     <p class="muted" x-show="loaded && items.length && !filtered().length" x-cloak>No food matches. Clear the search or choose another location.</p>
-    <template x-for="s in filtered()" :key="s.product_id">
-      <div>
-        <div class="stock-item">
-          <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><button class="stock-name" @click="toggle(s)" :aria-expanded="open == s.product_id" x-text="s.name"></button></div>
-          <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
-          <span class="stock-place" x-text="s.locations || '—'"></span>
-          <span class="stock-date" :class="expiry(s.next_expiry, s.shelf_life_kind).cls" x-text="expiry(s.next_expiry, s.shelf_life_kind).text"></span>
-          <div class="row stock-actions">
-            <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume'})">Use</button>
-            <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Add</button>
+    <template x-for="group in groups()" :key="group.key">
+      <details class="stock-group" :open="group.open">
+        <summary>
+          <b x-text="group.label"></b> <span class="muted small" x-text="'(' + group.items.length + ')'"></span>
+        </summary>
+        <template x-for="s in group.items" :key="s.product_id">
+          <div>
+            <div class="stock-item">
+              <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><button class="stock-name" @click="toggle(s)" :aria-expanded="open == s.product_id" x-text="s.name"></button></div>
+              <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
+              <span class="stock-place" x-text="s.locations || '—'"></span>
+              <span class="stock-date" :class="expiry(s.next_expiry, s.shelf_life_kind).cls" x-text="s.next_expiry ? expiry(s.next_expiry, s.shelf_life_kind).text : 'no date set'"></span>
+              <div class="row stock-actions">
+                <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume'})">Use</button>
+                <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Add</button>
+              </div>
+            </div>
+            <div class="stock-details" x-show="open == s.product_id" x-cloak>
+              <template x-for="e in entries" :key="e.id">
+                <form class="stock-entry" @submit.prevent="saveEntry(e)">
+                  <input type="number" step="any" min="0" x-model.number="e.amount" aria-label="Stock amount">
+                  <span x-text="s.unit"></span>
+                  <select x-model="e.location_id" aria-label="Stock location"><option value="">None</option>
+                    <template x-for="l in locations" :key="l.id">
+                      <option :value="l.id" x-text="l.name" :selected="l.id == e.location_id"></option>
+                    </template>
+                  </select>
+                  {{ date_field('e.expires_on', 'Date', false) }}
+                  <label class="inline small"><input type="checkbox" x-model="e.opened"> opened</label>
+                  <button class="small">Save</button>
+                </form>
+              </template>
+              <div class="row" style="margin-top: .4rem">
+                <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Purchase</button>
+                <button class="small danger" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume', spoiled: true})">Spoiled</button>
+                <button class="small" @click="toShopping(s)">Add to shopping list</button>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="stock-details" x-show="open == s.product_id" x-cloak>
-          <template x-for="e in entries" :key="e.id">
-            <form class="stock-entry" @submit.prevent="saveEntry(e)">
-              <input type="number" step="any" min="0" x-model.number="e.amount" aria-label="Stock amount">
-              <span x-text="s.unit"></span>
-              <select x-model="e.location_id" aria-label="Stock location"><option value="">None</option>
-                <template x-for="l in locations" :key="l.id">
-                  <option :value="l.id" x-text="l.name" :selected="l.id == e.location_id"></option>
-                </template>
-              </select>
-              {{ date_field('e.expires_on', 'Date', false) }}
-              <label class="inline small"><input type="checkbox" x-model="e.opened"> opened</label>
-              <button class="small">Save</button>
-            </form>
-          </template>
-          <div class="row" style="margin-top: .4rem">
-            <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Purchase</button>
-            <button class="small danger" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume', spoiled: true})">Spoiled</button>
-            <button class="small" @click="toShopping(s)">Add to shopping list</button>
-          </div>
-        </div>
-      </div>
+        </template>
+      </details>
     </template>
   </div>
 
@@ -128,6 +136,21 @@ function stockPage() {
     filtered() {
       const q = this.q.toLowerCase();
       return this.items.filter(s => !q || s.name.toLowerCase().includes(q));
+    },
+    groups() {
+      const buckets = { overdue: [], soon: [], rest: [] };
+      for (const s of this.filtered()) {
+        const d = s.next_expiry ? daysUntil(s.next_expiry) : null;
+        if (d !== null && d < 0) buckets.overdue.push(s);
+        else if (d !== null && d <= 3) buckets.soon.push(s);
+        else buckets.rest.push(s);
+      }
+      const out = [];
+      if (buckets.overdue.length) out.push({ key: 'overdue', label: 'Overdue', items: buckets.overdue, open: true });
+      if (buckets.soon.length) out.push({ key: 'soon', label: 'Use soon', items: buckets.soon, open: true });
+      if (buckets.rest.length) out.push({ key: 'rest', items: buckets.rest, open: out.length === 0,
+        label: out.length ? 'Everything else (fresh or no date set)' : 'All stock' });
+      return out;
     },
     async toggle(s) {
       if (this.open == s.product_id) { this.open = null; return; }

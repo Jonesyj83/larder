@@ -208,3 +208,45 @@ field.text='04/11/2026'; field.accept(); assert.equal(field.iso,'2026-11-04');
         pre = "const window={USER_PREFS:{date_format:'DD/MM/YYYY',measurement_system:'metric'}}; const document={addEventListener(){}}; const navigator={};\n"
         r = subprocess.run(['node'], input=pre+script+'\n'+body,text=True,capture_output=True)
         self.assertEqual(r.returncode,0,r.stderr)
+
+    def test_stock_page_groups_overdue_soon_and_rest_javascript(self):
+        script = (ROOT/'app/static/app.js').read_text()
+        stock = (ROOT/'app/templates/stock.html').read_text().split('<script>')[1].split('</script>')[0]
+        pre = "const window={USER_PREFS:{date_format:'DD/MM/YYYY',measurement_system:'metric'}}; const document={addEventListener(){}}; const navigator={};\n"
+        body = r"""
+const assert = require('node:assert/strict');
+const REAL_DATE = Date;
+class FixedDate extends REAL_DATE {
+  constructor(...a) { super(...(a.length ? a : ['2026-10-12T00:00:00'])); }
+  static now() { return new FixedDate().getTime(); }
+}
+Date = FixedDate;
+const p = stockPage();
+p.items = [
+  {product_id: 1, name: 'Old milk', next_expiry: '2026-10-05'},   // 7 days overdue
+  {product_id: 2, name: 'Soon bread', next_expiry: '2026-10-13'}, // tomorrow
+  {product_id: 3, name: 'Fresh beans', next_expiry: '2027-01-01'},
+  {product_id: 4, name: 'No date item', next_expiry: null},
+];
+const groups = p.groups();
+const byKey = Object.fromEntries(groups.map(g => [g.key, g]));
+assert.equal(byKey.overdue.items.length, 1);
+assert.equal(byKey.overdue.items[0].name, 'Old milk');
+assert.equal(byKey.overdue.open, true);
+assert.equal(byKey.soon.items.length, 1);
+assert.equal(byKey.soon.items[0].name, 'Soon bread');
+assert.equal(byKey.soon.open, true);
+assert.equal(byKey.rest.items.length, 2);
+assert.ok(byKey.rest.items.some(i => i.name === 'Fresh beans'));
+assert.ok(byKey.rest.items.some(i => i.name === 'No date item'));
+assert.equal(byKey.rest.open, false);  // collapsed by default when overdue/soon exist
+// with nothing urgent, the remaining group opens by itself
+p.items = [{product_id: 3, name: 'Fresh beans', next_expiry: '2027-01-01'}];
+const onlyRest = p.groups();
+assert.equal(onlyRest.length, 1);
+assert.equal(onlyRest[0].key, 'rest');
+assert.equal(onlyRest[0].open, true);
+assert.equal(onlyRest[0].label, 'All stock');
+"""
+        r = subprocess.run(['node'], input=pre+script+'\n'+stock+'\n'+body,text=True,capture_output=True)
+        self.assertEqual(r.returncode,0,r.stderr)
