@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="planPage()" x-init="init()">
+  <div class="row">
+    <h1 class="grow">Meal plan</h1>
+    <button @click="ideasOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
+  </div>
+  <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Add an API key in <a href="/settings">Settings</a> to use them.</p>
+
+  <div class="row" style="margin-bottom: .7rem">
+    <button @click="move(-7)">&larr;</button>
+    <b x-text="weekLabel()"></b>
+    <button @click="move(7)">&rarr;</button>
+    <button class="small" @click="start = monday(today()); load()">This week</button>
+    <span class="grow"></span>
+    <button @click="showNeeds()">What we need</button>
+  </div>
+
+  <div class="week">
+    <template x-for="d in dayList()" :key="d">
+      <div class="day" :class="d == today() && 'today'">
+        <div class="row">
+          <b class="grow small" x-text="dayName(d)"></b>
+          <button class="small" @click="openAdd(d)">+</button>
+        </div>
+        <template x-for="s in slots" :key="s">
+          <div class="slot" x-show="mealsFor(d, s).length">
+            <b x-text="s"></b>
+            <template x-for="m in mealsFor(d, s)" :key="m.id">
+              <div class="meal">
+                <span>
+                  <a x-show="m.recipe_id" :href="'/recipes?id=' + m.recipe_id" x-text="m.recipe"></a>
+                  <span x-show="!m.recipe_id" x-text="m.note"></span>
+                  <span class="muted" x-show="m.servings" x-text="'x' + num(m.servings)"></span>
+                </span>
+                <button @click="remove(m)" title="Remove">x</button>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+
+  <p class="muted small" style="margin-top: 1rem">
+    Servings get worked out from who's eating and their portion size (set in Settings).
+    Your portion size: <b>{{ user.portion_size }}</b>.
+  </p>
+
+  <!-- add meal -->
+  <template x-if="adding">
+    <div class="modal-bg" @click.self="adding = null">
+      <form class="modal" @submit.prevent="add()">
+        <b x-text="'Add to ' + dayName(adding.day)"></b>
+        <label>Meal</label>
+        <div class="row">
+          <template x-for="s in slots" :key="s">
+            <label class="inline small"><input type="radio" :value="s" x-model="adding.slot"> <span x-text="s"></span></label>
+          </template>
+        </div>
+        <label>Recipe</label>
+        <select x-model="adding.recipe_id" @change="calcServings()">
+          <option value="">No recipe, just a note</option>
+          <template x-for="r in recipes" :key="r.id">
+            <option :value="r.id" x-text="r.name + (r.can_make ? '' : ' (' + r.missing_count + ' missing)')"></option>
+          </template>
+        </select>
+        <label x-text="adding.recipe_id ? 'Note (optional)' : 'What is it?'"></label>
+        <input x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
+        <label>Who's eating</label>
+        <div class="row">
+          <template x-for="u in household" :key="u.id">
+            <label class="inline small">
+              <input type="checkbox" :value="u.id" x-model.number="adding.eaters" @change="calcServings()">
+              <span x-text="u.username + ' (' + u.portion_size + ')'"></span>
+            </label>
+          </template>
+        </div>
+        <label>Servings</label>
+        <input type="number" step="any" min="0" x-model.number="adding.servings">
+        <div class="row" style="margin-top: 1rem">
+          <button class="primary">Add</button>
+          <button type="button" @click="adding = null">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <!-- needs -->
+  <template x-if="needs">
+    <div class="modal-bg" @click.self="needs = null">
+      <div class="modal">
+        <b>Ingredients for this week</b>
+        <p class="muted small" x-show="!needs.items.length">Nothing planned with a recipe this week.</p>
+        <table class="small" x-show="needs.items.length">
+          <tr><th>Product</th><th>Need</th><th>Have</th><th>Short</th></tr>
+          <template x-for="i in needs.items" :key="i.id">
+            <tr>
+              <td x-text="i.name"></td>
+              <td x-text="num(i.need) + ' ' + i.unit"></td>
+              <td x-text="num(i.have)"></td>
+              <td :class="i.missing > 0 ? 'bad' : 'ok'" x-text="i.missing > 0 ? num(i.missing) : 'ok'"></td>
+            </tr>
+          </template>
+        </table>
+        <template x-for="p in needs.problems"><p class="bad small" x-text="p"></p></template>
+        <div class="row" style="margin-top: 1rem">
+          <button class="primary" x-show="needs.items.some(i => i.missing > 0)" @click="needsToShopping()">Put what's short on the shopping list</button>
+          <button @click="needs = null">Close</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- meal ideas -->
+  <template x-if="ideasOpen">
+    <div class="modal-bg" @click.self="ideasOpen = false">
+      <div class="modal">
+        <b>Meal ideas</b>
+        <p class="muted small">Based on what's in stock, your saved recipes and everyone's portion sizes.</p>
+        <form @submit.prevent="getIdeas()">
+          <div class="grid2">
+            <div>
+              <label>How many days</label>
+              <input type="number" min="1" max="7" x-model.number="ideas.days">
+            </div>
+            <div>
+              <label>Meals</label>
+              <div class="row">
+                <template x-for="s in slots" :key="s">
+                  <label class="inline small"><input type="checkbox" :value="s" x-model="ideas.slots"> <span x-text="s"></span></label>
+                </template>
+              </div>
+            </div>
+          </div>
+          <label>Anything else?</label>
+          <input x-model="ideas.note" placeholder="e.g. no fish, something light">
+          <div class="row" style="margin-top: .6rem">
+            <button class="primary" :disabled="ideas.busy" x-text="ideas.busy ? 'Thinking...' : 'Get ideas'"></button>
+            <button type="button" @click="ideasOpen = false">Close</button>
+          </div>
+        </form>
+        <div class="card" style="margin-top: 1rem" x-show="ideas.text">
+          <pre class="suggestion small" x-text="ideas.text"></pre>
+        </div>
+      </div>
+    </div>
+  </template>
+</div>
+<script>
+function monday(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  const back = (d.getDay() + 6) % 7;
+  return addDays(iso, -back);
+}
+
+function planPage() {
+  return {
+    start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
+    recipes: [], household: [], adding: null, needs: null, suggest: false,
+    ideasOpen: false, ideas: { days: 1, slots: ['dinner'], note: '', busy: false, text: '' },
+    meId: {{ user.id }},
+
+    async init() {
+      [this.recipes, this.household] = await Promise.all([api('/api/recipes/makeable'), api('/api/household')]);
+      api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
+      this.load();
+    },
+    async load() {
+      try {
+        const r = await api('/api/mealplan?start=' + this.start + '&days=7');
+        this.meals = r.meals;
+      } catch (e) { oops(e); }
+    },
+    move(n) { this.start = addDays(this.start, n); this.load(); },
+    dayList() { return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(this.start, i)); },
+    dayName(iso) {
+      const d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    },
+    weekLabel() { return this.dayName(this.start) + ' - ' + this.dayName(addDays(this.start, 6)); },
+    mealsFor(d, s) { return this.meals.filter(m => m.day == d && m.slot == s); },
+
+    openAdd(day) {
+      this.adding = { day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null };
+      this.calcServings();
+    },
+    calcServings() {
+      const ids = this.adding.eaters.map(Number);
+      const total = this.household.filter(u => ids.includes(u.id)).reduce((a, u) => a + u.factor, 0);
+      this.adding.servings = total || null;
+    },
+    async add() {
+      const a = this.adding;
+      try {
+        await api('/api/mealplan', { method: 'POST', body: { day: a.day, slot: a.slot,
+          recipe_id: a.recipe_id ? Number(a.recipe_id) : null, note: a.note, servings: a.servings || null, eaters: a.eaters.map(Number) } });
+        this.adding = null;
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async remove(m) {
+      try { await api('/api/mealplan/' + m.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
+    },
+    async showNeeds() {
+      try { this.needs = await api('/api/mealplan/needs?start=' + this.start + '&end=' + addDays(this.start, 6)); } catch (e) { oops(e); }
+    },
+    async needsToShopping() {
+      try {
+        const r = await api('/api/mealplan/shopping?start=' + this.start + '&end=' + addDays(this.start, 6), { method: 'POST' });
+        toast('Added ' + r.added + ' to the shopping list');
+        this.needs = null;
+      } catch (e) { oops(e); }
+    },
+    async getIdeas() {
+      this.ideas.busy = true; this.ideas.text = '';
+      try {
+        const r = await api('/api/suggestions/meals', { method: 'POST', body: { days: this.ideas.days, slots: this.ideas.slots, note: this.ideas.note } });
+        this.ideas.text = r.text;
+      } catch (e) { oops(e); }
+      this.ideas.busy = false;
+    },
+  };
+}
+</script>
+{% endblock %}
