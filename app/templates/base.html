@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ title }} - Larder</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2f6f4f">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/app.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+</head>
+<body>
+{% if user %}
+{% set here = request.url.path %}
+<header class="top">
+  <a class="brand" href="/">Larder</a>
+  <a class="nav {{ 'on' if here == '/' }}" href="/">Stock</a>
+  <a class="nav {{ 'on' if here == '/scan' }}" href="/scan">Scan</a>
+  <a class="nav {{ 'on' if here == '/shopping' }}" href="/shopping">Shopping</a>
+  <a class="nav {{ 'on' if here.startswith('/recipes') }}" href="/recipes">Recipes</a>
+  <a class="nav {{ 'on' if here == '/mealplan' }}" href="/mealplan">Meal plan</a>
+  <a class="nav {{ 'on' if here == '/products' }}" href="/products">Products</a>
+  <a class="nav {{ 'on' if here == '/manage' }}" href="/manage">Locations &amp; units</a>
+  <span class="spacer"></span>
+  <a class="nav {{ 'on' if here == '/settings' }}" href="/settings">{{ user.username }}</a>
+  <a class="nav" href="#" onclick="logout(); return false">Log out</a>
+</header>
+{% endif %}
+<main>
+{% block content %}{% endblock %}
+</main>
+<div x-data x-cloak x-show="$store.toast.msg" class="toast" :class="$store.toast.bad && 'bad'"
+     x-text="$store.toast.msg" @click="$store.toast.msg = ''"></div>
+</body>
+</html>
