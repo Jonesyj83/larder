@@ -155,7 +155,7 @@ class Usability(unittest.TestCase):
         pre = """
 const assert=require('node:assert/strict'); const today=()=> '2026-10-12';
 const addDays=x=>x, oops=e=>{throw e;}, toast=()=>{};
-const calls=[]; async function api(path,opts={}) {calls.push({path,...opts}); return [];}
+const window={}; const calls=[]; async function api(path,opts={}) {calls.push({path,...opts}); return [];}
 """
         body = """
 (async()=> {
@@ -174,7 +174,7 @@ const calls=[]; async function api(path,opts={}) {calls.push({path,...opts}); re
  }
 })().catch(e=>{console.error(e);process.exit(1)});
 """
-        r = subprocess.run(['node'], input=pre+plan+stock+body,text=True,capture_output=True)
+        r = subprocess.run(['node'], input=pre+"function selectIngredient"+(ROOT/'app/static/app.js').read_text().split('function selectIngredient')[1]+plan+stock+body,text=True,capture_output=True)
         self.assertEqual(r.returncode,0,r.stderr)
 
     def test_date_and_quantity_javascript(self):

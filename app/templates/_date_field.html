@@ -4,6 +4,6 @@
          :aria-label="'{{ label }} (' + preferences().date_format + ')'" :aria-describedby="$id('date-help')"
          :disabled="{{ disabled }}" :aria-invalid="!!error" :placeholder="preferences().date_format" :value="text"
          @input="text = $event.target.value; accept()" {% if required %}required{% endif %}>
-  <small :id="$id('date-help')" :class="error ? 'bad' : 'muted'" aria-live="polite" x-text="error || preferences().date_format"></small>
+  <small x-show="error" :id="$id('date-help')" :class="error ? 'bad' : 'muted'" aria-live="polite" x-text="error"></small>
 </span>
 {%- endmacro %}

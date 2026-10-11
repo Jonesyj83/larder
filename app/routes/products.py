@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth import current_user
 from ..db import get_db, row, rows
@@ -17,10 +17,10 @@ class ProductIn(BaseModel):
     location_id: Optional[int] = None
     unit_id: int
     purchase_unit_id: Optional[int] = None
-    purchase_factor: float = 1
+    purchase_factor: float = Field(default=1, gt=0, allow_inf_nan=False)
     shelf_life_kind: Literal["best_by", "use_by"] = "best_by"
     default_days: Optional[int] = None
-    min_stock: float = 0
+    min_stock: float = Field(default=0, ge=0, allow_inf_nan=False)
     notes: str = ""
     barcodes: list[str] = []
     picture_url: Optional[str] = None  # fetched and saved locally on create

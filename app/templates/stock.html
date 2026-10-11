@@ -27,7 +27,7 @@
     <div class="small muted" x-text="missing.map(m => m.name + ' (' + qty(m.amount, m.unit) + ' / ' + qty(m.min_stock, m.unit) + ')').join(', ')"></div>
   </div>
 
-  <div class="row toolbar">
+  <div class="filter-row toolbar">
     <label class="grow" for="stock-search">Find food<input id="stock-search" type="search" placeholder="Name of an item" x-model="q"></label>
     <label for="stock-location">Location<select id="stock-location" x-model="loc" @change="load()">
       <option value="">All locations</option>
@@ -55,18 +55,18 @@
         </div>
         <div class="stock-details" x-show="open == s.product_id" x-cloak>
           <template x-for="e in entries" :key="e.id">
-            <div class="row small" style="margin: .25rem 0">
-              <input type="number" step="any" min="0" x-model.number="e.amount" style="width: 6rem">
+            <form class="stock-entry" @submit.prevent="saveEntry(e)">
+              <input type="number" step="any" min="0" x-model.number="e.amount" aria-label="Stock amount">
               <span x-text="s.unit"></span>
-              <select x-model="e.location_id" style="width: auto">
+              <select x-model="e.location_id" aria-label="Stock location"><option value="">None</option>
                 <template x-for="l in locations" :key="l.id">
                   <option :value="l.id" x-text="l.name" :selected="l.id == e.location_id"></option>
                 </template>
               </select>
               {{ date_field('e.expires_on', 'Date', false) }}
               <label class="inline small"><input type="checkbox" x-model="e.opened"> opened</label>
-              <button class="small" @click="if ($el.closest('.row').querySelector('[data-date-input]').reportValidity()) saveEntry(e)">Save</button>
-            </div>
+              <button class="small">Save</button>
+            </form>
           </template>
           <div class="row" style="margin-top: .4rem">
             <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Purchase</button>
@@ -95,8 +95,7 @@
     <div class="modal-bg" @click.self="adding = false">
       <div class="modal">
         <b>Add stock</b>
-        <label>Product</label>
-        <input placeholder="Search products" x-model="pq" @input.debounce.200ms="searchProducts()" x-init="$el.focus()">
+        <label class="field">Product<input aria-label="Find a product to add stock" placeholder="Search products" x-model="pq" @input.debounce.200ms="searchProducts()" x-init="$el.focus()"></label>
         <template x-for="p in found" :key="p.id">
           <div class="list-item" style="cursor: pointer" @click="adding = false; $dispatch('stock-modal', {product_id: p.id, mode: 'purchase'})">
             <img x-show="p.picture" :src="pic(p.picture)" class="thumb">

@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="productsPage()" x-init="init()" @stock-changed.window="load()">
+<div x-data="productsPage()" @stock-changed.window="load()">
   <div class="row page-head">
     <h1 class="grow">Products</h1>
     <button class="primary" @click="edit(null)">New product</button>
   </div>
+  <p class="muted small">The product catalogue includes food with no stock. Add or Use changes what is on hand; meal planning only records what you need.</p>
   <div class="toolbar"><label for="product-search">Find a product</label><input id="product-search" type="search" placeholder="Name of a product" x-model="q"></div>
 
   <div class="card">
@@ -31,31 +32,28 @@
       <div class="modal">
         <b x-text="form.id ? 'Edit product' : 'New product'"></b>
         <form @submit.prevent="save()">
-          <label>Name</label>
-          <input x-model="form.name" required x-init="$el.focus()">
+          <label class="field">Name<input x-model="form.name" required x-init="$el.focus()"></label>
           <div class="grid2">
             <div>
-              <label>Default location</label>
-              <select x-model="form.location_id">
+              <label class="field">Default location<select x-model="form.location_id">
                 <option value="">None</option>
                 <template x-for="l in locations" :key="l.id">
                   <option :value="l.id" x-text="l.name" :selected="l.id == form.location_id"></option>
                 </template>
-              </select>
+              </select></label>
             </div>
             <div>
-              <label>Stock unit (what you count it in)</label>
-              <select x-model="form.unit_id" required>
+              <label class="field">Stock unit (what you count it in)<select x-model="form.unit_id" required>
                 <template x-for="u in preferredUnits(units)" :key="u.id">
                   <option :value="u.id" x-text="u.name" :selected="u.id == form.unit_id"></option>
                 </template>
-              </select>
+              </select></label>
             </div>
           </div>
           <div class="grid2">
             <div>
               <label>Bought as (optional)</label><p class="muted small">For a pack of 6: stock unit piece, bought as pack, factor 6.</p>
-              <select x-model="form.purchase_unit_id">
+              <select aria-label="Bought as" x-model="form.purchase_unit_id">
                 <option value="">Same as stock unit</option>
                 <template x-for="u in preferredUnits(units)" :key="u.id">
                   <option :value="u.id" x-text="u.name" :selected="u.id == form.purchase_unit_id"></option>
@@ -64,45 +62,39 @@
             </div>
             <div x-show="form.purchase_unit_id && form.purchase_unit_id != form.unit_id">
               <label x-text="'1 ' + unitName(form.purchase_unit_id) + ' = how many ' + unitName(form.unit_id) + '?'"></label>
-              <input type="number" step="any" min="0" x-model.number="form.purchase_factor">
+              <input :aria-label="'1 ' + unitName(form.purchase_unit_id) + ' = how many ' + unitName(form.unit_id) + '?'" type="number" step="any" min="0" x-model.number="form.purchase_factor">
             </div>
           </div>
           <div class="grid3">
             <div>
-              <label>Date type</label>
-              <select x-model="form.shelf_life_kind">
+              <label class="field">Date type<select x-model="form.shelf_life_kind">
                 <option value="best_by">Best by</option>
                 <option value="use_by">Use by</option>
-              </select>
+              </select></label>
             </div>
             <div>
-              <label>Usually keeps (days)</label>
-              <input type="number" min="0" x-model="form.default_days" placeholder="blank = no date">
+              <label class="field">Usually keeps (days)<input type="number" min="0" x-model="form.default_days" placeholder="blank = no date"></label>
             </div>
             <div>
-              <label>Keep at least</label>
-              <input type="number" step="any" min="0" x-model.number="form.min_stock">
+              <label class="field">Keep at least<input type="number" step="any" min="0" x-model.number="form.min_stock"></label>
             </div>
           </div>
-          <label>Barcodes (one per line)</label>
-          <textarea x-model="form.barcodes" style="min-height: 3rem"></textarea>
-          <label>Notes</label>
-          <input x-model="form.notes">
+          <label class="field">Barcodes (one per line)<textarea x-model="form.barcodes" style="min-height: 3rem"></textarea></label>
+          <label class="field">Notes<input x-model="form.notes"></label>
 
           <template x-if="form.id">
             <div>
               <label>Picture</label>
               <div class="row">
                 <img x-show="form.picture" :src="pic(form.picture)" class="thumb" style="width: 64px; height: 64px">
-                <input type="file" accept="image/*" @change="upload($event)" class="grow">
+                <input aria-label="Product picture" type="file" accept="image/*" @change="upload($event)" class="grow">
                 <button type="button" class="small" x-show="form.picture" @click="removePic()">Remove</button>
               </div>
             </div>
           </template>
           <template x-if="!form.id">
             <div>
-              <label>Picture URL (optional, you can upload one after saving)</label>
-              <input x-model="form.picture_url">
+              <label class="field">Picture URL (optional, you can upload one after saving)<input x-model="form.picture_url"></label>
             </div>
           </template>
 

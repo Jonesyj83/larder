@@ -201,3 +201,20 @@ function unitFactor(source, target) {
   }
   return null;
 }
+
+function selectIngredient(i, products) {
+  const p = products.find(p => p.id == i.product_id);
+  if (p) { i.unit_id = p.unit_id; i.name = ''; }
+}
+
+function ingredientBody(i) {
+  const body = {product_id: i.product_id ? Number(i.product_id) : null,
+    amount: Number(i.amount), unit_id: i.unit_id ? Number(i.unit_id) : null};
+  if (!i.product_id) body.name = (i.name || '').trim();
+  if (i.note) body.note = i.note;
+  return body;
+}
+
+function saveRequestId() {
+  return window.crypto?.randomUUID?.() || Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+}

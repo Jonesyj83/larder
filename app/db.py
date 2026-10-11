@@ -141,16 +141,25 @@ CREATE TABLE IF NOT EXISTS meal_plan (
     day TEXT NOT NULL,
     slot TEXT NOT NULL,
     recipe_id INTEGER REFERENCES recipes(id) ON DELETE CASCADE,
+    simple_meal INTEGER NOT NULL DEFAULT 0,
     note TEXT NOT NULL DEFAULT '',
     servings REAL,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS meal_plan_day ON meal_plan(day);
+CREATE TABLE IF NOT EXISTS planning_requests (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    response TEXT NOT NULL,
+    PRIMARY KEY(user_id, kind, request_id)
+);
 """
 
 DEFAULT_LOCATIONS = [("Fridge", 0), ("Pantry", 0), ("Freezer", 1)]
 DEFAULT_UNITS = [
-    ("piece", "pieces"), ("pack", "packs"), ("g", "g"), ("kg", "kg"),
+    ("piece", "pieces"), ("slice", "slices"), ("pack", "packs"), ("g", "g"), ("kg", "kg"),
     ("ml", "ml"), ("l", "l"), ("tin", "tins"), ("bottle", "bottles"),
 ]
 
@@ -183,6 +192,8 @@ def init_db():
         ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}
         conn.execute("INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, 1000)", (ids["kg"], ids["g"]))
         conn.execute("INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, 1000)", (ids["l"], ids["ml"]))
+    if "simple_meal" not in {r["name"] for r in conn.execute("PRAGMA table_info(meal_plan)")}:
+        conn.execute("ALTER TABLE meal_plan ADD COLUMN simple_meal INTEGER NOT NULL DEFAULT 0")
     # Additive migration: preserve users, meals and existing conversion overrides.
     columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
     for name, default in (("date_format", "DD/MM/YYYY"), ("measurement_system", "metric")):

@@ -49,8 +49,7 @@ h2 { font-size: 1.15rem; margin: 28px 0 10px; }
 .page-head { background: var(--card); padding: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 16px; min-height: 86px; }
 .card { background: var(--card); border: 0; border-radius: 0; padding: 20px; margin-bottom: 16px; }
 .toolbar { background: var(--card); padding: 14px 20px; margin-bottom: 16px; }
-.toolbar label { color: var(--text); margin: 0; }
-.toolbar label.grow { display: grid; gap: 4px; }
+.toolbar label { color: var(--text); margin: 0; display: grid; gap: 4px; }
 .notice { background: #393024; border: 1px solid #89724f; }
 .inventory { background: var(--inventory); padding: 0; }
 .inventory > p { padding: 20px; }
@@ -66,10 +65,11 @@ h2 { font-size: 1.15rem; margin: 28px 0 10px; }
 .bad { color: var(--bad); }
 .ok { color: var(--ok); }
 
-label { display: block; font-size: .85rem; color: var(--muted); margin: .5rem 0 .2rem; }
-label.inline { display: inline-flex; align-items: center; gap: .35rem; color: var(--text); font-size: 1rem; }
+label { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); margin: .5rem 0 .2rem; }
+label.inline { margin: 0; display: inline-flex; align-items: center; gap: .35rem; color: var(--text); font-size: 1rem; }
 
 input, select, textarea {
+  min-width: 0;
   max-width: 100%;
   font: inherit;
   color: var(--text);
@@ -99,14 +99,13 @@ button.danger { color: var(--bad); }
 button.small { min-height: 44px; padding: 8px 12px; font-size: .85rem; }
 button:disabled { opacity: .5; cursor: default; }
 
-table { width: 100%; border-collapse: collapse; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 th, td { text-align: left; padding: 14px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 th { font-size: .8rem; color: var(--muted); font-weight: 600; background: var(--control); }
 
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
-.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 20px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; align-items: end; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 20px; align-items: end; }
 @media (max-width: 560px) {
-  .grid2, .grid3 { grid-template-columns: 1fr; }
   .hide-small { display: none; }
 }
 
@@ -152,13 +151,13 @@ th { font-size: .8rem; color: var(--muted); font-weight: 600; background: var(--
 
 .modal-bg {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,.45);
+  background: rgba(0,0,0,.7);
   display: flex; align-items: flex-start; justify-content: center;
   padding: 2rem .5rem;
   overflow-y: auto;
   z-index: 40;
 }
-.modal { background: var(--card); border-radius: 5px; padding: 1rem; width: 100%; max-width: 560px; }
+.modal { background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 24px; width: 100%; max-width: 680px; }
 
 /* scanner */
 .scanner {
@@ -189,9 +188,9 @@ th { font-size: .8rem; color: var(--muted); font-weight: 600; background: var(--
 .week .day.today { border-color: var(--accent); }
 .week .slot { font-size: .8rem; margin-bottom: .35rem; }
 .week .slot b { display: block; font-size: .7rem; color: var(--muted); font-weight: 600; text-transform: uppercase; }
-.week .meal { background: var(--bg); border-radius: 5px; padding: .15rem .3rem; margin-top: .15rem; display: flex; gap: .2rem; align-items: center; }
-.week .meal span { flex: 1; overflow-wrap: anywhere; min-width: 0; }
-.week .meal button { padding: 4px 8px; border: 0; background: none; color: var(--muted); }
+.week .meal { background: var(--bg); padding: 8px; margin-top: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.week .meal > span { grid-column: 1 / -1; overflow-wrap: anywhere; min-width: 0; }
+.week .meal button { padding: 4px; min-width: 0; font-size: .8rem; }
 @media (max-width: 800px) {
   .week { grid-template-columns: 1fr; }
   .week .day { min-height: 0; }
@@ -213,16 +212,13 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
 .list-item .grow, td, pre, .suggestion { overflow-wrap: anywhere; }
 .card > :first-child { margin-top: 0; }
 .card .card { background: var(--inventory); border: 1px solid var(--line); padding: 14px; }
-.modal { border: 1px solid var(--line); padding: 24px; }
 .modal > b, .modal .grow > b { font-size: 1.15rem; }
-.modal-bg { background: rgba(0,0,0,.7); }
 .page-head .tabs { margin: 0; }
 .scanner { max-width: 720px; border: 1px solid var(--line); }
 .scanner .placeholder { color: var(--muted); }
 .week .day.today { border-top: 3px solid var(--accent); }
 .week .slot { margin-top: 16px; }
 .week .slot b { text-transform: none; font-size: .85rem; }
-.week .meal { padding: 8px; border-radius: 0; align-items: flex-start; }
 .week .meal a { color: var(--text); }
 .stock-head, .stock-item { display: grid; grid-template-columns: minmax(160px,1.6fr) .7fr .8fr 1fr auto; gap: 16px; align-items: center; padding: 18px 20px; }
 .stock-head { background: var(--control); font-size: 13px; font-weight: 700; }
@@ -263,4 +259,34 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
 
 .stock-food { display: flex; gap: 12px; align-items: center; min-width: 0; }
 .date-field { display: block; max-width: 100%; }
-.date-field small { display: block; margin-top: 4px; }
+.date-field small { display: block; margin-top: 4px; font-size: .75rem; }
+
+.field { display: grid; gap: 4px; min-width: 0; margin: .5rem 0 0; }
+.field > input, .field > select, .field > textarea { margin: 0; }
+.ingredient-row { display: grid; grid-template-columns: minmax(0, 1fr) 6rem minmax(7rem, .65fr) auto; gap: 8px; align-items: end; margin: 12px 0; }
+.ingredient-row .field { margin: 0; }
+.ingredient-product { gap: 8px; }
+.ingredient-product > label { margin: 0; }
+.ingredient-note { grid-column: 1 / -1; }
+.filter-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, .25fr); gap: 8px; align-items: end; }
+.form-row, .manage-row, .conversion-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto; gap: 8px; align-items: end; }
+.form-row { grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); }
+.conversion-row { grid-template-columns: minmax(0,1fr) minmax(6rem,.6fr) minmax(0,1fr) auto; }
+.manage-row { margin-bottom: 12px; }
+.stock-entry { display: grid; grid-template-columns: 6rem auto minmax(8rem, 1fr) minmax(9rem, 1fr) auto auto; gap: 8px; align-items: center; margin: 12px 0; }
+.scanner-choice { width: min(100%, 17rem); }
+.portion-choice { width: min(100%, 14rem); }
+@media (max-width: 1050px) and (min-width: 801px) { .week { grid-template-columns: repeat(4, minmax(0,1fr)); } }
+@media (max-width: 740px) {
+  .stock-entry { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .stock-entry > span:not(.date-field) { align-self: center; }
+}
+@media (max-width: 560px) {
+  .ingredient-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .ingredient-product, .ingredient-row > label:first-child { grid-column: 1 / -1; }
+  .ingredient-row > button { grid-column: 1 / -1; justify-self: start; }
+  .manage-row, .conversion-row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .conversion-row > button { align-self: end; }
+  .filter-row { grid-template-columns: 1fr; }
+  th, td { padding: 8px 4px; }
+}

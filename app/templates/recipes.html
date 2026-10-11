@@ -1,7 +1,7 @@
 {% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
-<div x-data="recipesPage()" x-init="init()">
+<div x-data="recipesPage()">
   <div class="row page-head">
     <h1 class="grow">Recipes</h1>
     <button @click="ideaOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Suggest a recipe</button>
@@ -39,7 +39,7 @@
         </div>
         <div class="row" style="margin: .6rem 0">
           <span>Servings</span>
-          <input type="number" step="any" min="0.25" x-model.number="servings" @change="open(current.id)" style="width: 5.5rem">
+          <input aria-label="Recipe servings" type="number" step="any" min="0.000001" x-model.number="servings" @change="open(current.id)" style="width: 5.5rem">
           <span class="muted small" x-show="servings != current.servings" x-text="'(recipe is for ' + num(current.servings) + ')'"></span>
         </div>
         <table>
@@ -77,14 +77,12 @@
             <div class="grid2">
               <div><label>Day</label>{{ date_field('plan.day', 'Date', true) }}</div>
               <div>
-                <label>Meal</label>
-                <select x-model="plan.slot">
+                <label class="field">Meal<select x-model="plan.slot">
                   <template x-for="s in slots"><option :value="s" x-text="s"></option></template>
-                </select>
+                </select></label>
               </div>
             </div>
-            <label>Servings</label>
-            <input type="number" step="any" min="0" x-model.number="plan.servings">
+            <label class="field">Servings<input type="number" step="any" min="0.000001" x-model.number="plan.servings"></label>
             <div class="row" style="margin-top: 1rem">
               <button class="primary">Add</button>
               <button type="button" @click="planOpen = false">Cancel</button>
@@ -101,32 +99,34 @@
       <form class="modal" @submit.prevent="save()">
         <b x-text="form.id ? 'Edit recipe' : 'New recipe'"></b>
         <div class="grid2">
-          <div><label>Name</label><input x-model="form.name" required></div>
-          <div><label>Servings</label><input type="number" step="any" min="0.25" x-model.number="form.servings" required></div>
+          <div><label class="field">Name<input x-model="form.name" required></label></div>
+          <div><label class="field">Servings<input type="number" step="any" min="0.25" x-model.number="form.servings" required></label></div>
         </div>
         <label>Ingredients</label>
         <template x-for="(i, idx) in form.ingredients" :key="idx">
-          <div class="row" style="margin-bottom: .3rem">
-            <select x-model="i.product_id" class="grow" required @change="pickProduct(i)">
-              <option value="">Product...</option>
-              <template x-for="p in products" :key="p.id">
-                <option :value="p.id" x-text="p.name" :selected="p.id == i.product_id"></option>
-              </template>
-            </select>
-            <input type="number" step="any" min="0" x-model.number="i.amount" style="width: 5rem" required>
-            <select x-model="i.unit_id" style="width: auto">
-              <template x-for="u in preferredUnits(units)" :key="u.id">
-                <option :value="u.id" x-text="u.name" :selected="u.id == i.unit_id"></option>
-              </template>
-            </select>
-            <input x-model="i.note" placeholder="note" style="width: 7rem">
-            <button type="button" class="small danger" @click="form.ingredients.splice(idx, 1)">x</button>
+          <div class="ingredient-row">
+            <div class="ingredient-product field">
+              <label>Catalogue product
+                <select x-model="i.product_id" @change="selectIngredient(i, products)">
+                  <option value="">New ingredient (no stock)</option>
+                  <template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name + ' — on hand: ' + num(p.in_stock) + ' ' + p.unit"></option></template>
+                </select>
+              </label>
+              <label x-show="!i.product_id">Ingredient name
+                <input x-model="i.name" :required="!i.product_id" :disabled="!!i.product_id" placeholder="e.g. Bread">
+              </label>
+            </div>
+            <label class="field">Amount<input type="number" step="any" min="0.000001" x-model.number="i.amount" required></label>
+            <label class="field">Unit<select x-model="i.unit_id" required>
+              <option value="">Choose unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+            </select></label>
+            <button type="button" class="small danger" @click="form.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
+            <label class="field ingredient-note">Ingredient note (optional)<input x-model="i.note"></label>
           </div>
         </template>
-        <button type="button" class="small" @click="form.ingredients.push({product_id: '', amount: 1, unit_id: '', note: ''})">+ ingredient</button>
-        <p class="muted small" x-show="!products.length">You need some <a href="{{ base_path }}/products">products</a> first.</p>
-        <label>Method</label>
-        <textarea x-model="form.instructions"></textarea>
+        <button type="button" class="small" @click="form.ingredients.push({product_id: '', name: '', amount: 1, unit_id: '', note: ''})">+ ingredient</button>
+        <p class="muted small">New ingredients are saved to the catalogue only when you save. This adds no stock. If a name already exists, choose that catalogue product above. Units and names can be edited in Products.</p>
+        <label class="field">Method<textarea x-model="form.instructions"></textarea></label>
         <div class="row" style="margin-top: 1rem">
           <button class="primary" :disabled="busy">Save</button>
           <button type="button" @click="form = null">Cancel</button>
@@ -142,7 +142,7 @@
         <b>Suggest a recipe</b>
         <p class="muted small">Looks at what's in stock and comes up with something.</p>
         <form @submit.prevent="getIdea()">
-          <input x-model="idea.text" placeholder="Anything in mind? e.g. something quick with chicken">
+          <input aria-label="Recipe suggestion request" x-model="idea.text" placeholder="Anything in mind? e.g. something quick with chicken">
           <label class="inline" style="margin-top: .5rem"><input type="checkbox" x-model="idea.expiring"> Use up what's going off first</label>
           <div class="row" style="margin-top: .6rem">
             <button class="primary" :disabled="idea.busy" x-text="idea.busy ? 'Thinking...' : 'Suggest'"></button>
@@ -200,12 +200,12 @@ function recipesPage() {
         this.current = await api('/api/recipes/' + id + q);
         this.servings = this.current.servings_wanted;
         this.plan.servings = this.servings;
-        history.replaceState(null, '', '/recipes?id=' + id);
+        history.replaceState(null, '', BASE + '/recipes?id=' + id);
       } catch (e) { oops(e); }
     },
     close() {
       this.current = null;
-      history.replaceState(null, '', '/recipes');
+      history.replaceState(null, '', BASE + '/recipes');
       this.load();
     },
     pickProduct(i) {
@@ -214,22 +214,23 @@ function recipesPage() {
     },
     edit(r) {
       if (!r) {
-        this.form = { id: null, name: '', servings: 2, instructions: '', ingredients: [{ product_id: '', amount: 1, unit_id: '', note: '' }] };
+        this.form = { request_id: saveRequestId(), id: null, name: '', servings: 2, instructions: '', ingredients: [{ product_id: '', name: '', amount: 1, unit_id: '', note: '' }] };
       } else {
-        this.form = { id: r.id, name: r.name, servings: r.servings, instructions: r.instructions,
+        this.form = { request_id: saveRequestId(), id: r.id, name: r.name, servings: r.servings, instructions: r.instructions,
           ingredients: r.ingredients.map(i => ({ product_id: i.product_id, amount: i.amount, unit_id: i.unit_id || i.stock_unit_id, note: i.note })) };
       }
     },
     async save() {
+      if (this.busy) return;
       this.busy = true;
       const f = this.form;
-      const body = { name: f.name, servings: f.servings, instructions: f.instructions,
-        ingredients: f.ingredients.filter(i => i.product_id).map(i => ({
-          product_id: Number(i.product_id), amount: Number(i.amount), unit_id: i.unit_id ? Number(i.unit_id) : null, note: i.note || '' })) };
+      const body = { request_id: f.request_id, name: f.name, servings: f.servings, instructions: f.instructions,
+        ingredients: f.ingredients.map(ingredientBody) };
       try {
         const r = f.id ? await api('/api/recipes/' + f.id, { method: 'PUT', body })
                        : await api('/api/recipes', { method: 'POST', body });
         this.form = null;
+        this.products = await api('/api/products');
         this.servings = null;
         this.current = null;
         await this.open(r.id);
@@ -244,7 +245,7 @@ function recipesPage() {
     async toShopping() {
       try {
         const r = await api('/api/recipes/' + this.current.id + '/shopping?servings=' + this.servings, { method: 'POST' });
-        toast('Added ' + r.added + ' to the shopping list');
+        toast('Added ' + r.added + ' to the shopping list' + (r.problems?.length ? '. Check unit conversions: ' + r.problems.join('; ') : ''), !!r.problems?.length);
       } catch (e) { oops(e); }
     },
     async cook() {
@@ -258,7 +259,7 @@ function recipesPage() {
     async addToPlan() {
       try {
         await api('/api/mealplan', { method: 'POST', body: { day: this.plan.day, slot: this.plan.slot,
-          recipe_id: this.current.id, servings: this.plan.servings || null } });
+          recipe_id: this.current.id, servings: this.plan.servings === '' || this.plan.servings == null ? null : Number(this.plan.servings) } });
         this.planOpen = false;
         toast('Added to the meal plan');
       } catch (e) { oops(e); }

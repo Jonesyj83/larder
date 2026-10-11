@@ -1,7 +1,7 @@
 {% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
-<div x-data="planPage()" x-init="init()">
+<div x-data="planPage()">
   <div class="row page-head">
     <h1 class="grow">Meal plan</h1>
     <button @click="ideasOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
@@ -62,29 +62,38 @@
             <label class="inline small"><input type="radio" :value="s" x-model="adding.slot"> <span x-text="s"></span></label>
           </template>
         </div>
-        <label>Recipe</label>
-        <select x-model="adding.recipe_id" @change="calcServings()">
+        <label class="field">Recipe<select x-model="adding.recipe_id" @change="calcServings()">
           <option value="">Simple meal or note (choose ingredients below)</option>
           <template x-for="r in recipes" :key="r.id">
             <option :value="r.id" x-text="r.name + (r.can_make ? '' : ' (' + r.missing_count + ' missing)')"></option>
           </template>
-        </select>
+        </select></label>
         <p class="small" x-show="adding.recipe_id"><a :href="BASE + '/recipes?id=' + adding.recipe_id">View or edit recipe ingredients</a>. To attach different products to this meal, choose “Simple meal or note” above.</p>
         <label x-text="adding.recipe_id ? 'Note (optional)' : 'What is it?'"></label>
-        <input x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
+        <input :aria-label="adding.recipe_id ? 'Note (optional)' : 'What is it?'" x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
         <div x-show="!adding.recipe_id">
-          <p class="muted small">Link the products you use and their amounts for the servings below. Saving ingredients also saves this simple meal as a recipe for reuse. Leaving this empty keeps a note; its needs cannot be calculated.</p>
+          <p class="muted small">Name new ingredients or choose catalogue products, then enter their amounts for the servings below. No purchase details are needed. Saving ingredients also saves this simple meal as a recipe for reuse. Leaving this empty keeps a note; its needs cannot be calculated.</p>
           <template x-for="(i, idx) in adding.ingredients" :key="idx">
-            <div class="row">
-              <label class="grow">Product<select x-model="i.product_id" @change="pickIngredient(i)" :required="!adding.recipe_id" :disabled="!!adding.recipe_id">
-                <option value="">Choose product</option><template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name"></option></template>
-              </select></label>
-              <label>Amount<input type="number" step="any" min="0.000001" x-model.number="i.amount" :required="!adding.recipe_id" :disabled="!!adding.recipe_id" style="width: 6rem"></label>
-              <label>Unit<select :disabled="!!adding.recipe_id" x-model="i.unit_id" style="width: auto"><option value="">Product stock unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template></select></label>
-              <button type="button" class="small" @click="adding.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
+          <div class="ingredient-row">
+            <div class="ingredient-product field">
+              <label>Catalogue product
+                <select :disabled="!!adding.recipe_id" x-model="i.product_id" @change="selectIngredient(i, products)">
+                  <option value="">New ingredient (no stock)</option>
+                  <template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name + ' — on hand: ' + num(p.in_stock) + ' ' + p.unit"></option></template>
+                </select>
+              </label>
+              <label x-show="!i.product_id">Ingredient name
+                <input x-model="i.name" :required="!i.product_id && !adding.recipe_id" :disabled="!!i.product_id || !!adding.recipe_id" placeholder="e.g. Bread">
+              </label>
             </div>
+            <label class="field">Amount<input type="number" step="any" min="0.000001" x-model.number="i.amount" :required="!adding.recipe_id" :disabled="!!adding.recipe_id"></label>
+            <label class="field">Unit<select x-model="i.unit_id" :required="!adding.recipe_id" :disabled="!!adding.recipe_id">
+              <option value="">Choose unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+            </select></label>
+            <button type="button" class="small danger" @click="adding.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
+          </div>
           </template>
-          <button type="button" @click="adding.ingredients.push({product_id: '', amount: 1, unit_id: ''})">Add ingredient</button>
+          <button type="button" @click="adding.ingredients.push({product_id: '', name: '', amount: 1, unit_id: ''})">Add ingredient</button>
         </div>
         <label>Who's eating</label>
         <div class="row">
@@ -95,10 +104,9 @@
             </label>
           </template>
         </div>
-        <label>Servings</label>
-        <input type="number" step="any" min="0" x-model.number="adding.servings">
+        <label class="field">Servings<input type="number" step="any" min="0.000001" x-model.number="adding.servings"></label>
         <div class="row" style="margin-top: 1rem">
-          <button class="primary" x-text="adding.id ? 'Save meal' : 'Add meal'"></button>
+          <button class="primary" :disabled="busy" x-text="adding.id ? 'Save meal' : 'Add meal'"></button>
           <button type="button" @click="adding = null">Cancel</button>
         </div>
       </form>
@@ -145,8 +153,7 @@
         <form @submit.prevent="getIdeas()">
           <div class="grid2">
             <div>
-              <label>How many days</label>
-              <input type="number" min="1" max="7" x-model.number="ideas.days">
+              <label class="field">How many days<input type="number" min="1" max="7" x-model.number="ideas.days"></label>
             </div>
             <div>
               <label>Meals</label>
@@ -157,8 +164,7 @@
               </div>
             </div>
           </div>
-          <label>Anything else?</label>
-          <input x-model="ideas.note" placeholder="e.g. no fish, something light">
+          <label class="field">Anything else?<input x-model="ideas.note" placeholder="e.g. no fish, something light"></label>
           <div class="row" style="margin-top: .6rem">
             <button class="primary" :disabled="ideas.busy" x-text="ideas.busy ? 'Thinking...' : 'Get ideas'"></button>
             <button type="button" @click="ideasOpen = false">Close</button>
@@ -181,7 +187,7 @@ function monday(iso) {
 function planPage() {
   return {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
-    recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
+    busy: false, recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
     ideasOpen: false, ideas: { days: 1, slots: ['dinner'], note: '', busy: false, text: '' },
     meId: {{ user.id }},
 
@@ -206,11 +212,17 @@ function planPage() {
     mealsFor(d, s) { return this.meals.filter(m => m.day == d && m.slot == s); },
 
     openAdd(day) {
-      this.adding = { day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null, ingredients: [] };
+      this.adding = { request_id: saveRequestId(), day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null, ingredients: [] };
       this.calcServings();
     },
-    openEdit(m) {
-      this.adding = {...m, recipe_id: m.recipe_id || '', eaters: [], ingredients: []};
+    async openEdit(m) {
+      const draft = {request_id: saveRequestId(), ...m, recipe_id: m.simple_meal ? '' : (m.recipe_id || ''), eaters: [], ingredients: []};
+      if (m.simple_meal && m.recipe_id) {
+        try { const r = await api('/api/recipes/' + m.recipe_id);
+          draft.ingredients = r.ingredients.map(i => ({product_id: i.product_id, amount: i.amount, unit_id: i.unit_id || i.stock_unit_id, note: i.note}));
+        } catch (e) { return oops(e); }
+      }
+      this.adding = draft;
     },
     editUnmapped(m) {
       const meal = this.meals.find(x => x.id == m.id);
@@ -227,17 +239,19 @@ function planPage() {
       this.adding.servings = total || null;
     },
     async add() {
+      if (this.busy) return;
+      this.busy = true;
       const a = this.adding;
       try {
-        const body = {day: a.day, slot: a.slot, recipe_id: a.recipe_id ? Number(a.recipe_id) : null,
-          note: a.note, servings: a.servings || null, eaters: a.eaters.map(Number)};
-        if (!a.recipe_id && a.ingredients.length) body.ingredients = a.ingredients.map(i => ({
-          product_id: Number(i.product_id), amount: Number(i.amount), unit_id: i.unit_id ? Number(i.unit_id) : null}));
+        const body = {request_id: a.request_id, day: a.day, slot: a.slot, recipe_id: a.recipe_id ? Number(a.recipe_id) : null,
+          note: a.note, servings: a.servings === '' || a.servings == null ? null : Number(a.servings), eaters: a.eaters.map(Number)};
+        if (!a.recipe_id && (a.ingredients.length || a.simple_meal)) body.ingredients = a.ingredients.map(ingredientBody);
         await api('/api/mealplan' + (a.id ? '/' + a.id : ''), {method: a.id ? 'PUT' : 'POST', body});
-        this.recipes = await api('/api/recipes/makeable');
         this.adding = null;
+        [this.recipes, this.products] = await Promise.all([api('/api/recipes/makeable'), api('/api/products')]);
         this.load();
       } catch (e) { oops(e); }
+      this.busy = false;
     },
     async remove(m) {
       try { await api('/api/mealplan/' + m.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }

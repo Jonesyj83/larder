@@ -8,7 +8,7 @@ from .. import stock as st
 from ..auth import current_user
 from ..db import get_db, row, rows
 from .shopping import add_item
-from .recipes import IngredientIn
+from ..ingredients import IngredientIn, atomic_save, save_ingredients
 from .stock import canonical_date
 
 router = APIRouter(prefix="/api", tags=["meal plan"])
@@ -21,6 +21,7 @@ PORTION_FACTOR = {"small": 0.5, "regular": 1.0, "large": 1.5}
 
 
 class MealIn(BaseModel):
+    request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     day: str
     slot: Slot
     recipe_id: Optional[int] = None
@@ -31,6 +32,7 @@ class MealIn(BaseModel):
 
 
 class MealEdit(BaseModel):
+    request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     recipe_id: Optional[int] = None
     ingredients: Optional[list[IngredientIn]] = None
     day: Optional[str] = None
@@ -50,21 +52,12 @@ def _day(s):
 
 
 def simple_recipe(db, note, servings, ingredients, user):
-    """Save explicitly chosen products as a reusable recipe; never infer foods."""
-    import math
+    """Save intentional ingredients as a reusable recipe."""
     if not note.strip():
         raise HTTPException(400, "Give the simple meal a name")
-    for i in ingredients:
-        if not math.isfinite(i.amount) or i.amount <= 0:
-            raise HTTPException(400, "Ingredient amounts have to be above zero")
-        if not db.execute("SELECT id FROM products WHERE id=?", (i.product_id,)).fetchone():
-            raise HTTPException(400, "Ingredient product not found")
-        if i.unit_id and not db.execute("SELECT id FROM units WHERE id=?", (i.unit_id,)).fetchone():
-            raise HTTPException(400, "Ingredient unit not found")
     cur = db.execute("INSERT INTO recipes(name,servings,created_by) VALUES(?,?,?)",
                      (note.strip(), servings or 1, user["id"]))
-    db.executemany("INSERT INTO recipe_ingredients(recipe_id,product_id,amount,unit_id,note) VALUES(?,?,?,?,?)",
-                   [(cur.lastrowid, i.product_id, i.amount, i.unit_id, i.note) for i in ingredients])
+    save_ingredients(db, cur.lastrowid, ingredients)
     return cur.lastrowid
 
 
@@ -96,6 +89,7 @@ def week(start: Optional[str] = None, days: int = 7, db=Depends(get_db), user=De
 
 
 @router.post("/mealplan", status_code=201)
+@atomic_save
 def add_meal(data: MealIn, db=Depends(get_db), user=Depends(current_user)):
     _day(data.day)
     if not data.recipe_id and not data.note.strip():
@@ -114,11 +108,13 @@ def add_meal(data: MealIn, db=Depends(get_db), user=Depends(current_user)):
         servings = servings or 1
     cur = db.execute("INSERT INTO meal_plan (day, slot, recipe_id, note, servings, user_id) VALUES (?, ?, ?, ?, ?, ?)",
                      (data.day, data.slot, recipe_id, data.note.strip(), servings, user["id"]))
-    db.commit()
+    if data.ingredients:
+        db.execute("UPDATE meal_plan SET simple_meal=1 WHERE id=?", (cur.lastrowid,))
     return row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (cur.lastrowid,)))
 
 
 @router.put("/mealplan/{meal_id}")
+@atomic_save
 def edit_meal(meal_id: int, data: MealEdit, db=Depends(get_db), user=Depends(current_user)):
     m = row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (meal_id,)))
     if not m:
@@ -138,12 +134,33 @@ def edit_meal(meal_id: int, data: MealEdit, db=Depends(get_db), user=Depends(cur
         m["servings"] = m["servings"] or recipe["servings"]
     if not m["recipe_id"] and not m["note"].strip():
         raise HTTPException(400, "Pick a recipe or name the meal")
-    if data.ingredients:
-        m["recipe_id"] = simple_recipe(db, m["note"], m["servings"], data.ingredients, user)
-        m["servings"] = m["servings"] or 1
-    db.execute("UPDATE meal_plan SET day=?, slot=?, note=?, servings=?, recipe_id=? WHERE id=?",
-               (m["day"], m["slot"], m["note"].strip(), m["servings"], m["recipe_id"], meal_id))
-    db.commit()
+    if data.ingredients is not None:
+        if data.recipe_id and data.ingredients:
+            raise HTTPException(400, "Choose a recipe or simple meal ingredients")
+        if data.ingredients:
+            if not m["note"].strip():
+                raise HTTPException(400, "Give the simple meal a name")
+            original = row(db.execute("SELECT * FROM meal_plan WHERE id=?", (meal_id,)))
+            owned = original["simple_meal"] and original["recipe_id"] and db.execute(
+                "SELECT COUNT(*) FROM meal_plan WHERE recipe_id=?", (original["recipe_id"],)).fetchone()[0] == 1
+            if owned:
+                m["recipe_id"] = original["recipe_id"]
+                db.execute("UPDATE recipes SET name=?,servings=? WHERE id=?",
+                           (m["note"].strip(), m["servings"] or 1, m["recipe_id"]))
+                save_ingredients(db, m["recipe_id"], data.ingredients)
+            else:
+                m["recipe_id"] = simple_recipe(db, m["note"], m["servings"], data.ingredients, user)
+            m["simple_meal"] = 1
+            m["servings"] = m["servings"] or 1
+        elif m["simple_meal"]:
+            m["recipe_id"] = None
+            m["simple_meal"] = 0
+    elif "recipe_id" in data.model_fields_set:
+        m["simple_meal"] = 0
+    if not m["recipe_id"] and not m["note"].strip():
+        raise HTTPException(400, "Name the meal or choose a recipe")
+    db.execute("UPDATE meal_plan SET day=?, slot=?, note=?, servings=?, recipe_id=?, simple_meal=? WHERE id=?",
+               (m["day"], m["slot"], m["note"].strip(), m["servings"], m["recipe_id"], m["simple_meal"], meal_id))
     return row(db.execute("SELECT * FROM meal_plan WHERE id=?", (meal_id,)))
 
 

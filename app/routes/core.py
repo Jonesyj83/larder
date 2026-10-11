@@ -2,7 +2,7 @@ import sqlite3
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth import current_user
 from ..db import BUILTIN_CONVERSIONS, get_db, row, rows
@@ -24,7 +24,7 @@ class UnitIn(BaseModel):
 class ConversionIn(BaseModel):
     from_unit_id: int
     to_unit_id: int
-    factor: float
+    factor: float = Field(gt=0, allow_inf_nan=False)
 
 
 def _name(s):
@@ -132,6 +132,9 @@ def list_conversions(db=Depends(get_db)):
 def add_conversion(data: ConversionIn, db=Depends(get_db)):
     if data.factor <= 0 or data.from_unit_id == data.to_unit_id:
         raise HTTPException(400, "Pick two different units and a factor above zero")
+    for unit_id in (data.from_unit_id, data.to_unit_id):
+        if not db.execute("SELECT id FROM units WHERE id=?", (unit_id,)).fetchone():
+            raise HTTPException(400, "Conversion unit not found")
     db.execute("""INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, ?)
                   ON CONFLICT(from_unit_id, to_unit_id) DO UPDATE SET factor = excluded.factor""",
                (data.from_unit_id, data.to_unit_id, data.factor))

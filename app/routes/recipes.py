@@ -2,26 +2,21 @@ import sqlite3
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .. import stock as st
 from ..auth import current_user
 from ..db import get_db, row, rows
 from .shopping import add_item
+from ..ingredients import IngredientIn, atomic_save, save_ingredients
 
 router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 
 
-class IngredientIn(BaseModel):
-    product_id: int
-    amount: float
-    unit_id: Optional[int] = None  # defaults to the product's stock unit
-    note: str = ""
-
-
 class RecipeIn(BaseModel):
+    request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     name: str
-    servings: float = 2
+    servings: float = Field(default=2, gt=0, allow_inf_nan=False)
     instructions: str = ""
     ingredients: list[IngredientIn] = []
 
@@ -31,7 +26,11 @@ def check(db, recipe_id, servings=None):
     r = row(db.execute("SELECT * FROM recipes WHERE id = ?", (recipe_id,)))
     if not r:
         raise HTTPException(404, "Recipe not found")
-    servings = servings or r["servings"]
+    if servings is not None:
+        import math
+        if not math.isfinite(servings) or servings <= 0:
+            raise HTTPException(400, "Servings has to be finite and above zero")
+    servings = servings if servings is not None else r["servings"]
     scale = servings / r["servings"] if r["servings"] else 1
     ings = rows(db.execute("""
         SELECT i.*, p.name, p.unit_id AS stock_unit_id, su.name AS stock_unit, u.name AS unit
@@ -67,13 +66,7 @@ def check(db, recipe_id, servings=None):
     return r
 
 
-def _save_ingredients(db, recipe_id, ingredients):
-    db.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
-    for i in ingredients:
-        if i.amount <= 0:
-            raise HTTPException(400, "Ingredient amounts have to be above zero")
-        db.execute("INSERT INTO recipe_ingredients (recipe_id, product_id, amount, unit_id, note) VALUES (?, ?, ?, ?, ?)",
-                   (recipe_id, i.product_id, i.amount, i.unit_id, i.note))
+_save_ingredients = save_ingredients
 
 
 @router.get("")
@@ -101,6 +94,7 @@ def get_recipe(recipe_id: int, servings: Optional[float] = None, db=Depends(get_
 
 
 @router.post("", status_code=201)
+@atomic_save
 def add_recipe(data: RecipeIn, db=Depends(get_db), user=Depends(current_user)):
     if not data.name.strip():
         raise HTTPException(400, "Recipe needs a name")
@@ -116,11 +110,11 @@ def add_recipe(data: RecipeIn, db=Depends(get_db), user=Depends(current_user)):
     except HTTPException:
         db.rollback()
         raise
-    db.commit()
     return check(db, cur.lastrowid)
 
 
 @router.put("/{recipe_id}")
+@atomic_save
 def edit_recipe(recipe_id: int, data: RecipeIn, db=Depends(get_db), user=Depends(current_user)):
     check(db, recipe_id)
     if not data.name.strip():
@@ -137,7 +131,6 @@ def edit_recipe(recipe_id: int, data: RecipeIn, db=Depends(get_db), user=Depends
     except HTTPException:
         db.rollback()
         raise
-    db.commit()
     return check(db, recipe_id)
 
 
@@ -154,15 +147,16 @@ def missing_to_shopping(recipe_id: int, servings: Optional[float] = None, db=Dep
     r = check(db, recipe_id, servings)
     added = 0
     for i in r["ingredients"]:
-        if i["missing"]:
-            add_item(db, i["product_id"], round(i["missing"], 3), i["stock_unit_id"], user_id=user["id"])
-            added += 1
-        elif i["need"] is None:
-            # can't convert, so just add it with the recipe's own amount and unit
-            add_item(db, i["product_id"], i["amount_scaled"], i["unit_id"], user_id=user["id"])
+        if i["need"] is None:
+            continue
+        on_list = db.execute("SELECT COALESCE(SUM(amount),0) FROM shopping_list WHERE product_id=? AND unit_id=? AND done=0",
+                             (i["product_id"], i["stock_unit_id"])).fetchone()[0]
+        extra = i["missing"] - on_list
+        if extra > 1e-9:
+            add_item(db, i["product_id"], extra, i["stock_unit_id"], user_id=user["id"])
             added += 1
     db.commit()
-    return {"added": added}
+    return {"added": added, "problems": [i["error"] for i in r["ingredients"] if i["error"]]}
 
 
 @router.post("/{recipe_id}/cook")

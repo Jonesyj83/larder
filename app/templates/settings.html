@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="settingsPage()" x-init="init()">
+<div x-data="settingsPage()">
   <div class="row page-head"><h1>Settings</h1></div>
 
   <h2>You</h2>
   <div class="card">
     <label>Portion size</label>
     <div class="row">
-      <select x-model="portion" style="width: auto" @change="savePortion()">
+      <select x-model="portion" class="portion-choice" aria-label="Portion size" @change="savePortion()">
         <option value="small">Small portions</option>
         <option value="regular">Regular</option>
         <option value="large">Large</option>
@@ -25,8 +25,8 @@
     <form @submit.prevent="changePassword()" style="margin-top: 1rem">
       <b class="small">Change password</b>
       <div class="grid2">
-        <div><label>Current</label><input type="password" x-model="pw.old" autocomplete="current-password" required></div>
-        <div><label>New</label><input type="password" x-model="pw.new" autocomplete="new-password" required></div>
+        <div><label class="field">Current<input type="password" x-model="pw.old" autocomplete="current-password" required></label></div>
+        <div><label class="field">New<input type="password" x-model="pw.new" autocomplete="new-password" required></label></div>
       </div>
       <button style="margin-top: .6rem">Change</button>
     </form>
@@ -48,8 +48,8 @@
       <b>Copy this now, it won't be shown again:</b>
       <div><code x-text="newKey" style="word-break: break-all"></code></div>
     </div>
-    <form class="row" @submit.prevent="createKey()" style="margin-top: .6rem">
-      <input class="grow" x-model="keyName" placeholder="What's it for? e.g. scanner app">
+    <form class="form-row" @submit.prevent="createKey()" style="margin-top: .6rem">
+      <label class="field grow">Key name<input x-model="keyName" placeholder="What's it for? e.g. scanner app"></label>
       <button>New key</button>
     </form>
   </div>
@@ -61,25 +61,22 @@
     <form @submit.prevent="saveSuggest()">
       <div class="grid2">
         <div>
-          <label>Provider</label>
-          <select x-model="sg.provider">
+          <label class="field">Provider<select x-model="sg.provider">
             <option value="openai">OpenAI</option>
             <option value="anthropic">Anthropic</option>
             <option value="openrouter">OpenRouter</option>
             <option value="deepseek">DeepSeek</option>
             <option value="ollama">Ollama (local)</option>
-          </select>
+          </select></label>
         </div>
         <div>
-          <label>Model</label>
-          <input x-model="sg.model" :placeholder="modelHint()">
+          <label class="field">Model<input x-model="sg.model" :placeholder="modelHint()"></label>
         </div>
       </div>
       <label x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></label>
-      <input type="password" x-model="sg.api_key" autocomplete="off"
+      <input :aria-label="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'" type="password" x-model="sg.api_key" autocomplete="off"
              :placeholder="sg.has_key ? 'saved (' + (sg.key_hint || 'hidden') + '), leave blank to keep it' : ''">
-      <label>Base URL (optional)</label>
-      <input x-model="sg.base_url" :placeholder="sg.provider == 'ollama' ? 'http://localhost:11434' : 'leave blank for the default'">
+      <label class="field">Base URL (optional)<input x-model="sg.base_url" :placeholder="sg.provider == 'ollama' ? 'http://localhost:11434' : 'leave blank for the default'"></label>
       <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="sg.shared"> Let everyone in the house use this</label>
       <div class="row" style="margin-top: .8rem">
         <button class="primary">Save</button>
@@ -104,13 +101,12 @@
     <form @submit.prevent="addUser()" style="margin-top: .8rem">
       <b class="small">Add someone</b>
       <div class="grid3">
-        <div><label>Username</label><input x-model="nu.username" required></div>
-        <div><label>Password</label><input type="password" x-model="nu.password" autocomplete="new-password" required></div>
+        <div><label class="field">Username<input x-model="nu.username" required></label></div>
+        <div><label class="field">Password<input type="password" x-model="nu.password" autocomplete="new-password" required></label></div>
         <div>
-          <label>Portion size</label>
-          <select x-model="nu.portion_size">
+          <label class="field">Portion size<select x-model="nu.portion_size">
             <option value="small">Small</option><option value="regular">Regular</option><option value="large">Large</option>
-          </select>
+          </select></label>
         </div>
       </div>
       <button style="margin-top: .6rem">Add</button>

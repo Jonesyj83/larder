@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="shoppingPage()" x-init="init()">
+<div x-data="shoppingPage()">
   <div class="row page-head">
     <h1 class="grow">Shopping list</h1>
     <button @click="addMissing()">Add what's running low</button>
   </div>
 
   <form class="card" @submit.prevent="add()">
-    <div class="row">
-      <input class="grow" aria-label="Item to add" placeholder="Add something" x-model="text" list="product-names" autocomplete="off">
-      <input type="number" step="any" min="0" aria-label="Amount" x-model.number="amount" style="width: 5rem">
-      <select aria-label="Unit" x-model="unit_id" style="width: auto">
+    <div class="ingredient-row">
+      <label class="field">Item<input class="grow" aria-label="Item to add" placeholder="Add something" x-model="text" list="product-names" autocomplete="off"></label>
+      <label class="field">Amount<input type="number" step="any" min="0.000001" aria-label="Amount" x-model.number="amount" required></label>
+      <label class="field">Unit<select aria-label="Unit" x-model="unit_id">
         <option value="">unit</option>
         <template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
-      </select>
+      </select></label>
       <button class="primary">Add</button>
     </div>
     <datalist id="product-names">
@@ -25,7 +25,7 @@
     <p class="muted" x-show="!items.length">The list is empty.</p>
     <template x-for="i in items" :key="i.id">
       <div class="list-item" :style="i.done && 'opacity: .55'">
-        <input type="checkbox" :checked="i.done" @change="toggle(i)" style="width: 1.3rem; height: 1.3rem">
+        <input type="checkbox" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)" style="width: 1.3rem; height: 1.3rem">
         <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
         <div class="grow">
           <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>

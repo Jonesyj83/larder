@@ -7,15 +7,15 @@
   <p class="muted small">Locations tell you where food is stored, such as Pantry, Fridge or Freezer. Dates come from each packet or the product’s usual shelf life.</p>
   <div class="card">
     <template x-for="l in locations" :key="l.id">
-      <div class="row" style="margin-bottom: .4rem">
-        <input class="grow" x-model="l.name">
-        <input type="number" x-model.number="l.sort" style="width: 4.5rem" title="Sort order">
+      <div class="manage-row">
+        <label class="field">Location name<input class="grow" x-model="l.name"></label>
+        <label class="field">Sort order<input type="number" x-model.number="l.sort" title="Sort order"></label>
         <button class="small" @click="saveLoc(l)">Save</button>
         <button class="small danger" @click="delLoc(l)">Delete</button>
       </div>
     </template>
-    <form class="row" @submit.prevent="addLoc()" style="margin-top: .8rem">
-      <input class="grow" placeholder="New location, e.g. Garage freezer" x-model="newLoc">
+    <form class="form-row" @submit.prevent="addLoc()" style="margin-top: .8rem">
+      <label class="field">New location<input class="grow" placeholder="New location, e.g. Garage freezer" x-model="newLoc"></label>
       <button class="primary">Add</button>
     </form>
   </div>
@@ -23,16 +23,16 @@
   <h2>Units</h2>
   <div class="card">
     <template x-for="u in units" :key="u.id">
-      <div class="row" style="margin-bottom: .4rem">
-        <input class="grow" x-model="u.name" placeholder="singular">
-        <input class="grow" x-model="u.name_plural" placeholder="plural">
+      <div class="manage-row">
+        <label class="field">Unit name<input class="grow" x-model="u.name" placeholder="singular"></label>
+        <label class="field">Unit plural<input class="grow" x-model="u.name_plural" placeholder="plural"></label>
         <button class="small" @click="saveUnit(u)">Save</button>
         <button class="small danger" @click="delUnit(u)">Delete</button>
       </div>
     </template>
-    <form class="row" @submit.prevent="addUnit()" style="margin-top: .8rem">
-      <input class="grow" placeholder="New unit, e.g. slice" x-model="newUnit">
-      <input class="grow" placeholder="plural (slices)" x-model="newUnitPlural">
+    <form class="form-row" @submit.prevent="addUnit()" style="margin-top: .8rem">
+      <label class="field">New unit name<input class="grow" placeholder="New unit, e.g. slice" x-model="newUnit"></label>
+      <label class="field">New unit plural<input class="grow" placeholder="plural (slices)" x-model="newUnitPlural"></label>
       <button class="primary">Add</button>
     </form>
   </div>
@@ -55,16 +55,16 @@
         <button class="small danger" @click="delConv(c)">Delete</button>
       </div>
     </template>
-    <form class="row" @submit.prevent="addConv()" style="margin-top: .8rem">
-      <span>1</span>
-      <select x-model="conv.from" style="width: auto" required>
+    <form class="conversion-row" @submit.prevent="addConv()" style="margin-top: .8rem">
+
+      <label class="field">From (1 unit)<select x-model="conv.from" required>
         <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
-      </select>
-      <span>=</span>
-      <input type="number" step="any" min="0" x-model="conv.factor" style="width: 6rem" required>
-      <select x-model="conv.to" style="width: auto" required>
+      </select></label>
+
+      <label class="field">Equals<input type="number" step="any" min="0.000001" x-model="conv.factor" required></label>
+      <label class="field">To unit<select x-model="conv.to" required>
         <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
-      </select>
+      </select></label>
       <button class="primary">Add</button>
     </form>
   </div>

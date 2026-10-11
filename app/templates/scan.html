@@ -1,7 +1,7 @@
 {% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
-<div x-data="scanPage()" x-init="init()">
+<div x-data="scanPage()">
   <div class="row page-head">
     <h1 class="grow">Scan</h1>
     <div class="tabs">
@@ -27,7 +27,7 @@
       <input class="grow" aria-label="Barcode" x-model="manual" placeholder="Type a barcode" inputmode="numeric" autocomplete="off">
       <button>Look up</button>
     </form>
-    <select x-model="engine" @change="saveEngine()" style="width: auto" title="Scanner">
+    <select x-model="engine" @change="saveEngine()" class="scanner-choice" aria-label="Scanner">
       <option value="native" :disabled="!hasNative">Built-in scanner</option>
       <option value="zxing">zxing (QR, Data Matrix, more)</option>
     </select>
@@ -53,27 +53,24 @@
       </div>
       <div class="grid2">
         <div>
-          <label>Amount</label>
-          <input type="number" step="any" min="0" x-model.number="amount" required>
+          <label class="field">Amount<input type="number" step="any" min="0" x-model.number="amount" required></label>
         </div>
         <div>
-          <label>Unit</label>
-          <select x-model.number="unit_id">
+          <label class="field">Unit<select x-model.number="unit_id">
             <template x-for="u in productUnitChoices(units, product)" :key="u.id">
               <option :value="u.id" x-text="u.name" :selected="unit_id == u.id"></option>
             </template>
-          </select>
+          </select></label>
         </div>
       </div>
       <div class="grid2">
         <div>
-          <label>Location</label>
-          <select x-model="location_id">
+          <label class="field">Location<select x-model="location_id">
             <option value="" x-text="mode == 'consume' ? 'Anywhere' : 'Default'"></option>
             <template x-for="l in locations" :key="l.id">
               <option :value="l.id" x-text="l.name" :selected="l.id == location_id"></option>
             </template>
-          </select>
+          </select></label>
         </div>
         <div x-show="mode == 'purchase'">
           <label x-text="shelfLabel(product.shelf_life_kind)"></label>
@@ -106,8 +103,7 @@
           </template>
         </div>
       </div>
-      <label>Or link it to an existing product</label>
-      <input placeholder="Search products" x-model="linkQ" @input.debounce.200ms="searchLink()">
+      <label class="field">Or link it to an existing product<input aria-label="Link to a catalogue product" placeholder="Search products" x-model="linkQ" @input.debounce.200ms="searchLink()"></label>
       <div class="row" style="margin-top: .3rem">
         <template x-for="m in linkFound" :key="m.id">
           <button type="button" class="small" @click="link(m.id)" x-text="m.name"></button>
@@ -126,36 +122,31 @@
         <h2 x-text="createdProduct ? 'Add stock to ' + createdProduct.name : 'Or make a new product'"></h2>
         <p class="small muted" x-show="createdProduct">Product and barcode saved. Stock has not been added yet; retry below.</p>
         <fieldset :disabled="!!createdProduct" style="border: 0; padding: 0; margin: 0">
-          <label>Name</label>
-          <input x-model="np.name" required>
+          <label class="field">Name<input x-model="np.name" required></label>
           <div class="grid2">
             <div>
-              <label>Count it in</label>
-              <select x-model="np.unit_id">
+              <label class="field">Count it in<select x-model="np.unit_id">
                 <template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name" :selected="u.id == np.unit_id"></option></template>
-              </select>
+              </select></label>
             </div>
           </div>
           <div class="grid2">
             <div>
-              <label>Bought as (optional)</label>
-              <select x-model="np.purchase_unit_id">
+              <label class="field">Bought as (optional)<select x-model="np.purchase_unit_id">
                 <option value="">Same</option>
                 <template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
-              </select>
+              </select></label>
             </div>
             <div x-show="np.purchase_unit_id && np.purchase_unit_id != np.unit_id">
-              <label>How many in one?</label>
-              <input type="number" step="any" min="0" x-model.number="np.purchase_factor">
+              <label class="field">How many in one?<input type="number" step="any" min="0" x-model.number="np.purchase_factor"></label>
             </div>
           </div>
           <div class="grid2">
             <div>
-              <label>Date type</label>
-              <select x-model="np.shelf_life_kind">
+              <label class="field">Date type<select x-model="np.shelf_life_kind">
                 <option value="best_by">Best by</option>
                 <option value="use_by">Use by</option>
-              </select>
+              </select></label>
             </div>
           </div>
           <label class="inline" style="margin-top: .6rem" x-show="unknown.off && unknown.off.image_url">
@@ -163,15 +154,13 @@
           </label>
           <details style="margin-top: .6rem">
             <summary>Advanced product settings</summary>
-            <label>Default shelf life (days, optional)</label>
-            <input type="number" min="0" x-model="np.default_days">
+            <label class="field">Default shelf life (days, optional)<input type="number" min="0" x-model="np.default_days"></label>
             <p class="small muted">For future purchases when no packet date is entered.</p>
           </details>
         </fieldset>
         <div class="grid2">
           <div>
-            <label>Quantity</label>
-            <input type="number" step="any" min="0.000001" x-model.number="amount" required>
+            <label class="field">Quantity<input type="number" step="any" min="0.000001" x-model.number="amount" required></label>
             <p class="small muted" x-text="'In ' + ((units.find(u => u.id == (np.purchase_unit_id || np.unit_id)) || {}).name || '')"></p>
           </div>
           <div>
@@ -182,15 +171,13 @@
         </div>
         <div class="grid2">
           <div>
-            <label>Price (optional)</label>
-            <input type="number" step="0.01" min="0" x-model="price">
+            <label class="field">Price (optional)<input type="number" step="0.01" min="0" x-model="price"></label>
           </div>
           <div>
-            <label>Stock location</label>
-            <select x-model="np.location_id">
+            <label class="field">Stock location<select x-model="np.location_id">
               <option value="">Default</option>
               <template x-for="l in locations" :key="l.id"><option :value="l.id" x-text="l.name" :selected="l.id == np.location_id"></option></template>
-            </select>
+            </select></label>
           </div>
         </div>
         <div class="row" style="margin-top: 1rem">
