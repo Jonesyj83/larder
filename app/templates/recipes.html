@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="recipesPage()" x-init="init()">
+  <div class="row">
+    <h1 class="grow">Recipes</h1>
+    <button @click="ideaOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Suggest a recipe</button>
+    <button class="primary" @click="edit(null)">New recipe</button>
+  </div>
+  <p class="muted small" x-show="!suggest" x-cloak>Recipe suggestions are off. Add an API key in <a href="/settings">Settings</a> to use them.</p>
+
+  <!-- list -->
+  <div x-show="!current">
+    <label class="inline" style="margin-bottom: .6rem"><input type="checkbox" x-model="onlyReady"> Only what I can make right now</label>
+    <div class="card">
+      <p class="muted" x-show="loaded && !recipes.length" x-cloak>No recipes yet.</p>
+      <template x-for="r in shown()" :key="r.id">
+        <div class="list-item" style="cursor: pointer" @click="open(r.id)">
+          <div class="grow">
+            <b x-text="r.name"></b>
+            <div class="small muted" x-text="num(r.servings) + ' servings, ' + r.ingredient_count + ' ingredients'"></div>
+          </div>
+          <span x-show="r.can_make" class="ok small">can make it</span>
+          <span x-show="!r.can_make && r.ingredient_count" class="warn small" x-text="r.missing_count + ' missing'"></span>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- one recipe -->
+  <template x-if="current">
+    <div>
+      <p><a href="/recipes" @click.prevent="close()">&larr; all recipes</a></p>
+      <div class="card">
+        <div class="row">
+          <h2 class="grow" style="margin: 0" x-text="current.name"></h2>
+          <span x-show="current.can_make" class="ok">You've got everything</span>
+          <span x-show="!current.can_make" class="warn" x-text="current.missing_count + ' missing'"></span>
+        </div>
+        <div class="row" style="margin: .6rem 0">
+          <span>Servings</span>
+          <input type="number" step="any" min="0.25" x-model.number="servings" @change="open(current.id)" style="width: 5.5rem">
+          <span class="muted small" x-show="servings != current.servings" x-text="'(recipe is for ' + num(current.servings) + ')'"></span>
+        </div>
+        <table>
+          <tr><th>Ingredient</th><th>Needs</th><th class="hide-small">Have</th><th></th></tr>
+          <template x-for="i in current.ingredients" :key="i.id">
+            <tr>
+              <td><span x-text="i.name"></span> <span class="muted small" x-text="i.note"></span></td>
+              <td x-text="num(i.amount_scaled) + ' ' + i.unit"></td>
+              <td class="hide-small" x-text="num(i.have) + ' ' + i.stock_unit"></td>
+              <td>
+                <span x-show="i.enough" class="ok small">ok</span>
+                <span x-show="!i.enough && i.missing !== null" class="bad small" x-text="'short ' + num(i.missing) + ' ' + i.stock_unit"></span>
+                <span x-show="i.error" class="bad small" x-text="i.error"></span>
+              </td>
+            </tr>
+          </template>
+        </table>
+        <div class="row" style="margin-top: .8rem">
+          <button x-show="!current.can_make" @click="toShopping()">Put missing on shopping list</button>
+          <button @click="cook()">Cooked it (take from stock)</button>
+          <button @click="planOpen = true">Add to meal plan</button>
+          <span class="spacer grow"></span>
+          <button @click="edit(current)">Edit</button>
+          <button class="danger" @click="remove()">Delete</button>
+        </div>
+      </div>
+      <div class="card" x-show="current.instructions">
+        <pre class="suggestion" x-text="current.instructions"></pre>
+      </div>
+
+      <template x-if="planOpen">
+        <div class="modal-bg" @click.self="planOpen = false">
+          <form class="modal" @submit.prevent="addToPlan()">
+            <b>Add to meal plan</b>
+            <div class="grid2">
+              <div><label>Day</label><input type="date" x-model="plan.day" required></div>
+              <div>
+                <label>Meal</label>
+                <select x-model="plan.slot">
+                  <template x-for="s in slots"><option :value="s" x-text="s"></option></template>
+                </select>
+              </div>
+            </div>
+            <label>Servings</label>
+            <input type="number" step="any" min="0" x-model.number="plan.servings">
+            <div class="row" style="margin-top: 1rem">
+              <button class="primary">Add</button>
+              <button type="button" @click="planOpen = false">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </template>
+    </div>
+  </template>
+
+  <!-- editor -->
+  <template x-if="form">
+    <div class="modal-bg" @click.self="form = null">
+      <form class="modal" @submit.prevent="save()">
+        <b x-text="form.id ? 'Edit recipe' : 'New recipe'"></b>
+        <div class="grid2">
+          <div><label>Name</label><input x-model="form.name" required></div>
+          <div><label>Servings</label><input type="number" step="any" min="0.25" x-model.number="form.servings" required></div>
+        </div>
+        <label>Ingredients</label>
+        <template x-for="(i, idx) in form.ingredients" :key="idx">
+          <div class="row" style="margin-bottom: .3rem">
+            <select x-model="i.product_id" class="grow" required @change="pickProduct(i)">
+              <option value="">Product...</option>
+              <template x-for="p in products" :key="p.id">
+                <option :value="p.id" x-text="p.name" :selected="p.id == i.product_id"></option>
+              </template>
+            </select>
+            <input type="number" step="any" min="0" x-model.number="i.amount" style="width: 5rem" required>
+            <select x-model="i.unit_id" style="width: auto">
+              <template x-for="u in units" :key="u.id">
+                <option :value="u.id" x-text="u.name" :selected="u.id == i.unit_id"></option>
+              </template>
+            </select>
+            <input x-model="i.note" placeholder="note" style="width: 7rem">
+            <button type="button" class="small danger" @click="form.ingredients.splice(idx, 1)">x</button>
+          </div>
+        </template>
+        <button type="button" class="small" @click="form.ingredients.push({product_id: '', amount: 1, unit_id: '', note: ''})">+ ingredient</button>
+        <p class="muted small" x-show="!products.length">You need some <a href="/products">products</a> first.</p>
+        <label>Method</label>
+        <textarea x-model="form.instructions"></textarea>
+        <div class="row" style="margin-top: 1rem">
+          <button class="primary" :disabled="busy">Save</button>
+          <button type="button" @click="form = null">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <!-- suggestion -->
+  <template x-if="ideaOpen">
+    <div class="modal-bg" @click.self="ideaOpen = false">
+      <div class="modal">
+        <b>Suggest a recipe</b>
+        <p class="muted small">Looks at what's in stock and comes up with something.</p>
+        <form @submit.prevent="getIdea()">
+          <input x-model="idea.text" placeholder="Anything in mind? e.g. something quick with chicken">
+          <label class="inline" style="margin-top: .5rem"><input type="checkbox" x-model="idea.expiring"> Use up what's going off first</label>
+          <div class="row" style="margin-top: .6rem">
+            <button class="primary" :disabled="idea.busy" x-text="idea.busy ? 'Thinking...' : 'Suggest'"></button>
+            <button type="button" @click="ideaOpen = false">Close</button>
+          </div>
+        </form>
+        <template x-if="idea.result && idea.result.recipe">
+          <div style="margin-top: 1rem">
+            <b x-text="idea.result.recipe.name"></b>
+            <span class="muted small" x-text="'(' + num(idea.result.recipe.servings) + ' servings)'"></span>
+            <ul class="small">
+              <template x-for="i in idea.result.recipe.ingredients">
+                <li>
+                  <span x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></span>
+                  <span x-show="i.product" class="ok" x-text="'- ' + i.product"></span>
+                  <span x-show="!i.product" class="muted">- not a product yet</span>
+                </li>
+              </template>
+            </ul>
+            <pre class="suggestion small" x-text="idea.result.recipe.instructions"></pre>
+            <button class="primary" style="margin-top: .6rem" @click="saveIdea()">Save as a recipe</button>
+          </div>
+        </template>
+        <template x-if="idea.result && !idea.result.recipe">
+          <pre class="suggestion small" style="margin-top: 1rem" x-text="idea.result.text"></pre>
+        </template>
+      </div>
+    </div>
+  </template>
+</div>
+<script>
+function recipesPage() {
+  return {
+    recipes: [], products: [], units: [], loaded: false, onlyReady: false,
+    current: null, servings: null, form: null, busy: false, suggest: false,
+    slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
+    planOpen: false, plan: { day: today(), slot: 'dinner', servings: null },
+    ideaOpen: false, idea: { text: '', expiring: true, busy: false, result: null },
+
+    async init() {
+      [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
+      api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
+      await this.load();
+      const id = new URLSearchParams(location.search).get('id');
+      if (id) this.open(id);
+    },
+    async load() {
+      try { this.recipes = await api('/api/recipes/makeable'); this.loaded = true; } catch (e) { oops(e); }
+    },
+    shown() { return this.recipes.filter(r => !this.onlyReady || r.can_make); },
+    async open(id) {
+      try {
+        const same = this.current && this.current.id == id;
+        const q = (same && this.servings) ? '?servings=' + this.servings : '';
+        this.current = await api('/api/recipes/' + id + q);
+        this.servings = this.current.servings_wanted;
+        this.plan.servings = this.servings;
+        history.replaceState(null, '', '/recipes?id=' + id);
+      } catch (e) { oops(e); }
+    },
+    close() {
+      this.current = null;
+      history.replaceState(null, '', '/recipes');
+      this.load();
+    },
+    pickProduct(i) {
+      const p = this.products.find(x => x.id == i.product_id);
+      if (p && !i.unit_id) i.unit_id = p.unit_id;
+    },
+    edit(r) {
+      if (!r) {
+        this.form = { id: null, name: '', servings: 2, instructions: '', ingredients: [{ product_id: '', amount: 1, unit_id: '', note: '' }] };
+      } else {
+        this.form = { id: r.id, name: r.name, servings: r.servings, instructions: r.instructions,
+          ingredients: r.ingredients.map(i => ({ product_id: i.product_id, amount: i.amount, unit_id: i.unit_id || i.stock_unit_id, note: i.note })) };
+      }
+    },
+    async save() {
+      this.busy = true;
+      const f = this.form;
+      const body = { name: f.name, servings: f.servings, instructions: f.instructions,
+        ingredients: f.ingredients.filter(i => i.product_id).map(i => ({
+          product_id: Number(i.product_id), amount: Number(i.amount), unit_id: i.unit_id ? Number(i.unit_id) : null, note: i.note || '' })) };
+      try {
+        const r = f.id ? await api('/api/recipes/' + f.id, { method: 'PUT', body })
+                       : await api('/api/recipes', { method: 'POST', body });
+        this.form = null;
+        this.servings = null;
+        this.current = null;
+        await this.open(r.id);
+        this.load();
+      } catch (e) { oops(e); }
+      this.busy = false;
+    },
+    async remove() {
+      if (!confirm('Delete ' + this.current.name + '?')) return;
+      try { await api('/api/recipes/' + this.current.id, { method: 'DELETE' }); this.close(); } catch (e) { oops(e); }
+    },
+    async toShopping() {
+      try {
+        const r = await api('/api/recipes/' + this.current.id + '/shopping?servings=' + this.servings, { method: 'POST' });
+        toast('Added ' + r.added + ' to the shopping list');
+      } catch (e) { oops(e); }
+    },
+    async cook() {
+      if (!confirm('Take the ingredients for ' + num(this.servings) + ' servings out of stock?')) return;
+      try {
+        const r = await api('/api/recipes/' + this.current.id + '/cook?servings=' + this.servings, { method: 'POST' });
+        toast('Used ' + r.used.length + ' ingredients' + (r.skipped.length ? ', skipped ' + r.skipped.join(', ') : ''));
+        this.open(this.current.id);
+      } catch (e) { oops(e); }
+    },
+    async addToPlan() {
+      try {
+        await api('/api/mealplan', { method: 'POST', body: { day: this.plan.day, slot: this.plan.slot,
+          recipe_id: this.current.id, servings: this.plan.servings || null } });
+        this.planOpen = false;
+        toast('Added to the meal plan');
+      } catch (e) { oops(e); }
+    },
+    async getIdea() {
+      this.idea.busy = true; this.idea.result = null;
+      try {
+        this.idea.result = await api('/api/suggestions/recipe', { method: 'POST',
+          body: { idea: this.idea.text, use_expiring: this.idea.expiring } });
+      } catch (e) { oops(e); }
+      this.idea.busy = false;
+    },
+    async saveIdea() {
+      const r = this.idea.result.recipe;
+      const matched = r.ingredients.filter(i => i.product_id);
+      const others = r.ingredients.filter(i => !i.product_id);
+      let instructions = r.instructions;
+      if (others.length) {
+        instructions = 'Also needs: ' + others.map(i => num(i.amount) + ' ' + i.unit + ' ' + i.name).join(', ') + '\n\n' + instructions;
+      }
+      try {
+        const saved = await api('/api/recipes', { method: 'POST', body: { name: r.name, servings: r.servings || 2, instructions,
+          ingredients: matched.map(i => ({ product_id: i.product_id, amount: i.amount, unit_id: i.unit_id, note: '' })) } });
+        this.ideaOpen = false; this.idea.result = null;
+        await this.load();
+        this.open(saved.id);
+      } catch (e) { oops(e); }
+    },
+  };
+}
+</script>
+{% endblock %}
