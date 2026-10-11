@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="expiringPage()" x-init="load()">
+  <div class="row page-head">
+    <h1 class="grow">Use by</h1>
+    <a href="{{ base_path }}/">Back to stock</a>
+  </div>
+
+  <div class="card inventory">
+    <p class="muted" x-show="loaded && !past.length && !soon.length && !fresh.length && !undated.length" x-cloak>
+      Nothing with a date set is overdue or going off soon.
+    </p>
+
+    <template x-if="past.length">
+      <div>
+        <div class="group-head bad"><b>Past date</b> <span class="muted small" x-text="'(' + past.length + ')'"></span></div>
+        <template x-for="s in past" :key="s.id">
+          <div class="stock-item">
+            <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><span x-text="s.name"></span></div>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit)"></span>
+            <span class="stock-place" x-text="s.location || '—'"></span>
+            <span class="stock-date bad" x-text="expiry(s.expires_on, s.shelf_life_kind).text"></span>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <template x-if="soon.length">
+      <div>
+        <div class="group-head warn"><b>Going off soon</b> <span class="muted small" x-text="'(' + soon.length + ')'"></span></div>
+        <template x-for="s in soon" :key="s.id">
+          <div class="stock-item">
+            <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><span x-text="s.name"></span></div>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit)"></span>
+            <span class="stock-place" x-text="s.location || '—'"></span>
+            <span class="stock-date warn" x-text="expiry(s.expires_on, s.shelf_life_kind).text"></span>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <template x-if="fresh.length">
+      <div>
+        <div class="group-head"><b>Fine for now</b> <span class="muted small" x-text="'(' + fresh.length + ')'"></span></div>
+        <template x-for="s in fresh" :key="s.id">
+          <div class="stock-item">
+            <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><span x-text="s.name"></span></div>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit)"></span>
+            <span class="stock-place" x-text="s.location || '—'"></span>
+            <span class="stock-date ok" x-text="expiry(s.expires_on, s.shelf_life_kind).text"></span>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <template x-if="undated.length">
+      <div>
+        <div class="group-head"><b>No date set</b> <span class="muted small" x-text="'(' + undated.length + ')'"></span></div>
+        <p class="muted small" style="padding: 0 20px 12px">Open an item's stock entry to add a best by / use by date.</p>
+        <template x-for="s in undated" :key="s.product_id">
+          <div class="stock-item">
+            <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><a :href="'{{ base_path }}/?q=' + encodeURIComponent(s.name)" x-text="s.name"></a></div>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
+            <span class="stock-place" x-text="s.locations || '—'"></span>
+            <span class="muted small">no date set</span>
+          </div>
+        </template>
+      </div>
+    </template>
+  </div>
+</div>
+<script>
+function expiringPage() {
+  return {
+    past: [], soon: [], fresh: [], undated: [], loaded: false,
+    async load() {
+      try {
+        const [dated, all] = await Promise.all([api('/api/stock/expiring?days=3650'), api('/api/stock')]);
+        this.past = dated.filter(s => daysUntil(s.expires_on) < 0);
+        this.soon = dated.filter(s => daysUntil(s.expires_on) >= 0 && daysUntil(s.expires_on) <= 3);
+        this.fresh = dated.filter(s => daysUntil(s.expires_on) > 3);
+        this.undated = all.filter(s => !s.next_expiry);
+        this.loaded = true;
+      } catch (e) { oops(e); }
+    },
+  };
+}
+</script>
+{% endblock %}

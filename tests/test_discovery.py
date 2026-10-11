@@ -54,6 +54,17 @@ class Discovery(unittest.TestCase):
                 sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=False),self.db,self.user)
         self.assertEqual(self.count('recent_suggestions'),10)
 
+    def test_kitchen_text_tags_the_location_for_frozen_items(self):
+        self.db.execute("INSERT INTO locations (id,name) VALUES (1,'Freezer'),(2,'Pantry')")
+        self.db.execute("INSERT INTO products (id,name,unit_id) VALUES (1,'Chicken Tenders',2),(2,'Rice',2)")
+        self.db.commit()
+        from app.stock import purchase
+        purchase(self.db,1,500,2,location_id=1,user_id=1)
+        purchase(self.db,2,1,2,location_id=2,user_id=1)
+        text = sg._kitchen(self.db)
+        self.assertIn('Chicken Tenders: 500 piece [Freezer]',text)
+        self.assertIn('Rice: 1 piece [Pantry]',text)
+
     def test_saved_search_without_provider_and_bad_payloads(self):
         self.meal([{'name':'Bread','amount':2,'unit_id':1}])
         with patch.object(sg,'_run',side_effect=AssertionError('no generation')):

@@ -119,6 +119,7 @@ async def anything_else(request: Request, exc: Exception):
 
 PAGES = {
     "/": ("stock.html", "Stock"),
+    "/expiring": ("expiring.html", "Use by"),
     "/scan": ("scan.html", "Scan"),
     "/products": ("products.html", "Products"),
     "/shopping": ("shopping.html", "Shopping list"),

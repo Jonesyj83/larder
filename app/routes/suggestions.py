@@ -69,10 +69,14 @@ def _kitchen(db):
     today = date.today()
     lines = []
     for s in rows(db.execute("""
-            SELECT p.name, u.name AS unit, SUM(s.amount) AS amount, MIN(s.expires_on) AS exp, p.shelf_life_kind
+            SELECT p.name, u.name AS unit, SUM(s.amount) AS amount, MIN(s.expires_on) AS exp, p.shelf_life_kind,
+                   GROUP_CONCAT(DISTINCT l.name) AS locations
             FROM stock s JOIN products p ON p.id = s.product_id JOIN units u ON u.id = p.unit_id
+            LEFT JOIN locations l ON l.id = s.location_id
             GROUP BY p.id ORDER BY exp IS NULL, exp""")):
         line = f"- {s['name']}: {round(s['amount'], 2):g} {s['unit']}"
+        if s["locations"]:
+            line += f" [{s['locations']}]"
         if s["exp"]:
             label = "use by" if s["shelf_life_kind"] == "use_by" else "best by"
             try:
@@ -98,7 +102,14 @@ SYSTEM = ("You help a household plan meals from what they already have at home. 
           "'large' means a big appetite. Name dishes the way a person actually would "
           "- 'chilli con carne', 'spaghetti bolognese', 'fried rice' - not a made-up "
           "description like 'Beef and Bean Skillet'. Only invent a name when there "
-          "genuinely isn't a standard one for what you're describing.")
+          "genuinely isn't a standard one for what you're describing. Stock is tagged "
+          "with where it lives, e.g. '[Freezer]'. Anything in the freezer is frozen, "
+          "and if the name says crumbed, battered, tenders, nuggets or schnitzel it's a "
+          "pre-cooked or coated product meant to go in an oven, air fryer or frying pan "
+          "per its packet - never boiled, never added raw to a soup or stew. If a stock "
+          "name doesn't tell you how it's meant to be cooked, cook it the ordinary way "
+          "that kind of food is actually cooked at home, not a method that happens to "
+          "fit the recipe you're writing.")
 
 
 @router.get("/suggestions/status")
@@ -382,7 +393,9 @@ Use valid units where possible: {units}. Between 1 and 50 ingredients."""
         text = _run(db,user,prompt,'You draft practical home recipes for explicit human review. '
                     'Name dishes the way a person actually would (chilli con carne, fried rice, '
                     'bolognese) rather than inventing a made-up description, unless there genuinely '
-                    "isn't a standard name for it.")
+                    "isn't a standard name for it. If an ingredient is normally sold frozen, crumbed, "
+                    "battered or pre-cooked (tenders, nuggets, schnitzel), cook it the way the packet "
+                    "actually says - oven, air fryer or pan - never boiled or added raw to a soup or stew.")
         result['recipe'] = review_recipe(db,_parse_json(text),data.servings)
         result['provenance'] = getattr(text,'provenance',None)
     return result

@@ -22,6 +22,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
   <a class="brand" href="{{ base_path }}/">Larder</a>
   <nav aria-label="Main navigation">
   <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" aria-current="{{ 'page' if here == base_path + '/' or here == base_path else 'false' }}" href="{{ base_path }}/">Stock</a>
+  <a class="nav {{ 'on' if here == base_path + '/expiring' }}" aria-current="{{ 'page' if here == base_path + '/expiring' else 'false' }}" href="{{ base_path }}/expiring">Use by</a>
   <a class="nav {{ 'on' if here == base_path + '/scan' }}" aria-current="{{ 'page' if here == base_path + '/scan' else 'false' }}" href="{{ base_path }}/scan">Scan</a>
   <a class="nav {{ 'on' if here == base_path + '/shopping' }}" aria-current="{{ 'page' if here == base_path + '/shopping' else 'false' }}" href="{{ base_path }}/shopping">Shopping</a>
   <a class="nav {{ 'on' if here.startswith(base_path + '/recipes') }}" aria-current="{{ 'page' if here.startswith(base_path + '/recipes') else 'false' }}" href="{{ base_path }}/recipes">Recipes</a>

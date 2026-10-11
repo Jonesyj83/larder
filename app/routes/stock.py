@@ -73,7 +73,7 @@ def overview(location_id: Optional[int] = None, db=Depends(get_db), user=Depends
     if location_id:
         sql += " WHERE s.location_id = ?"
         args.append(location_id)
-    sql += " GROUP BY p.id ORDER BY next_expiry IS NULL, next_expiry, p.name COLLATE NOCASE"
+    sql += " GROUP BY p.id ORDER BY p.name COLLATE NOCASE"
     return rows(db.execute(sql, args))
 
 

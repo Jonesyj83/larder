@@ -220,11 +220,11 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
 .week .slot { margin-top: 16px; }
 .week .slot b { text-transform: none; font-size: .85rem; }
 .week .meal a { color: var(--text); }
-.stock-group summary { cursor: pointer; padding: 12px 20px; background: var(--control); list-style: none; }
-.stock-group summary::-webkit-details-marker { display: none; }
-.stock-group summary::before { content: '▸'; display: inline-block; margin-right: 8px; transition: transform .1s; }
-.stock-group[open] summary::before { transform: rotate(90deg); }
 .stock-head, .stock-item { display: grid; grid-template-columns: minmax(160px,1.6fr) .7fr .8fr 1fr auto; gap: 16px; align-items: center; padding: 18px 20px; }
+.group-head { padding: 14px 20px; background: var(--control); font-size: 13px; font-weight: 700; border-top: 1px solid var(--line); }
+.group-head:first-child { border-top: 0; }
+.group-head.bad { color: var(--bad); }
+.group-head.warn { color: var(--warn); }
 .stock-head { background: var(--control); font-size: 13px; font-weight: 700; }
 .stock-item > * { min-width: 0; overflow-wrap: anywhere; }
 .stock-item { border-bottom: 1px solid var(--line); }

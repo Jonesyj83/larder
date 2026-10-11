@@ -76,8 +76,8 @@ function expiry(iso, kind) {
   else if (d < 14) when = 'in ' + d + ' days';
   else when = formatDate(iso);
   let cls = 'ok';
-  if (d < 0) cls = (kind === 'use_by' ? 'bad' : 'warn');
-  else if (d <= 2) cls = 'warn';
+  if (d < 0) cls = 'bad';
+  else if (d <= 3) cls = 'warn';
   return { text: label + ' ' + formatDate(iso) + (when === formatDate(iso) ? '' : ' (' + when + ')'), cls };
 }
 
