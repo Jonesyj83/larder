@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     is_admin INTEGER NOT NULL DEFAULT 0,
     portion_size TEXT NOT NULL DEFAULT 'regular',
+    date_format TEXT NOT NULL DEFAULT 'DD/MM/YYYY',
+    measurement_system TEXT NOT NULL DEFAULT 'metric',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -153,6 +155,12 @@ DEFAULT_UNITS = [
 ]
 
 
+# Fluid ounces here always mean US volume; oz/lb mean mass.
+BUILTIN_CONVERSIONS = [("kg", "g", 1000), ("l", "ml", 1000),
+                       ("oz", "g", 28.349523125), ("lb", "g", 453.59237),
+                       ("fl oz (US)", "ml", 29.5735295625)]
+
+
 def connect():
     # fastapi may run the dependency and the endpoint on different threads
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -172,9 +180,25 @@ def init_db():
             conn.execute("INSERT INTO locations (name, is_freezer, sort) VALUES (?, ?, ?)", (name, freezer, i))
     if conn.execute("SELECT COUNT(*) FROM units").fetchone()[0] == 0:
         conn.executemany("INSERT INTO units (name, name_plural) VALUES (?, ?)", DEFAULT_UNITS)
-        ids = {r["name"]: r["id"] for r in conn.execute("SELECT id, name FROM units")}
+        ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}
         conn.execute("INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, 1000)", (ids["kg"], ids["g"]))
         conn.execute("INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, 1000)", (ids["l"], ids["ml"]))
+    # Additive migration: preserve users, meals and existing conversion overrides.
+    columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+    for name, default in (("date_format", "DD/MM/YYYY"), ("measurement_system", "metric")):
+        if name not in columns:
+            conn.execute(f"ALTER TABLE users ADD COLUMN {name} TEXT NOT NULL DEFAULT '{default}'")
+    conn.executemany("INSERT OR IGNORE INTO units(name, name_plural) VALUES (?, ?)",
+                     DEFAULT_UNITS + [("oz", "oz"), ("lb", "lb"), ("fl oz (US)", "fl oz (US)")])
+    ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}
+    for source, target, factor in BUILTIN_CONVERSIONS:
+        source_id, target_id = ids[source.lower()], ids[target.lower()]
+        existing = conn.execute("""SELECT 1 FROM unit_conversions
+            WHERE (from_unit_id=? AND to_unit_id=?) OR (from_unit_id=? AND to_unit_id=?)""",
+            (source_id, target_id, target_id, source_id)).fetchone()
+        if not existing:
+            conn.execute("INSERT INTO unit_conversions(from_unit_id,to_unit_id,factor) VALUES (?,?,?)",
+                         (source_id, target_id, factor))
     conn.commit()
     conn.close()
 

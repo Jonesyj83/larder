@@ -1,3 +1,4 @@
+{% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
 <div x-data="planPage()" x-init="init()">
@@ -31,9 +32,11 @@
                 <span>
                   <a x-show="m.recipe_id" :href="BASE + '/recipes?id=' + m.recipe_id" x-text="m.recipe"></a>
                   <span x-show="!m.recipe_id" x-text="m.note"></span>
+                  <span class="muted small" x-show="m.recipe_id && m.note && m.note != m.recipe" x-text="m.note"></span>
                   <span class="muted" x-show="m.servings" x-text="'x' + num(m.servings)"></span>
                 </span>
-                <button @click="remove(m)" title="Remove">x</button>
+                <button @click="openEdit(m)">Edit</button>
+                <button @click="remove(m)" :aria-label="'Remove ' + (m.recipe || m.note)" title="Remove">x</button>
               </div>
             </template>
           </div>
@@ -51,7 +54,8 @@
   <template x-if="adding">
     <div class="modal-bg" @click.self="adding = null">
       <form class="modal" @submit.prevent="add()">
-        <b x-text="'Add to ' + dayName(adding.day)"></b>
+        <b x-text="adding.id ? 'Edit meal' : 'Add meal'"></b>
+        <label>Day</label>{{ date_field('adding.day', 'Meal day', true) }}
         <label>Meal</label>
         <div class="row">
           <template x-for="s in slots" :key="s">
@@ -60,13 +64,28 @@
         </div>
         <label>Recipe</label>
         <select x-model="adding.recipe_id" @change="calcServings()">
-          <option value="">No recipe, just a note</option>
+          <option value="">Simple meal or note (choose ingredients below)</option>
           <template x-for="r in recipes" :key="r.id">
             <option :value="r.id" x-text="r.name + (r.can_make ? '' : ' (' + r.missing_count + ' missing)')"></option>
           </template>
         </select>
+        <p class="small" x-show="adding.recipe_id"><a :href="BASE + '/recipes?id=' + adding.recipe_id">View or edit recipe ingredients</a>. To attach different products to this meal, choose “Simple meal or note” above.</p>
         <label x-text="adding.recipe_id ? 'Note (optional)' : 'What is it?'"></label>
         <input x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
+        <div x-show="!adding.recipe_id">
+          <p class="muted small">Link the products you use and their amounts for the servings below. Saving ingredients also saves this simple meal as a recipe for reuse. Leaving this empty keeps a note; its needs cannot be calculated.</p>
+          <template x-for="(i, idx) in adding.ingredients" :key="idx">
+            <div class="row">
+              <label class="grow">Product<select x-model="i.product_id" @change="pickIngredient(i)" :required="!adding.recipe_id" :disabled="!!adding.recipe_id">
+                <option value="">Choose product</option><template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name"></option></template>
+              </select></label>
+              <label>Amount<input type="number" step="any" min="0.000001" x-model.number="i.amount" :required="!adding.recipe_id" :disabled="!!adding.recipe_id" style="width: 6rem"></label>
+              <label>Unit<select :disabled="!!adding.recipe_id" x-model="i.unit_id" style="width: auto"><option value="">Product stock unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template></select></label>
+              <button type="button" class="small" @click="adding.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
+            </div>
+          </template>
+          <button type="button" @click="adding.ingredients.push({product_id: '', amount: 1, unit_id: ''})">Add ingredient</button>
+        </div>
         <label>Who's eating</label>
         <div class="row">
           <template x-for="u in household" :key="u.id">
@@ -79,7 +98,7 @@
         <label>Servings</label>
         <input type="number" step="any" min="0" x-model.number="adding.servings">
         <div class="row" style="margin-top: 1rem">
-          <button class="primary">Add</button>
+          <button class="primary" x-text="adding.id ? 'Save meal' : 'Add meal'"></button>
           <button type="button" @click="adding = null">Cancel</button>
         </div>
       </form>
@@ -91,15 +110,20 @@
     <div class="modal-bg" @click.self="needs = null">
       <div class="modal">
         <b>Ingredients for this week</b>
-        <p class="muted small" x-show="!needs.items.length">Nothing planned with a recipe this week.</p>
+        <p class="muted small" x-show="!needs.items.length && !needs.unmapped.length && !needs.problems.length">No ingredient needs recorded this week.</p>
+        <template x-for="m in needs.unmapped" :key="m.id">
+          <div class="notice card small"><span x-text="formatDate(m.day) + ' ' + m.slot + ': ' + m.note + ' — no ingredients linked; needs cannot be calculated.'"></span>
+            <button class="small" @click="editUnmapped(m)">Edit and link ingredients</button>
+          </div>
+        </template>
         <table class="small" x-show="needs.items.length">
           <tr><th>Product</th><th>Need</th><th>Have</th><th>Short</th></tr>
           <template x-for="i in needs.items" :key="i.id">
             <tr>
               <td x-text="i.name"></td>
-              <td x-text="num(i.need) + ' ' + i.unit"></td>
-              <td x-text="num(i.have)"></td>
-              <td :class="i.missing > 0 ? 'bad' : 'ok'" x-text="i.missing > 0 ? num(i.missing) : 'ok'"></td>
+              <td x-text="qty(i.need, i.unit)"></td>
+              <td x-text="qty(i.have, i.unit)"></td>
+              <td :class="i.missing > 0 ? 'bad' : 'ok'" x-text="i.missing > 0 ? qty(i.missing, i.unit) : 'ok'"></td>
             </tr>
           </template>
         </table>
@@ -157,12 +181,12 @@ function monday(iso) {
 function planPage() {
   return {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
-    recipes: [], household: [], adding: null, needs: null, suggest: false,
+    recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
     ideasOpen: false, ideas: { days: 1, slots: ['dinner'], note: '', busy: false, text: '' },
     meId: {{ user.id }},
 
     async init() {
-      [this.recipes, this.household] = await Promise.all([api('/api/recipes/makeable'), api('/api/household')]);
+      [this.recipes, this.household, this.products, this.units] = await Promise.all([api('/api/recipes/makeable'), api('/api/household'), api('/api/products'), api('/api/units')]);
       api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
       this.load();
     },
@@ -176,14 +200,26 @@ function planPage() {
     dayList() { return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(this.start, i)); },
     dayName(iso) {
       const d = new Date(iso + 'T12:00:00');
-      return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+      return d.toLocaleDateString('en-AU', { weekday: 'short' }) + ' ' + formatDate(iso);
     },
     weekLabel() { return this.dayName(this.start) + ' - ' + this.dayName(addDays(this.start, 6)); },
     mealsFor(d, s) { return this.meals.filter(m => m.day == d && m.slot == s); },
 
     openAdd(day) {
-      this.adding = { day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null };
+      this.adding = { day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null, ingredients: [] };
       this.calcServings();
+    },
+    openEdit(m) {
+      this.adding = {...m, recipe_id: m.recipe_id || '', eaters: [], ingredients: []};
+    },
+    editUnmapped(m) {
+      const meal = this.meals.find(x => x.id == m.id);
+      this.needs = null;
+      if (meal) this.openEdit(meal);
+    },
+    pickIngredient(i) {
+      const p = this.products.find(p => p.id == i.product_id);
+      if (p) i.unit_id = p.unit_id;
     },
     calcServings() {
       const ids = this.adding.eaters.map(Number);
@@ -193,8 +229,12 @@ function planPage() {
     async add() {
       const a = this.adding;
       try {
-        await api('/api/mealplan', { method: 'POST', body: { day: a.day, slot: a.slot,
-          recipe_id: a.recipe_id ? Number(a.recipe_id) : null, note: a.note, servings: a.servings || null, eaters: a.eaters.map(Number) } });
+        const body = {day: a.day, slot: a.slot, recipe_id: a.recipe_id ? Number(a.recipe_id) : null,
+          note: a.note, servings: a.servings || null, eaters: a.eaters.map(Number)};
+        if (!a.recipe_id && a.ingredients.length) body.ingredients = a.ingredients.map(i => ({
+          product_id: Number(i.product_id), amount: Number(i.amount), unit_id: i.unit_id ? Number(i.unit_id) : null}));
+        await api('/api/mealplan' + (a.id ? '/' + a.id : ''), {method: a.id ? 'PUT' : 'POST', body});
+        this.recipes = await api('/api/recipes/makeable');
         this.adding = null;
         this.load();
       } catch (e) { oops(e); }

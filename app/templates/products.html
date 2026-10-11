@@ -12,7 +12,6 @@
     <template x-for="p in filtered()" :key="p.id">
       <div class="list-item">
         <img x-show="p.picture" :src="pic(p.picture)" class="thumb">
-        <div x-show="!p.picture" class="thumb blank"></div>
         <div class="grow" @click="edit(p)" style="cursor: pointer">
           <b x-text="p.name"></b>
           <div class="small muted">
@@ -47,7 +46,7 @@
             <div>
               <label>Stock unit (what you count it in)</label>
               <select x-model="form.unit_id" required>
-                <template x-for="u in units" :key="u.id">
+                <template x-for="u in preferredUnits(units)" :key="u.id">
                   <option :value="u.id" x-text="u.name" :selected="u.id == form.unit_id"></option>
                 </template>
               </select>
@@ -55,10 +54,10 @@
           </div>
           <div class="grid2">
             <div>
-              <label>Bought as (optional)</label>
+              <label>Bought as (optional)</label><p class="muted small">For a pack of 6: stock unit piece, bought as pack, factor 6.</p>
               <select x-model="form.purchase_unit_id">
                 <option value="">Same as stock unit</option>
-                <template x-for="u in units" :key="u.id">
+                <template x-for="u in preferredUnits(units)" :key="u.id">
                   <option :value="u.id" x-text="u.name" :selected="u.id == form.purchase_unit_id"></option>
                 </template>
               </select>

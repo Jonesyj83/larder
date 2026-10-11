@@ -111,7 +111,7 @@ th { font-size: .8rem; color: var(--muted); font-weight: 600; background: var(--
 }
 
 .thumb { flex-shrink: 0; width: 42px; height: 42px; object-fit: cover; border-radius: 6px; background: var(--bg); display: block; }
-.thumb.blank { border: 1px dashed var(--line); }
+
 
 .list-item {
   display: flex;
@@ -224,7 +224,7 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
 .week .slot b { text-transform: none; font-size: .85rem; }
 .week .meal { padding: 8px; border-radius: 0; align-items: flex-start; }
 .week .meal a { color: var(--text); }
-.stock-head, .stock-item { display: grid; grid-template-columns: 42px minmax(160px,1.6fr) .7fr .8fr 1fr auto; gap: 16px; align-items: center; padding: 18px 20px; }
+.stock-head, .stock-item { display: grid; grid-template-columns: minmax(160px,1.6fr) .7fr .8fr 1fr auto; gap: 16px; align-items: center; padding: 18px 20px; }
 .stock-head { background: var(--control); font-size: 13px; font-weight: 700; }
 .stock-item > * { min-width: 0; overflow-wrap: anywhere; }
 .stock-item { border-bottom: 1px solid var(--line); }
@@ -246,12 +246,12 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .toolbar > label { flex: 1; }
   .stock-head { display: none; }
-  .stock-item { grid-template-columns: 42px minmax(0,1fr) auto; gap: 6px 12px; padding: 16px 12px; }
+  .stock-item { grid-template-columns: minmax(0,1fr) auto; gap: 6px 12px; padding: 16px 12px; }
   .stock-item .thumb { grid-row: 1 / span 3; }
-  .stock-name { grid-column: 2; }
-  .stock-quantity { grid-column: 3; grid-row: 1; text-align: right; }
-  .stock-place, .stock-date { grid-column: 2; font-size: 14px; }
-  .stock-actions { grid-column: 3; grid-row: 2 / span 2; align-self: end; }
+  .stock-food { grid-column: 1; }
+  .stock-quantity { grid-column: 2; grid-row: 1; text-align: right; }
+  .stock-place, .stock-date { grid-column: 1; font-size: 14px; }
+  .stock-actions { grid-column: 2; grid-row: 2 / span 2; align-self: end; }
   .stock-details { padding: 12px; }
   .list-item { gap: 8px; flex-wrap: wrap; }
   .list-item .grow { min-width: 120px; }
@@ -260,3 +260,7 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
   .login { margin: 24px auto; }
 }
 @media (prefers-reduced-motion: reduce) { button:active:not(:disabled), .btn:active { transform: none; } }
+
+.stock-food { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.date-field { display: block; max-width: 100%; }
+.date-field small { display: block; margin-top: 4px; }

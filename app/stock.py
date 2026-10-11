@@ -20,22 +20,41 @@ def to_stock_units(db, product, amount, unit_id):
         return amount
     if unit_id == product["purchase_unit_id"]:
         return amount * product["purchase_factor"]
-    c = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id = ? AND to_unit_id = ?",
-                   (unit_id, product["unit_id"])).fetchone()
-    if c:
-        return amount * c[0]
-    c = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id = ? AND to_unit_id = ?",
-                   (product["unit_id"], unit_id)).fetchone()
-    if c and c[0]:
-        return amount / c[0]
-    # try going via the purchase unit, e.g. recipe asks for 1 kg, stock is in packs of 500 g
+    factor = conversion_factor(db, unit_id, product["unit_id"])
+    if factor is not None:
+        return amount * factor
     if product["purchase_unit_id"]:
-        c = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id = ? AND to_unit_id = ?",
-                       (unit_id, product["purchase_unit_id"])).fetchone()
-        if c:
-            return amount * c[0] * product["purchase_factor"]
+        factor = conversion_factor(db, unit_id, product["purchase_unit_id"])
+        if factor is not None:
+            return amount * factor * product["purchase_factor"]
     u = db.execute("SELECT name FROM units WHERE id = ?", (unit_id,)).fetchone()
     raise StockError(f"Don't know how to convert {u[0] if u else 'that unit'} for {product['name']}")
+
+
+def conversion_factor(db, source, target):
+    """Walk reversible rules, so lb -> g -> kg works without count guesses."""
+    direct = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id=? AND to_unit_id=?",
+                        (source, target)).fetchone()
+    if direct:
+        return direct[0]
+    reverse = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id=? AND to_unit_id=?",
+                         (target, source)).fetchone()
+    if reverse and reverse[0] > 0:
+        return 1 / reverse[0]
+    graph = {}
+    for r in db.execute("SELECT * FROM unit_conversions"):
+        if r["factor"] > 0:
+            graph.setdefault(r["from_unit_id"], []).append((r["to_unit_id"], r["factor"]))
+            graph.setdefault(r["to_unit_id"], []).append((r["from_unit_id"], 1 / r["factor"]))
+    queue, seen = [(source, 1.0)], {source}
+    for unit, factor in queue:
+        if unit == target:
+            return factor
+        for other, step in graph.get(unit, []):
+            if other not in seen:
+                seen.add(other)
+                queue.append((other, factor * step))
+    return None
 
 
 def in_stock(db, product_id):

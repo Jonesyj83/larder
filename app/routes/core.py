@@ -1,17 +1,18 @@
 import sqlite3
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from ..auth import current_user
-from ..db import get_db, row, rows
+from ..db import BUILTIN_CONVERSIONS, get_db, row, rows
 
 router = APIRouter(prefix="/api", tags=["locations & units"], dependencies=[Depends(current_user)])
 
 
 class LocationIn(BaseModel):
     name: str
-    is_freezer: bool = False
+    is_freezer: Optional[bool] = None
     sort: int = 0
 
 
@@ -44,7 +45,7 @@ def list_locations(db=Depends(get_db)):
 def add_location(data: LocationIn, db=Depends(get_db)):
     try:
         cur = db.execute("INSERT INTO locations (name, is_freezer, sort) VALUES (?, ?, ?)",
-                         (_name(data.name), int(data.is_freezer), data.sort))
+                         (_name(data.name), int(bool(data.is_freezer)), data.sort))
     except sqlite3.IntegrityError:
         raise HTTPException(400, "There's already a location called that")
     db.commit()
@@ -54,8 +55,8 @@ def add_location(data: LocationIn, db=Depends(get_db)):
 @router.put("/locations/{loc_id}")
 def edit_location(loc_id: int, data: LocationIn, db=Depends(get_db)):
     try:
-        db.execute("UPDATE locations SET name = ?, is_freezer = ?, sort = ? WHERE id = ?",
-                   (_name(data.name), int(data.is_freezer), data.sort, loc_id))
+        db.execute("UPDATE locations SET name = ?, is_freezer = COALESCE(?, is_freezer), sort = ? WHERE id = ?",
+                   (_name(data.name), (int(data.is_freezer) if data.is_freezer is not None else None), data.sort, loc_id))
     except sqlite3.IntegrityError:
         raise HTTPException(400, "There's already a location called that")
     db.commit()
@@ -117,10 +118,14 @@ def delete_unit(unit_id: int, db=Depends(get_db)):
 
 @router.get("/conversions")
 def list_conversions(db=Depends(get_db)):
-    return rows(db.execute("""
+    out = rows(db.execute("""
         SELECT c.*, f.name AS from_unit, t.name AS to_unit FROM unit_conversions c
         JOIN units f ON f.id = c.from_unit_id JOIN units t ON t.id = c.to_unit_id
         ORDER BY f.name"""))
+    for c in out:
+        c["automatic"] = any(c["from_unit"].lower() == f.lower() and c["to_unit"].lower() == t.lower() and c["factor"] == factor
+                             for f, t, factor in BUILTIN_CONVERSIONS)
+    return out
 
 
 @router.post("/conversions", status_code=201)

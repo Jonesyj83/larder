@@ -12,7 +12,7 @@
       <input type="number" step="any" min="0" aria-label="Amount" x-model.number="amount" style="width: 5rem">
       <select aria-label="Unit" x-model="unit_id" style="width: auto">
         <option value="">unit</option>
-        <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+        <template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
       </select>
       <button class="primary">Add</button>
     </div>
@@ -29,7 +29,7 @@
         <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
         <div class="grow">
           <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
-          <span class="muted small" x-text="num(i.amount) + (i.unit ? ' ' + i.unit : '')"></span>
+          <span class="muted small" x-text="i.unit ? qty(i.amount, i.unit) : num(i.amount)"></span>
           <span class="pill" x-show="!i.product_id">not a product</span>
           <div class="small muted" x-show="i.note" x-text="i.note"></div>
         </div>

@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from .. import stock as st
 from ..auth import current_user
@@ -11,7 +11,27 @@ from ..db import get_db, row, rows
 router = APIRouter(prefix="/api/stock", tags=["stock"])
 
 
-class PurchaseIn(BaseModel):
+def canonical_date(value):
+    if value in (None, ""):
+        return None
+    try:
+        if date.fromisoformat(value).isoformat() != value:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise ValueError("Enter a valid ISO date (YYYY-MM-DD)")
+    return value
+
+
+class DatedInput(BaseModel):
+    expires_on: Optional[str] = None
+
+    @field_validator("expires_on")
+    @classmethod
+    def validate_date(cls, value):
+        return canonical_date(value)
+
+
+class PurchaseIn(DatedInput):
     product_id: int
     amount: float
     unit_id: Optional[int] = None  # defaults to the product's stock unit
@@ -28,7 +48,7 @@ class ConsumeIn(BaseModel):
     spoiled: bool = False
 
 
-class EntryEdit(BaseModel):
+class EntryEdit(DatedInput):
     amount: float
     location_id: Optional[int] = None
     expires_on: Optional[str] = None

@@ -112,11 +112,17 @@ class ScanRegression(unittest.TestCase):
                     self.advanced = False
 
         parsed = FormFields()
-        parsed.feed((ROOT / 'app/templates/scan.html').read_text())
+        from jinja2 import Environment, FileSystemLoader
+        from types import SimpleNamespace
+        html = Environment(loader=FileSystemLoader(ROOT / 'app/templates')).get_template('scan.html').render(
+            user={'id':1,'username':'test','portion_size':'regular','is_admin':True},
+            request=SimpleNamespace(url=SimpleNamespace(path='/scan')), base_path='', title='Scan')
+        parsed.feed(html)
         for model in ('amount', 'expires_on', 'price', 'np.location_id'):
             self.assertIn(model, parsed.fields)
             self.assertFalse(parsed.fields[model][2])
-        self.assertEqual(parsed.fields['expires_on'][1]['type'], 'date')
+        self.assertEqual(parsed.fields['expires_on'][1]['x-modelable'], 'iso')
+        self.assertIn('data-date-input type="text"', html)
         self.assertTrue(parsed.fields['np.default_days'][2])
         self.assertTrue(parsed.assert_closed)
         self.assertIn('shelfLabel(np.shelf_life_kind)',

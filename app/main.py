@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from .auth import secret_key, user_from_request
-from .db import UPLOAD_DIR, get_db, init_db
+from .db import UPLOAD_DIR, get_db, init_db, rows
 from .icons import make_png
 from .routes import account, core, mealplan, products, recipes, scan, shopping, stock, suggestions
 
@@ -85,7 +85,9 @@ def page(template, title):
         user = user_from_request(request, db)
         if not user:
             return RedirectResponse(BASE_PATH + "/login")
-        return templates.TemplateResponse(request, template, {"user": user, "title": title})
+        unit_rules = rows(db.execute("""SELECT f.name AS source, t.name AS target, c.factor
+            FROM unit_conversions c JOIN units f ON f.id=c.from_unit_id JOIN units t ON t.id=c.to_unit_id"""))
+        return templates.TemplateResponse(request, template, {"user": user, "title": title, "unit_rules": unit_rules})
     return view
 
 

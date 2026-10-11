@@ -14,6 +14,14 @@
       </select>
       <span class="muted small">Used for working out servings in the meal plan and for meal ideas.</span>
     </div>
+    <div class="grid2">
+      <div><label for="date-format">Date format</label><select id="date-format" x-model="dateFormat" @change="savePortion()">
+        <option>DD/MM/YYYY</option><option>MM/DD/YYYY</option><option>YYYY-MM-DD</option>
+      </select><p class="muted small">DD/MM/YYYY is the Australian default.</p></div>
+      <div><label for="measurement-system">Measurements</label><select id="measurement-system" x-model="measurementSystem" @change="savePortion()">
+        <option value="metric">Metric</option><option value="imperial">Imperial (US volume)</option>
+      </select><p class="muted small">Suggests units and formats quantities. Counts and stored amounts stay as entered.</p></div>
+    </div>
     <form @submit.prevent="changePassword()" style="margin-top: 1rem">
       <b class="small">Change password</b>
       <div class="grid2">
@@ -32,7 +40,7 @@
       <div class="row small" style="margin-bottom: .3rem">
         <code x-text="k.prefix + '...'"></code>
         <span class="grow" x-text="k.name || '(no name)'"></span>
-        <span class="muted" x-text="k.last_used ? 'last used ' + k.last_used : 'never used'"></span>
+        <span class="muted" x-text="k.last_used ? 'last used ' + formatDate(k.last_used.slice(0, 10)) + ' ' + k.last_used.slice(11, 16) : 'never used'"></span>
         <button class="small danger" @click="deleteKey(k)">Revoke</button>
       </div>
     </template>
@@ -113,6 +121,7 @@
 <script>
 function settingsPage() {
   return {
+    dateFormat: preferences().date_format, measurementSystem: preferences().measurement_system,
     portion: '{{ user.portion_size }}', pw: { old: '', new: '' },
     keys: [], keyName: '', newKey: '',
     sg: {}, testing: false,
@@ -125,7 +134,7 @@ function settingsPage() {
       if (this.isAdmin) this.users = await api('/api/users');
     },
     async savePortion() {
-      try { await api('/api/me', { method: 'PUT', body: { portion_size: this.portion } }); toast('Saved'); } catch (e) { oops(e); }
+      try { await api('/api/me', { method: 'PUT', body: { portion_size: this.portion, date_format: this.dateFormat, measurement_system: this.measurementSystem } }); window.USER_PREFS = {date_format: this.dateFormat, measurement_system: this.measurementSystem}; toast('Saved'); } catch (e) { oops(e); }
     },
     async changePassword() {
       try {

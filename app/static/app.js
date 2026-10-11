@@ -35,8 +35,10 @@ function num(n) {
 }
 
 function qty(amount, unit, plural) {
-  const n = Number(amount);
-  return num(n) + ' ' + (n === 1 ? unit : (plural || unit));
+  const display = displayQuantity(amount, unit);
+  const n = Number(display.amount);
+  const label = n !== 0 && Math.abs(n) < .01 ? String(Number(n.toPrecision(3))) : num(n);
+  return label + ' ' + (display.unit !== unit ? display.unit : (n === 1 ? unit : (plural || unit)));
 }
 
 function shelfLabel(kind) {
@@ -71,11 +73,11 @@ function expiry(iso, kind) {
   else if (d === 0) when = 'today';
   else if (d === 1) when = 'tomorrow';
   else if (d < 14) when = 'in ' + d + ' days';
-  else when = iso;
+  else when = formatDate(iso);
   let cls = 'ok';
   if (d < 0) cls = (kind === 'use_by' ? 'bad' : 'warn');
   else if (d <= 2) cls = 'warn';
-  return { text: label + ' ' + when, cls };
+  return { text: label + ' ' + formatDate(iso) + (when === formatDate(iso) ? '' : ' (' + when + ')'), cls };
 }
 
 function pic(name) {
@@ -103,4 +105,99 @@ async function logout() {
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register(BASE + '/sw.js', { scope: BASE + '/' }).catch(() => {});
+}
+
+function preferences() {
+  return window.USER_PREFS || {date_format: 'DD/MM/YYYY', measurement_system: 'metric'};
+}
+
+function formatDate(iso, format = preferences().date_format) {
+  if (!iso) return '';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return format === 'YYYY-MM-DD' ? `${y}-${m}-${d}` :
+    format === 'MM/DD/YYYY' ? `${m}/${d}/${y}` : `${d}/${m}/${y}`;
+}
+
+function parseDate(text, format = preferences().date_format) {
+  if (text === '') return '';
+  const slash = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const match = text.match(format === 'YYYY-MM-DD' ? /^(\d{4})-(\d{2})-(\d{2})$/ : slash);
+  if (!match) throw Error('Enter a date as ' + format);
+  const [y, m, d] = format === 'YYYY-MM-DD' ? match.slice(1) :
+    format === 'MM/DD/YYYY' ? [match[3], match[1], match[2]] : [match[3], match[2], match[1]];
+  const iso = `${y}-${m}-${d}`;
+  const date = new Date(iso + 'T12:00:00Z');
+  if (+y < 1 || isNaN(date) || date.toISOString().slice(0, 10) !== iso)
+    throw Error('Enter a valid date as ' + format);
+  return iso;
+}
+
+// x-modelable keeps the parent's value canonical; invalid text stays visible
+// and blocks native form submission without replacing the last valid value.
+function dateField(value) {
+  return {
+    iso: value || '', text: '', error: '',
+    init() { this.sync(this.iso); this.$watch('iso', value => this.sync(value)); },
+    sync(value) { this.iso = value || ''; this.text = formatDate(this.iso); this.error = '';
+      if (this.$refs?.input) this.$refs.input.setCustomValidity(''); },
+    accept() {
+      try { const value = parseDate(this.text); this.error = ''; this.$refs.input.setCustomValidity(''); this.iso = value; }
+      catch (e) { this.error = e.message; this.$refs.input.setCustomValidity(this.error); }
+    },
+  };
+}
+
+const MASS = {g: 1, kg: 1000, oz: 28.349523125, lb: 453.59237};
+const VOLUME = {ml: 1, l: 1000, 'fl oz (US)': 29.5735295625};
+function preferredUnits(units, selected) {
+  const imperial = preferences().measurement_system === 'imperial';
+  const preferred = imperial ? ['oz', 'lb', 'fl oz (US)'] : ['g', 'kg', 'ml', 'l'];
+  // Keep all existing/custom units selectable, and merely foreground the preference.
+  return [...units].sort((a, b) => Number(preferred.includes(b.name)) - Number(preferred.includes(a.name)) ||
+    Number(b.id == selected) - Number(a.id == selected));
+}
+
+function displayQuantity(amount, unit) {
+  const normalized = String(unit || '').toLowerCase();
+  const group = MASS[normalized] ? MASS : VOLUME[normalized === 'fl oz (us)' ? 'fl oz (US)' : normalized] ? VOLUME : null;
+  if (!group) return {amount, unit};
+  const source = normalized === 'fl oz (us)' ? 'fl oz (US)' : normalized;
+  const base = Number(amount) * group[source];
+  const imperial = preferences().measurement_system === 'imperial';
+  const target = group === MASS ? (imperial ? (Math.abs(base) >= MASS.lb ? 'lb' : 'oz') : (Math.abs(base) >= 1000 ? 'kg' : 'g')) :
+    (imperial ? 'fl oz (US)' : (Math.abs(base) >= 1000 ? 'l' : 'ml'));
+  const factor = unitFactor(source, target);
+  return factor === null ? {amount, unit} : {amount: Number(amount) * factor, unit: target};
+}
+
+function productUnitChoices(units, product) {
+  const stock = units.find(u => u.id == product.unit_id);
+  const stockName = stock?.name.toLowerCase();
+  const group = MASS[stockName] ? MASS : VOLUME[stockName === 'fl oz (us)' ? 'fl oz (US)' : stockName] ? VOLUME : {};
+  return preferredUnits(units.filter(u => u.id == product.unit_id || u.id == product.purchase_unit_id ||
+    (Object.keys(group).some(name => name.toLowerCase() === u.name.toLowerCase()) && unitFactor(u.name, stock.name) !== null)), product.unit_id);
+}
+
+// Use the persisted rules for presentation too, including household overrides.
+function unitFactor(source, target) {
+  const rules = window.UNIT_RULES;
+  if (!rules) {
+    const group = MASS[source] ? MASS : VOLUME;
+    return group[source] && group[target] ? group[source] / group[target] : null;
+  }
+  const direct = rules.find(r => r.source.toLowerCase() === source.toLowerCase() && r.target.toLowerCase() === target.toLowerCase());
+  if (direct) return direct.factor;
+  const reverse = rules.find(r => r.source.toLowerCase() === target.toLowerCase() && r.target.toLowerCase() === source.toLowerCase());
+  if (reverse?.factor > 0) return 1 / reverse.factor;
+  const graph = new Map();
+  const add = (a, b, f) => { a = a.toLowerCase(); b = b.toLowerCase();
+    if (!graph.has(a)) graph.set(a, []); graph.get(a).push([b, f]); };
+  for (const r of rules) if (r.factor > 0) { add(r.source, r.target, r.factor); add(r.target, r.source, 1 / r.factor); }
+  source = source.toLowerCase(); target = target.toLowerCase();
+  const queue = [[source, 1]], seen = new Set([source]);
+  for (const [u, f] of queue) {
+    if (u === target) return f;
+    for (const [v, step] of graph.get(u) || []) if (!seen.has(v)) { seen.add(v); queue.push([v, f * step]); }
+  }
+  return null;
 }

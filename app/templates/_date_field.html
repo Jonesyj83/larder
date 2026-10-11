@@ -1,0 +1,9 @@
+{% macro date_field(model, label='Date', required=false, disabled='false') -%}
+<span class="date-field" x-data="dateField({{ model }})" x-modelable="iso" x-model="{{ model }}" x-id="['date-input', 'date-help']">
+  <input data-date-input type="text" inputmode="numeric" x-ref="input" :id="$id('date-input')"
+         :aria-label="'{{ label }} (' + preferences().date_format + ')'" :aria-describedby="$id('date-help')"
+         :disabled="{{ disabled }}" :aria-invalid="!!error" :placeholder="preferences().date_format" :value="text"
+         @input="text = $event.target.value; accept()" {% if required %}required{% endif %}>
+  <small :id="$id('date-help')" :class="error ? 'bad' : 'muted'" aria-live="polite" x-text="error || preferences().date_format"></small>
+</span>
+{%- endmacro %}

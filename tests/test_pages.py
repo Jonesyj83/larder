@@ -61,6 +61,18 @@ async def check():
         assert (await client.get('/api/auth/status')).json()['needs_setup']
         r = (await client.post('/api/auth/setup', json={'username': 'render-test', 'password': 'temporary-test-password'}))
         assert r.status_code == 200, r.text
+        me = (await client.get('/api/me')).json()
+        assert me['date_format'] == 'DD/MM/YYYY' and me['measurement_system'] == 'metric'
+        assert (await client.put('/api/me', json={'date_format':'invalid'})).status_code == 422
+        assert (await client.put('/api/me', json={'measurement_system':'invalid'})).status_code == 422
+        r = await client.put('/api/me', json={'date_format':'MM/DD/YYYY','measurement_system':'imperial'})
+        assert r.status_code == 200 and r.json()['portion_size'] == 'regular'
+        member = await client.post('/api/users', json={'username':'member-test','password':'temporary-test-password'})
+        assert member.status_code == 201 and member.json()['date_format'] == 'DD/MM/YYYY'
+        assert member.json()['measurement_system'] == 'metric'
+        freezer = next(l for l in (await client.get('/api/locations')).json() if l['is_freezer'])
+        r = await client.put('/api/locations/' + str(freezer['id']), json={'name':freezer['name'],'sort':2})
+        assert r.status_code == 200 and r.json()['is_freezer'] == 1
         assert (await client.get('/api/products')).json() == []
         assert (await client.get('/api/stock')).json() == []
         for route, (template, title) in PAGES.items():
@@ -120,11 +132,30 @@ async def check():
         r = (await client.post('/api/shopping', json={'product_id': pid}))
         assert r.status_code == 201, r.text
         assert (await client.get('/api/shopping')).json()[0]['product_id'] == pid
+        meal = await client.post('/api/mealplan', json={'day':'2026-10-12','slot':'breakfast','note':'Simple breakfast'})
+        assert meal.status_code == 201
+        mid = meal.json()['id']
+        n = (await client.get('/api/mealplan/needs?start=2026-10-12&end=2026-10-18')).json()
+        assert n['unmapped'][0]['id'] == mid
+        r = await client.put('/api/mealplan/' + str(mid), json={'day':'2026-10-13','slot':'lunch','servings':2,
+            'ingredients':[{'product_id':pid,'amount':4}]})
+        assert r.status_code == 200 and r.json()['recipe_id']
+        n = (await client.get('/api/mealplan/needs?start=2026-10-12&end=2026-10-18')).json()
+        assert n['items'][0]['need'] == 4 and n['items'][0]['missing'] == 2 and not n['unmapped']
+        assert (await client.put('/api/mealplan/' + str(mid), json={'day':'13/10/2026'})).status_code == 400
+        assert (await client.post('/api/stock/purchase', json={'product_id':pid,'amount':1,'expires_on':'2026-02-30'})).status_code == 422
         (await client.post('/api/auth/logout'))
         assert (await client.get('/api/stock')).status_code == 401
         r = (await client.post('/api/auth/login', json={'username': 'render-test', 'password': 'temporary-test-password'}))
         assert r.status_code == 200
         assert (await client.get('/')).status_code == 200
+        me = (await client.get('/api/me')).json()
+        assert me['date_format'] == 'MM/DD/YYYY' and me['measurement_system'] == 'imperial'
+        assert 'MM/DD/YYYY' in (await client.get('/scan')).text
+        await client.post('/api/auth/logout')
+        await client.post('/api/auth/login', json={'username':'member-test','password':'temporary-test-password'})
+        me = (await client.get('/api/me')).json()
+        assert me['date_format'] == 'DD/MM/YYYY' and me['measurement_system'] == 'metric'
     print('Page rendering, bindings, auth, stock, shopping and prefix checks passed')
 
 

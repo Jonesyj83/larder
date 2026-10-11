@@ -1,3 +1,4 @@
+{% from '_date_field.html' import date_field %}
 {# purchase / consume dialog, opened with: $dispatch('stock-modal', {product_id, mode}) #}
 <div x-data="stockModal()" x-init="init()" @stock-modal.window="open($event.detail)">
   <template x-if="show">
@@ -43,7 +44,7 @@
             </div>
             <div x-show="mode == 'purchase'">
               <label x-text="shelfLabel(p.shelf_life_kind)"></label>
-              <input type="date" x-model="expires_on">
+              {{ date_field('expires_on', 'Packet date', false, "mode != 'purchase'") }}
             </div>
           </div>
           <div x-show="mode == 'purchase'">
@@ -84,7 +85,7 @@ function stockModal() {
       this.expires_on = this.p.default_days ? addDays(today(), this.p.default_days) : '';
     },
     unitChoices() {
-      // stock unit and purchase unit first, then everything else in case there's a conversion
+      // Keep the product units and custom choices; foreground preferred measurements.
       const seen = new Set(), out = [];
       const add = (id, extra) => {
         const u = this.units.find(x => x.id == id);
@@ -92,8 +93,8 @@ function stockModal() {
       };
       add(this.p.unit_id);
       if (this.p.purchase_unit_id) add(this.p.purchase_unit_id, ' (' + num(this.p.purchase_factor) + ' ' + this.p.unit + ')');
-      this.units.forEach(u => add(u.id));
-      return out;
+      preferredUnits(this.units, this.unit_id).forEach(u => add(u.id));
+      return preferredUnits(out.map(u => ({...u, name: (this.units.find(x => x.id == u.id) || {}).name})), this.unit_id);
     },
     async save() {
       this.busy = true;

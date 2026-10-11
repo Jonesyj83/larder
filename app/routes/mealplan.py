@@ -2,12 +2,14 @@ from datetime import date, timedelta
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .. import stock as st
 from ..auth import current_user
 from ..db import get_db, row, rows
 from .shopping import add_item
+from .recipes import IngredientIn
+from .stock import canonical_date
 
 router = APIRouter(prefix="/api", tags=["meal plan"])
 
@@ -23,22 +25,47 @@ class MealIn(BaseModel):
     slot: Slot
     recipe_id: Optional[int] = None
     note: str = ""
-    servings: Optional[float] = None
+    servings: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
+    ingredients: list[IngredientIn] = []
     eaters: list[int] = []  # user ids, used to work out servings from portion sizes
 
 
 class MealEdit(BaseModel):
+    recipe_id: Optional[int] = None
+    ingredients: Optional[list[IngredientIn]] = None
     day: Optional[str] = None
     slot: Optional[Slot] = None
     note: Optional[str] = None
-    servings: Optional[float] = None
+    servings: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
 
 
 def _day(s):
     try:
+        canonical_date(s)
+        if not s:
+            raise ValueError()
         return date.fromisoformat(s)
     except (TypeError, ValueError):
         raise HTTPException(400, "Dates need to look like 2026-01-31")
+
+
+def simple_recipe(db, note, servings, ingredients, user):
+    """Save explicitly chosen products as a reusable recipe; never infer foods."""
+    import math
+    if not note.strip():
+        raise HTTPException(400, "Give the simple meal a name")
+    for i in ingredients:
+        if not math.isfinite(i.amount) or i.amount <= 0:
+            raise HTTPException(400, "Ingredient amounts have to be above zero")
+        if not db.execute("SELECT id FROM products WHERE id=?", (i.product_id,)).fetchone():
+            raise HTTPException(400, "Ingredient product not found")
+        if i.unit_id and not db.execute("SELECT id FROM units WHERE id=?", (i.unit_id,)).fetchone():
+            raise HTTPException(400, "Ingredient unit not found")
+    cur = db.execute("INSERT INTO recipes(name,servings,created_by) VALUES(?,?,?)",
+                     (note.strip(), servings or 1, user["id"]))
+    db.executemany("INSERT INTO recipe_ingredients(recipe_id,product_id,amount,unit_id,note) VALUES(?,?,?,?,?)",
+                   [(cur.lastrowid, i.product_id, i.amount, i.unit_id, i.note) for i in ingredients])
+    return cur.lastrowid
 
 
 def servings_for(db, eaters):
@@ -74,13 +101,19 @@ def add_meal(data: MealIn, db=Depends(get_db), user=Depends(current_user)):
     if not data.recipe_id and not data.note.strip():
         raise HTTPException(400, "Pick a recipe or write something")
     servings = data.servings or servings_for(db, data.eaters)
+    if data.recipe_id and data.ingredients:
+        raise HTTPException(400, "Choose a recipe or add simple meal ingredients")
     if data.recipe_id:
         r = row(db.execute("SELECT servings FROM recipes WHERE id = ?", (data.recipe_id,)))
         if not r:
             raise HTTPException(404, "Recipe not found")
         servings = servings or r["servings"]
+    recipe_id = data.recipe_id
+    if data.ingredients:
+        recipe_id = simple_recipe(db, data.note, servings, data.ingredients, user)
+        servings = servings or 1
     cur = db.execute("INSERT INTO meal_plan (day, slot, recipe_id, note, servings, user_id) VALUES (?, ?, ?, ?, ?, ?)",
-                     (data.day, data.slot, data.recipe_id, data.note.strip(), servings, user["id"]))
+                     (data.day, data.slot, recipe_id, data.note.strip(), servings, user["id"]))
     db.commit()
     return row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (cur.lastrowid,)))
 
@@ -96,10 +129,22 @@ def edit_meal(meal_id: int, data: MealEdit, db=Depends(get_db), user=Depends(cur
     for f in ("slot", "note", "servings"):
         if getattr(data, f) is not None:
             m[f] = getattr(data, f)
-    db.execute("UPDATE meal_plan SET day = ?, slot = ?, note = ?, servings = ? WHERE id = ?",
-               (m["day"], m["slot"], m["note"], m["servings"], meal_id))
+    if "recipe_id" in data.model_fields_set:
+        m["recipe_id"] = data.recipe_id
+    if m["recipe_id"]:
+        recipe = row(db.execute("SELECT * FROM recipes WHERE id=?", (m["recipe_id"],)))
+        if not recipe:
+            raise HTTPException(404, "Recipe not found")
+        m["servings"] = m["servings"] or recipe["servings"]
+    if not m["recipe_id"] and not m["note"].strip():
+        raise HTTPException(400, "Pick a recipe or name the meal")
+    if data.ingredients:
+        m["recipe_id"] = simple_recipe(db, m["note"], m["servings"], data.ingredients, user)
+        m["servings"] = m["servings"] or 1
+    db.execute("UPDATE meal_plan SET day=?, slot=?, note=?, servings=?, recipe_id=? WHERE id=?",
+               (m["day"], m["slot"], m["note"].strip(), m["servings"], m["recipe_id"], meal_id))
     db.commit()
-    return m
+    return row(db.execute("SELECT * FROM meal_plan WHERE id=?", (meal_id,)))
 
 
 @router.delete("/mealplan/{meal_id}")
@@ -114,12 +159,17 @@ def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
     """Add up every ingredient for the planned meals between two dates and compare with stock."""
     _day(start), _day(end)
     meals = rows(db.execute("""
-        SELECT m.servings, r.id AS recipe_id, r.servings AS recipe_servings
-        FROM meal_plan m JOIN recipes r ON r.id = m.recipe_id WHERE m.day BETWEEN ? AND ?""", (start, end)))
-    totals, problems = {}, []
+        SELECT m.id, m.day, m.slot, m.note, m.servings, r.id AS recipe_id, r.name AS recipe, r.servings AS recipe_servings
+        FROM meal_plan m LEFT JOIN recipes r ON r.id = m.recipe_id WHERE m.day BETWEEN ? AND ?""", (start, end)))
+    totals, problems, unmapped = {}, [], []
     for m in meals:
+        ingredients = rows(db.execute("SELECT * FROM recipe_ingredients WHERE recipe_id = ?", (m["recipe_id"],)))
+        if not ingredients:
+            unmapped.append({"id": m["id"], "day": m["day"], "slot": m["slot"],
+                             "note": m["note"] or m["recipe"], "reason": "No ingredients linked"})
+            continue
         scale = (m["servings"] or m["recipe_servings"]) / m["recipe_servings"]
-        for i in rows(db.execute("SELECT * FROM recipe_ingredients WHERE recipe_id = ?", (m["recipe_id"],))):
+        for i in ingredients:
             p = st.get_product(db, i["product_id"])
             try:
                 need = st.to_stock_units(db, p, i["amount"] * scale, i["unit_id"])
@@ -133,7 +183,7 @@ def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
         have = st.in_stock(db, pid)
         out.append({**p, "need": need, "have": have, "missing": max(0.0, need - have)})
     out.sort(key=lambda x: x["name"].lower())
-    return {"items": out, "problems": sorted(set(problems))}
+    return {"items": out, "problems": sorted(set(problems)), "unmapped": unmapped}
 
 
 @router.post("/mealplan/shopping")
@@ -150,4 +200,4 @@ def plan_to_shopping(start: str, end: str, db=Depends(get_db), user=Depends(curr
                 add_item(db, i["id"], round(extra, 3), i["unit_id"], user_id=user["id"])
                 added += 1
     db.commit()
-    return {"added": added, "problems": n["problems"]}
+    return {"added": added, "problems": n["problems"], "unmapped": n["unmapped"]}

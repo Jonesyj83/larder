@@ -24,7 +24,9 @@ class PasswordIn(BaseModel):
 
 
 class PrefsIn(BaseModel):
-    portion_size: PORTIONS
+    portion_size: Optional[PORTIONS] = None
+    date_format: Optional[Literal["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"]] = None
+    measurement_system: Optional[Literal["metric", "imperial"]] = None
 
 
 class KeyIn(BaseModel):
@@ -44,7 +46,7 @@ class UserEdit(BaseModel):
 
 
 def public(user):
-    return {k: user[k] for k in ("id", "username", "is_admin", "portion_size", "created_at")}
+    return {k: user[k] for k in ("id", "username", "is_admin", "portion_size", "date_format", "measurement_system", "created_at")}
 
 
 def _check_new(username, password):
@@ -96,7 +98,10 @@ def me(user=Depends(current_user)):
 
 @router.put("/me")
 def update_me(data: PrefsIn, user=Depends(current_user), db=Depends(get_db)):
-    db.execute("UPDATE users SET portion_size = ? WHERE id = ?", (data.portion_size, user["id"]))
+    for field in ("portion_size", "date_format", "measurement_system"):
+        value = getattr(data, field)
+        if value is not None:
+            db.execute(f"UPDATE users SET {field} = ? WHERE id = ?", (value, user["id"]))
     db.commit()
     return public(row(db.execute("SELECT * FROM users WHERE id = ?", (user["id"],))))
 

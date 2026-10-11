@@ -1,3 +1,4 @@
+{% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
 <div x-data="recipesPage()" x-init="init()">
@@ -46,11 +47,11 @@
           <template x-for="i in current.ingredients" :key="i.id">
             <tr>
               <td><span x-text="i.name"></span> <span class="muted small" x-text="i.note"></span></td>
-              <td x-text="num(i.amount_scaled) + ' ' + i.unit"></td>
-              <td class="hide-small" x-text="num(i.have) + ' ' + i.stock_unit"></td>
+              <td x-text="qty(i.amount_scaled, i.unit)"></td>
+              <td class="hide-small" x-text="qty(i.have, i.stock_unit)"></td>
               <td>
                 <span x-show="i.enough" class="ok small">ok</span>
-                <span x-show="!i.enough && i.missing !== null" class="bad small" x-text="'short ' + num(i.missing) + ' ' + i.stock_unit"></span>
+                <span x-show="!i.enough && i.missing !== null" class="bad small" x-text="'short ' + qty(i.missing, i.stock_unit)"></span>
                 <span x-show="i.error" class="bad small" x-text="i.error"></span>
               </td>
             </tr>
@@ -74,7 +75,7 @@
           <form class="modal" @submit.prevent="addToPlan()">
             <b>Add to meal plan</b>
             <div class="grid2">
-              <div><label>Day</label><input type="date" x-model="plan.day" required></div>
+              <div><label>Day</label>{{ date_field('plan.day', 'Date', true) }}</div>
               <div>
                 <label>Meal</label>
                 <select x-model="plan.slot">
@@ -114,7 +115,7 @@
             </select>
             <input type="number" step="any" min="0" x-model.number="i.amount" style="width: 5rem" required>
             <select x-model="i.unit_id" style="width: auto">
-              <template x-for="u in units" :key="u.id">
+              <template x-for="u in preferredUnits(units)" :key="u.id">
                 <option :value="u.id" x-text="u.name" :selected="u.id == i.unit_id"></option>
               </template>
             </select>

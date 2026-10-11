@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from .. import stock as st
 from ..auth import current_user
 from ..db import get_db, row, rows
+from .stock import DatedInput
 
 router = APIRouter(prefix="/api/shopping", tags=["shopping list"])
 
@@ -26,7 +27,7 @@ class ItemEdit(BaseModel):
     name: Optional[str] = None
 
 
-class BoughtIn(BaseModel):
+class BoughtIn(DatedInput):
     location_id: Optional[int] = None
     expires_on: Optional[str] = None
 

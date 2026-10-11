@@ -1,3 +1,4 @@
+{% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
 <div x-data="stockPage()" x-init="load()" @stock-changed.window="load()">
@@ -23,7 +24,7 @@
       <b class="grow">Running low</b>
       <button class="small" @click="addMissing()">Put on shopping list</button>
     </div>
-    <div class="small muted" x-text="missing.map(m => m.name + ' (' + num(m.amount) + '/' + num(m.min_stock) + ' ' + m.unit + ')').join(', ')"></div>
+    <div class="small muted" x-text="missing.map(m => m.name + ' (' + qty(m.amount, m.unit) + ' / ' + qty(m.min_stock, m.unit) + ')').join(', ')"></div>
   </div>
 
   <div class="row toolbar">
@@ -35,7 +36,7 @@
   </div>
 
   <div class="card inventory">
-    <div class="stock-head" aria-hidden="true"><span></span><span>Food</span><span>On hand</span><span>Location</span><span>Date</span><span>Change stock</span></div>
+    <div class="stock-head" aria-hidden="true"><span>Food</span><span>On hand</span><span>Location</span><span>Date</span><span>Change stock</span></div>
     <p class="muted" x-show="loaded && !items.length" x-cloak>
       Nothing in stock yet. Add some <a href="{{ base_path }}/products">products</a>, then scan or add stock.
     </p>
@@ -43,9 +44,7 @@
     <template x-for="s in filtered()" :key="s.product_id">
       <div>
         <div class="stock-item">
-          <img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt="">
-          <div x-show="!s.picture" class="thumb blank"></div>
-          <button class="stock-name" @click="toggle(s)" :aria-expanded="open == s.product_id" x-text="s.name"></button>
+          <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><button class="stock-name" @click="toggle(s)" :aria-expanded="open == s.product_id" x-text="s.name"></button></div>
           <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
           <span class="stock-place" x-text="s.locations || '—'"></span>
           <span class="stock-date" :class="expiry(s.next_expiry, s.shelf_life_kind).cls" x-text="expiry(s.next_expiry, s.shelf_life_kind).text"></span>
@@ -64,9 +63,9 @@
                   <option :value="l.id" x-text="l.name" :selected="l.id == e.location_id"></option>
                 </template>
               </select>
-              <input type="date" x-model="e.expires_on" style="width: auto">
+              {{ date_field('e.expires_on', 'Date', false) }}
               <label class="inline small"><input type="checkbox" x-model="e.opened"> opened</label>
-              <button class="small" @click="saveEntry(e)">Save</button>
+              <button class="small" @click="if ($el.closest('.row').querySelector('[data-date-input]').reportValidity()) saveEntry(e)">Save</button>
             </div>
           </template>
           <div class="row" style="margin-top: .4rem">
@@ -83,9 +82,9 @@
   <div class="card small">
     <template x-for="g in history" :key="g.id">
       <div>
-        <span class="muted" x-text="g.at.slice(5, 16)"></span>
+        <span class="muted" x-text="formatDate(g.at.slice(0, 10)) + ' ' + g.at.slice(11, 16)"></span>
         <span x-text="({purchase: 'bought', consume: 'used', spoiled: 'threw out', adjust: 'adjusted'})[g.kind]"></span>
-        <span x-text="num(Math.abs(g.amount)) + ' ' + g.unit + ' ' + g.name"></span>
+        <span x-text="qty(Math.abs(g.amount), g.unit) + ' ' + g.name"></span>
         <span class="muted" x-text="g.username ? '(' + g.username + ')' : ''"></span>
       </div>
     </template>

@@ -4,11 +4,11 @@
   <div class="row page-head"><h1>Locations &amp; units</h1></div>
 
   <h2>Locations</h2>
+  <p class="muted small">Locations tell you where food is stored, such as Pantry, Fridge or Freezer. Dates come from each packet or the product’s usual shelf life.</p>
   <div class="card">
     <template x-for="l in locations" :key="l.id">
       <div class="row" style="margin-bottom: .4rem">
         <input class="grow" x-model="l.name">
-        <label class="inline small"><input type="checkbox" x-model="l.is_freezer"> freezer</label>
         <input type="number" x-model.number="l.sort" style="width: 4.5rem" title="Sort order">
         <button class="small" @click="saveLoc(l)">Save</button>
         <button class="small danger" @click="delLoc(l)">Delete</button>
@@ -16,7 +16,6 @@
     </template>
     <form class="row" @submit.prevent="addLoc()" style="margin-top: .8rem">
       <input class="grow" placeholder="New location, e.g. Garage freezer" x-model="newLoc">
-      <label class="inline small"><input type="checkbox" x-model="newLocFreezer"> freezer</label>
       <button class="primary">Add</button>
     </form>
   </div>
@@ -38,11 +37,19 @@
     </form>
   </div>
 
-  <h2>Conversions</h2>
-  <p class="muted small">General ones that hold for anything, like 1 kg = 1000 g. Pack sizes go on the product itself
-    ("bought as"), since a pack of chicken strips and a pack of mince aren't the same.</p>
+  <h2>Pack sizes</h2>
+  <p class="muted small">Set pack sizes on each <a href="{{ base_path }}/products">product</a>: count it in pieces, choose pack under “Bought as”, then enter how many pieces are in one pack. Buying 2 packs of 6 adds 12 pieces.</p>
+  <details class="card">
+    <summary>Automatic conversions</summary>
+    <p class="muted small">Weight and volume convert automatically, for example kg to g and l to ml. Fluid ounces use US volume. These rules do not turn packs into pieces.</p>
+    <template x-for="c in conversions.filter(c => c.automatic)" :key="c.id">
+      <p class="small" x-text="'1 ' + c.from_unit + ' = ' + c.factor + ' ' + c.to_unit"></p>
+    </template>
+  </details>
+  <h2>Custom conversions</h2>
+  <p class="muted small">For general rules that apply to every product. Product pack sizes belong on the product.</p>
   <div class="card">
-    <template x-for="c in conversions" :key="c.id">
+    <template x-for="c in conversions.filter(c => !c.automatic)" :key="c.id">
       <div class="row" style="margin-bottom: .3rem">
         <span class="grow" x-text="'1 ' + c.from_unit + ' = ' + num(c.factor) + ' ' + c.to_unit"></span>
         <button class="small danger" @click="delConv(c)">Delete</button>
@@ -65,7 +72,7 @@
 <script>
 function managePage() {
   return {
-    locations: [], units: [], conversions: [], newLoc: '', newLocFreezer: false, newUnit: '', newUnitPlural: '',
+    locations: [], units: [], conversions: [], newLoc: '', newUnit: '', newUnitPlural: '',
     conv: { from: '', to: '', factor: '' },
     async load() {
       [this.locations, this.units, this.conversions] = await Promise.all([
@@ -77,8 +84,8 @@ function managePage() {
     },
     addLoc() {
       return this.run(async () => {
-        await api('/api/locations', { method: 'POST', body: { name: this.newLoc, is_freezer: this.newLocFreezer, sort: this.locations.length } });
-        this.newLoc = ''; this.newLocFreezer = false;
+        await api('/api/locations', { method: 'POST', body: { name: this.newLoc, sort: this.locations.length } });
+        this.newLoc = '';
       });
     },
     saveLoc(l) {
