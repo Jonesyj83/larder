@@ -94,7 +94,10 @@ SYSTEM = ("You help a household plan meals from what they already have at home. 
           "Prefer using things that go off soonest. Keep it practical and short, "
           "home cooking, no fancy equipment. Respect portion sizes: 'small' means "
           "about half a normal portion and the person really can't manage more, "
-          "'large' means a big appetite.")
+          "'large' means a big appetite. Name dishes the way a person actually would "
+          "- 'chilli con carne', 'spaghetti bolognese', 'fried rice' - not a made-up "
+          "description like 'Beef and Bean Skillet'. Only invent a name when there "
+          "genuinely isn't a standard one for what you're describing.")
 
 
 @router.get("/suggestions/status")
@@ -297,7 +300,10 @@ Do not limit ingredients to current stock. Respect the requested variant (e.g. V
 Amounts are proposed estimates for user review, never established facts or nutrition/medical advice.
 Return only JSON: {{"name":"...","servings":{data.servings},"ingredients":[{{"name":"Bread","amount":2,"unit":"slice"}}],"instructions":"..."}}.
 Use valid units where possible: {units}. Between 1 and 50 ingredients."""
-        text = _run(db,user,prompt,'You draft practical home recipes for explicit human review.')
+        text = _run(db,user,prompt,'You draft practical home recipes for explicit human review. '
+                    'Name dishes the way a person actually would (chilli con carne, fried rice, '
+                    'bolognese) rather than inventing a made-up description, unless there genuinely '
+                    "isn't a standard name for it.")
         result['recipe'] = review_recipe(db,_parse_json(text),data.servings)
         result['provenance'] = getattr(text,'provenance',None)
     return result
