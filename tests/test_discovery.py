@@ -1,0 +1,127 @@
+import json
+import sqlite3
+import unittest
+from unittest.mock import patch
+from fastapi import HTTPException
+import test_planning
+from app.routes import suggestions as sg
+from app.routes.mealplan import MealEdit, edit_meal, needs, plan_to_shopping
+from app import providers
+
+class Discovery(unittest.TestCase):
+    setUp = test_planning.Planning.setUp
+    tearDown = test_planning.Planning.tearDown
+    meal = test_planning.Planning.meal
+    count = test_planning.Planning.count
+
+    def test_preview_reject_accept_and_provenance(self):
+        self.db.execute("UPDATE units SET name_plural='slices' WHERE name='slice'")
+        meal = self.meal([])
+        before = self.db.total_changes
+        with patch.object(sg, '_run', return_value=json.dumps({'name':'Toast','servings':1,'ingredients':[{'name':'Bread','amount':2,'unit':'slices'}]})):
+            draft = sg.discover_ingredients(sg.DiscoveryIn(idea='Toast',servings=1,generate=True),self.db,self.user)
+        self.assertEqual(self.db.total_changes,before)
+        self.assertEqual(self.count('products'),0)
+        i = draft['recipe']['ingredients'][0]
+        edit_meal(meal['id'],MealEdit(ingredients=[{'name':i['name'],'amount':i['amount'],'unit_id':i['unit_id']}]),self.db,self.user)
+        n = needs('2026-10-12','2026-10-18',self.db,self.user)['items'][0]
+        self.assertEqual((n['need'],n['have'],n['missing']),(2,0,2))
+        self.assertEqual(self.count('shopping_list'),0)
+        plan_to_shopping('2026-10-12','2026-10-18',self.db,self.user)
+        from app.routes.shopping import list_items
+        self.assertEqual(list_items(self.db,self.user)[0]['sources'][0]['kind'],'meal_plan')
+
+    def test_saved_search_without_provider_and_bad_payloads(self):
+        self.meal([{'name':'Bread','amount':2,'unit_id':1}])
+        with patch.object(sg,'_run',side_effect=AssertionError('no generation')):
+            found=sg.discover_ingredients(sg.DiscoveryIn(idea='Toast',servings=3),self.db,self.user)
+        self.assertEqual(found['matches'][0]['ingredients'][0]['amount'],6)
+        before=self.db.total_changes
+        for bad in ({'servings':1,'ingredients':[{'name':'Bread','unit':'slice'}]}, {'servings':float('nan'),'ingredients':[]}, {'servings':1,'ingredients':[{'name':'Bread','amount':-1,'unit':'slice'}]}):
+            with patch.object(sg,'_run',return_value=json.dumps(bad)), self.assertRaises(HTTPException):
+                sg.discover_ingredients(sg.DiscoveryIn(idea='Toast',generate=True),self.db,self.user)
+        self.assertEqual(self.db.total_changes,before)
+        draft=sg.review_recipe(self.db,{'servings':1,'ingredients':[{'name':'Flour','amount':2,'unit':'handful'}]},1)
+        self.assertIsNone(draft['ingredients'][0]['unit_id'])
+
+class ProviderSafety(unittest.TestCase):
+    def test_sanitized_upstream_errors(self):
+        import httpx
+        with patch.object(httpx,'post',return_value=httpx.Response(401,text='secret-token')):
+            with self.assertRaises(providers.ProviderError) as e: providers._post('https://example.invalid',{}, {})
+        self.assertNotIn('secret-token',str(e.exception))
+    def test_standalone_and_configuration(self):
+        with patch.object(providers,'hermes_catalog',return_value=[]):
+            self.assertEqual({p['slug'] for p in providers.catalogue()},set(providers.PROVIDERS))
+        with self.assertRaises(providers.ProviderError): providers.validate_settings('openai','m','https://user:secret@example.invalid')
+
+class Provenance(unittest.TestCase):
+    setUp = test_planning.Planning.setUp
+    tearDown = test_planning.Planning.tearDown
+    def test_legacy_unknown_and_multiple_sources(self):
+        from app.routes.shopping import list_items, add_item
+        self.db.execute("INSERT INTO shopping_list(name,amount) VALUES('Bread',1)")
+        item=list_items(self.db,self.user)[0]
+        self.assertTrue(item['origin_unknown']); self.assertEqual(item['sources'],[])
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Egg',2)")
+        first=add_item(self.db,1,1,2,user_id=1)
+        second=add_item(self.db,1,2,2,user_id=1,source='recipe',source_ref=9,source_label='Egg toast')
+        self.assertEqual(first,second)
+        item=next(i for i in list_items(self.db,self.user) if i['id']==first)
+        self.assertFalse(item['origin_unknown'])
+        self.assertEqual([s['kind'] for s in item['sources']],['manual','recipe'])
+        self.assertEqual(item['amount'],3)
+    def test_additive_migration_preserves_legacy_bread(self):
+        import tempfile
+        from pathlib import Path
+        from app import db as module
+        with tempfile.TemporaryDirectory(prefix='larder-source-migration-') as path:
+            root=Path(path)
+            db=sqlite3.connect(root/'larder.db')
+            db.executescript("CREATE TABLE shopping_list(id INTEGER PRIMARY KEY,product_id INTEGER,name TEXT NOT NULL DEFAULT '',amount REAL NOT NULL DEFAULT 1,unit_id INTEGER,note TEXT NOT NULL DEFAULT '',done INTEGER NOT NULL DEFAULT 0,added_by INTEGER,created_at TEXT NOT NULL DEFAULT (datetime('now')));")
+            db.execute("INSERT INTO shopping_list(id,name,amount,created_at) VALUES(1,'Bread',1,'2026-10-11 10:41:14')")
+            db.commit(); db.close()
+            with patch.multiple(module,DATA_DIR=root,DB_PATH=root/'larder.db',UPLOAD_DIR=root/'uploads'):
+                module.init_db(); module.init_db()
+                db=module.connect()
+                self.assertEqual(db.execute('SELECT id,name,product_id,amount,created_at FROM shopping_list').fetchone()[:],(1,'Bread',None,1,'2026-10-11 10:41:14'))
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM shopping_sources').fetchone()[0],0)
+                db.close()
+
+class BrowserReview(unittest.TestCase):
+    def test_preview_reject_review_and_explicit_save_javascript(self):
+        import subprocess
+        from pathlib import Path
+        root=Path(__file__).resolve().parents[1]
+        script=(root/'app/templates/mealplan.html').read_text().split('<script>')[1].split('</script>')[0].replace('{{ user.id }}','1')
+        helpers='function selectIngredient'+(root/'app/static/app.js').read_text().split('function selectIngredient')[1]
+        pre="""
+const assert=require('node:assert/strict'), window={}, calls=[];
+const today=()=> '2026-10-12', addDays=x=>x, toast=()=>{}, oops=e=>{throw e};
+async function api(path,opts={}) {
+ calls.push({path,...opts});
+ if(path==='/api/suggestions/ingredients') return {matches:[],recipe:{ingredients:[{name:'Bread',amount:2,unit_id:1}]},message:'Draft only'};
+ return [];
+}
+"""
+        body="""
+(async()=>{
+ const p=planPage(); p.load=()=>{};
+ await p.openEdit({id:7,day:'2026-10-12',slot:'breakfast',note:'Toast',servings:1,recipe_id:null});
+ await p.findIngredients(true);
+ assert.equal(p.adding.ingredients.length,0);
+ p.discovery.recipe=null; assert.equal(calls.filter(c=>c.method==='PUT').length,0);
+ await p.findIngredients(true); p.reviewDraft(p.discovery.recipe);
+ assert.equal(p.adding.ingredients[0].amount,2); assert.equal(p.adding.note,'Toast');
+ assert.equal(p.adding.day,'2026-10-12'); assert.equal(p.adding.servings,1);
+ assert.equal(calls.filter(c=>c.method==='PUT').length,0);
+ await p.add(); assert.equal(calls.filter(c=>c.method==='PUT').length,1);
+ assert.equal(calls.some(c=>c.path.includes('shopping')),false);
+ const r=recipesPage(); r.idea.result={recipe:{name:'Toast',servings:1,instructions:'Toast',ingredients:[{name:'Bread',amount:2,unit_id:1}]}};
+ await r.saveIdea(); assert.equal(r.form.ingredients.length,1); assert.equal(r.form.ingredients[0].name,'Bread');
+ assert.equal(calls.filter(c=>c.path==='/api/recipes' && c.method==='POST').length,0);
+})().catch(e=>{console.error(e);process.exit(1)});
+"""
+        recipes=(root/'app/templates/recipes.html').read_text().split('<script>')[1].split('</script>')[0]
+        run=subprocess.run(['node'],input=pre+helpers+script+recipes+body,text=True,capture_output=True,timeout=15)
+        self.assertEqual(run.returncode,0,run.stderr)

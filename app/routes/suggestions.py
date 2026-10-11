@@ -4,9 +4,11 @@ from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+import math
 
 from .. import providers
+from ..hermes_bridge import discard_account, BridgeError
 from ..auth import current_user
 from ..db import get_db, row, rows
 from .mealplan import PORTION_FACTOR, SLOTS
@@ -16,11 +18,12 @@ router = APIRouter(prefix="/api", tags=["suggestions"])
 
 
 class SettingsIn(BaseModel):
-    provider: Literal["openai", "anthropic", "openrouter", "deepseek", "ollama"] = "openai"
+    provider: str = Field(default="openai", max_length=120)
     api_key: str | None = None  # None = keep the one that's saved
     model: str = ""
     base_url: str = ""
     shared: bool = False
+    reuse_account: bool = False
 
 
 class MealIdeasIn(BaseModel):
@@ -37,9 +40,11 @@ class RecipeIdeaIn(BaseModel):
 def settings_for(db, user):
     """The user's own provider settings, or a household-shared one if they don't have any."""
     s = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
-    if providers.is_configured(s):
+    if s and (not s.get("reuse_account") or user.get("is_admin")) and providers.is_configured(s):
         return s
-    for s in rows(db.execute("SELECT * FROM suggestion_settings WHERE shared = 1 ORDER BY user_id")):
+    if s:
+        return None  # A selected but unavailable provider must not silently switch accounts.
+    for s in rows(db.execute("SELECT s.* FROM suggestion_settings s JOIN users u ON u.id=s.user_id WHERE s.shared = 1 AND (s.reuse_account=0 OR u.is_admin=1) ORDER BY s.user_id")):
         if providers.is_configured(s):
             return s
     return None
@@ -48,11 +53,18 @@ def settings_for(db, user):
 def _run(db, user, prompt, system):
     s = settings_for(db, user)
     if not s:
-        raise HTTPException(400, "Add an API key in Settings to use this")
+        raise HTTPException(400, "Suggestions unavailable; connect a provider in Settings or search saved recipes")
     try:
-        return providers.ask(s, prompt, system)
+        result = providers.ask_with_provenance(s, prompt, system)
+        text = GeneratedText(result.pop('text'))
+        text.provenance = result
+        return text
     except providers.ProviderError as e:
         raise HTTPException(502, str(e))
+
+
+class GeneratedText(str):
+    pass
 
 
 def _kitchen(db):
@@ -96,31 +108,52 @@ def status(db=Depends(get_db), user=Depends(current_user)):
 def get_settings(db=Depends(get_db), user=Depends(current_user)):
     s = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
     if not s:
-        return {"provider": "openai", "model": "", "base_url": "", "shared": False, "has_key": False,
-                "providers": list(providers.PROVIDERS)}
-    key = s.pop("api_key")
-    s["has_key"] = bool(key)
-    s["key_hint"] = ("..." + key[-4:]) if len(key) > 8 else ""
-    s["shared"] = bool(s["shared"])
-    s["providers"] = list(providers.PROVIDERS)
+        s = dict(provider="openai", model="", base_url="", shared=False, reuse_account=False, api_key="")
+    key = s.pop('api_key')
+    s['has_key'] = bool(key)
+    s['shared'] = bool(s['shared'])
+    s['reuse_account'] = bool(s['reuse_account'])
+    s['providers'] = providers.catalogue()
+    s['state'] = 'Connection not verified' if providers.is_configured(dict(s,api_key=key)) else 'Setup required'
     return s
 
 
 @router.put("/me/suggestions")
 def save_settings(data: SettingsIn, db=Depends(get_db), user=Depends(current_user)):
-    old = row(db.execute("SELECT api_key FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
-    key = data.api_key.strip() if data.api_key is not None else (old["api_key"] if old else "")
-    db.execute("""INSERT INTO suggestion_settings (user_id, provider, api_key, model, base_url, shared)
-                  VALUES (?, ?, ?, ?, ?, ?)
+    if data.reuse_account and not user.get('is_admin'):
+        raise HTTPException(403, 'Only an administrator can enable server account reuse')
+    try:
+        providers.validate_settings(data.provider, data.model.strip(), data.base_url.strip())
+    except providers.ProviderError as e:
+        raise HTTPException(400, str(e))
+    if data.reuse_account and data.base_url.strip():
+        raise HTTPException(400, 'Server account reuse uses the provider endpoint; custom origins require a separate key')
+    old = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))
+    if old and old['reuse_account'] and (not data.reuse_account or old['provider'] != data.provider):
+        try:
+            discard_account(user['id'], old['provider'])
+        except (BridgeError, OSError):
+            raise HTTPException(409, 'Provider account is busy; retry shortly')
+    same_scope = old and old['provider'] == data.provider and old['base_url'] == data.base_url.strip()
+    key = data.api_key.strip() if data.api_key is not None else (old['api_key'] if same_scope else '')
+    db.execute("""INSERT INTO suggestion_settings (user_id, provider, api_key, model, base_url, shared, reuse_account)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)
                   ON CONFLICT(user_id) DO UPDATE SET provider = excluded.provider, api_key = excluded.api_key,
-                      model = excluded.model, base_url = excluded.base_url, shared = excluded.shared""",
-               (user["id"], data.provider, key, data.model.strip(), data.base_url.strip(), int(data.shared)))
+                      model = excluded.model, base_url = excluded.base_url, shared = excluded.shared,
+                      reuse_account = excluded.reuse_account""",
+               (user['id'], data.provider, key, data.model.strip(), data.base_url.strip(), int(data.shared), int(data.reuse_account)))
     db.commit()
     return get_settings(db, user)
 
 
 @router.delete("/me/suggestions")
 def clear_settings(db=Depends(get_db), user=Depends(current_user)):
+    old = row(db.execute('SELECT * FROM suggestion_settings WHERE user_id=?', (user['id'],)))
+    if old and old['reuse_account']:
+        try:
+            discard_account(user['id'], old['provider'])
+        except (BridgeError, OSError):
+            raise HTTPException(409, 'Provider account is busy; retry shortly')
     db.execute("DELETE FROM suggestion_settings WHERE user_id = ?", (user["id"],))
     db.commit()
     return {"ok": True}
@@ -129,7 +162,7 @@ def clear_settings(db=Depends(get_db), user=Depends(current_user)):
 @router.post("/me/suggestions/test")
 def test_settings(db=Depends(get_db), user=Depends(current_user)):
     text = _run(db, user, "Reply with just the word: ok", None)
-    return {"reply": text.strip()[:200]}
+    return {"reply": "Connection responded", "provenance": getattr(text,"provenance",None)}
 
 
 @router.post("/suggestions/meals")
@@ -158,7 +191,8 @@ Recipes we already have saved:
 Use saved recipes where they fit. For each meal give the name, roughly what goes in it and
 how much to make for the portion sizes above. Point out anything we'd need to buy.
 Plain text, no tables."""
-    return {"text": _run(db, user, prompt, SYSTEM)}
+    text = _run(db, user, prompt, SYSTEM)
+    return {"text": text, "provenance": getattr(text,"provenance",None)}
 
 
 def _parse_json(text):
@@ -173,7 +207,7 @@ def _parse_json(text):
 
 @router.post("/suggestions/recipe")
 def recipe_idea(data: RecipeIdeaIn, db=Depends(get_db), user=Depends(current_user)):
-    prompt = f"""Come up with one recipe we could make mostly from what's in stock.
+    prompt = f"""Draft a proposed recipe for user review. Amounts are estimates, not authoritative nutrition or medical advice. Ingredients may be out of stock.
 {('What I fancy: ' + data.idea) if data.idea.strip() else ''}
 {'Try to use up the things going off soonest.' if data.use_expiring else ''}
 
@@ -186,35 +220,77 @@ Use the same ingredient names as the stock list where you can. Units should be s
     text = _run(db, user, prompt, SYSTEM)
     parsed = _parse_json(text)
     if not parsed or not isinstance(parsed.get("ingredients"), list):
-        return {"recipe": None, "text": text}
+        raise HTTPException(502, "Malformed provider recipe; nothing was saved")
 
-    products = rows(db.execute("SELECT id, name, unit_id FROM products"))
-    units = {u["name"].lower(): u["id"] for u in rows(db.execute("SELECT id, name FROM units"))}
-    units.update({u["name_plural"].lower(): u["id"] for u in rows(db.execute("SELECT id, name_plural FROM units WHERE name_plural != ''"))})
+    return {"recipe": review_recipe(db, parsed), "text": None, "provenance": getattr(text,'provenance',None)}
+
+
+class DiscoveryIn(BaseModel):
+    idea: str = Field(min_length=1, max_length=500)
+    servings: float = Field(default=1, gt=0, le=1000, allow_inf_nan=False)
+    generate: bool = False
+
+
+def review_recipe(db, parsed, wanted=None):
+    def positive(value):
+        if isinstance(value,bool) or not isinstance(value,(float,int)) or not math.isfinite(value) or value <= 0 or value > 1000000:
+            raise HTTPException(502, 'Suggestion has invalid amounts or servings; nothing was saved')
+        return value
+    if not isinstance(parsed,dict):
+        raise HTTPException(502, 'Invalid suggestion; nothing was saved')
+    servings = positive(parsed.get('servings'))
+    items = parsed.get('ingredients')
+    if not isinstance(items,list) or not 1 <= len(items) <= 50:
+        raise HTTPException(502, 'Suggestion needs 1–50 ingredients; nothing was saved')
+    units = {}
+    for u in rows(db.execute('SELECT * FROM units')):
+        for name in (u['name'],u['name_plural']):
+            if name: units[name.casefold()] = u['id']
+    products = rows(db.execute('SELECT id,name,unit_id FROM products'))
     ingredients = []
-    for i in parsed["ingredients"]:
-        if not isinstance(i, dict):
-            continue
-        name = str(i.get("name", "")).strip()
-        match = _match_product(products, name)
-        try:
-            amount = float(i.get("amount") or 1)
-        except (TypeError, ValueError):
-            amount = 1
-        unit = str(i.get("unit", "")).strip().lower()
-        ingredients.append({
-            "name": name, "amount": amount, "unit": unit,
-            "product_id": match["id"] if match else None,
-            "product": match["name"] if match else None,
-            "unit_id": units.get(unit) or (match["unit_id"] if match else None),
-        })
-    try:
-        servings = float(parsed.get("servings") or 2)
-    except (TypeError, ValueError):
-        servings = 2
-    return {"recipe": {"name": str(parsed.get("name") or "Suggested recipe"), "servings": servings,
-                       "instructions": str(parsed.get("instructions") or ""), "ingredients": ingredients},
-            "text": None}
+    for item in items:
+        if not isinstance(item,dict) or not isinstance(item.get('name'),str) or not 1 <= len(item['name'].strip()) <= 200:
+            raise HTTPException(502, 'Invalid ingredient name; nothing was saved')
+        amount = positive(item.get('amount')) * (wanted / servings if wanted else 1)
+        if not math.isfinite(amount):
+            raise HTTPException(502, 'Invalid ingredient amount')
+        unit = item.get('unit')
+        if not isinstance(unit,str) or len(unit) > 80:
+            raise HTTPException(502, 'Invalid ingredient unit; nothing was saved')
+        name = item['name'].strip()
+        match = next((p for p in products if p['name'].casefold() == name.casefold()),None)
+        ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=units.get(unit.strip().casefold()),
+                                product_id=None, product=match['name'] if match else None,
+                                suggested_product_id=match['id'] if match else None,
+                                note='' if unit.strip().casefold() in units else 'Proposed unit: ' + unit + '. Choose a valid unit.'))
+    return dict(name=str(parsed.get('name') or 'Proposed recipe')[:200], servings=wanted or servings,
+                ingredients=ingredients, instructions=str(parsed.get('instructions') or '')[:20000])
+
+
+@router.post('/suggestions/ingredients')
+def discover_ingredients(data: DiscoveryIn, db=Depends(get_db), user=Depends(current_user)):
+    from .recipes import check
+    query = data.idea.strip().casefold()
+    matches = []
+    for r in rows(db.execute('SELECT id,name FROM recipes ORDER BY name COLLATE NOCASE')):
+        if query in r['name'].casefold() or r['name'].casefold() in query:
+            recipe = check(db,r['id'],data.servings)
+            recipe['ingredients'] = [dict(i, amount=i['amount_scaled'], unit_id=i['unit_id'] or i['stock_unit_id']) for i in recipe['ingredients']]
+            matches.append(recipe)
+            if len(matches) == 20: break
+    result = dict(matches=matches, recipe=None, available=bool(settings_for(db,user)),
+                  message='Search includes saved recipes with no stock. Review ingredients before saving; shopping is a separate action.')
+    if data.generate:
+        units = ', '.join(u['name'] for u in rows(db.execute('SELECT name FROM units')))
+        prompt = f"""Draft a proposed recipe for {data.idea}, for {data.servings} servings.
+Do not limit ingredients to current stock. Respect the requested variant (e.g. Vegemite or egg toast).
+Amounts are proposed estimates for user review, never established facts or nutrition/medical advice.
+Return only JSON: {{"name":"...","servings":{data.servings},"ingredients":[{{"name":"Bread","amount":2,"unit":"slice"}}],"instructions":"..."}}.
+Use valid units where possible: {units}. Between 1 and 50 ingredients."""
+        text = _run(db,user,prompt,'You draft practical home recipes for explicit human review.')
+        result['recipe'] = review_recipe(db,_parse_json(text),data.servings)
+        result['provenance'] = getattr(text,'provenance',None)
+    return result
 
 
 def _match_product(products, name):

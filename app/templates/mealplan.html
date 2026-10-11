@@ -36,6 +36,7 @@
                   <span class="muted" x-show="m.servings" x-text="'x' + num(m.servings)"></span>
                 </span>
                 <button @click="openEdit(m)">Edit</button>
+                <button x-show="!m.recipe_id" @click="findForMeal(m)">Find ingredients</button>
                 <button @click="remove(m)" :aria-label="'Remove ' + (m.recipe || m.note)" title="Remove">x</button>
               </div>
             </template>
@@ -72,6 +73,24 @@
         <label x-text="adding.recipe_id ? 'Note (optional)' : 'What is it?'"></label>
         <input :aria-label="adding.recipe_id ? 'Note (optional)' : 'What is it?'" x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
         <div x-show="!adding.recipe_id">
+          <div class="card">
+            <b>Find ingredients</b>
+            <label class="field">Recipe or variant<input x-model="discovery.idea" placeholder="e.g. Vegemite toast or egg toast"></label>
+            <div class="row">
+              <button type="button" @click="findIngredients(false)" :disabled="discovery.busy">Search saved recipes</button>
+              <button type="button" @click="findIngredients(true)" :disabled="discovery.busy || !suggest">Request provider draft</button>
+            </div>
+            <p class="muted small" x-show="!suggest">Provider suggestions unavailable. Search saved recipes or enter ingredients below. <a href="{{ base_path }}/settings">Connect a provider</a>.</p>
+            <p class="small" role="status" x-text="discovery.message"></p>
+            <template x-for="r in discovery.matches" :key="r.id"><div class="row"><span class="grow" x-text="r.name + ' — ' + r.ingredients.length + ' ingredients (stock not required)'"></span><button type="button" @click="reviewDraft(r)">Review ingredients</button></div></template>
+            <template x-if="discovery.recipe"><div>
+              <b>Proposed ingredients — review amounts and units</b>
+              <ul><template x-for="(i, idx) in discovery.recipe.ingredients" :key="idx"><li x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></li></template></ul>
+              <p class="muted small" x-text="discovery.provenance"></p>
+              <button type="button" @click="reviewDraft(discovery.recipe)">Review this draft</button>
+              <button type="button" @click="discovery.recipe = null">Reject draft</button>
+            </div></template>
+          </div>
           <p class="muted small">Name new ingredients or choose catalogue products, then enter their amounts for the servings below. No purchase details are needed. Saving ingredients also saves this simple meal as a recipe for reuse. Leaving this empty keeps a note; its needs cannot be calculated.</p>
           <template x-for="(i, idx) in adding.ingredients" :key="idx">
           <div class="ingredient-row">
@@ -82,6 +101,7 @@
                   <template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name + ' — on hand: ' + num(p.in_stock) + ' ' + p.unit"></option></template>
                 </select>
               </label>
+              <button type="button" class="small" x-show="i.suggested_product_id && !i.product_id" @click="i.product_id = i.suggested_product_id">Choose matching catalogue product</button>
               <label x-show="!i.product_id">Ingredient name
                 <input x-model="i.name" :required="!i.product_id && !adding.recipe_id" :disabled="!!i.product_id || !!adding.recipe_id" placeholder="e.g. Bread">
               </label>
@@ -90,6 +110,7 @@
             <label class="field">Unit<select x-model="i.unit_id" :required="!adding.recipe_id" :disabled="!!adding.recipe_id">
               <option value="">Choose unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
             </select></label>
+            <p class="small warn ingredient-note" x-show="i.note" x-text="i.note"></p>
             <button type="button" class="small danger" @click="adding.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
           </div>
           </template>
@@ -106,7 +127,7 @@
         </div>
         <label class="field">Servings<input type="number" step="any" min="0.000001" x-model.number="adding.servings"></label>
         <div class="row" style="margin-top: 1rem">
-          <button class="primary" :disabled="busy" x-text="adding.id ? 'Save meal' : 'Add meal'"></button>
+          <button class="primary" :disabled="busy" x-text="adding.reviewing ? 'Save reviewed ingredients' : (adding.id ? 'Save meal' : 'Add meal')"></button>
           <button type="button" @click="adding = null">Cancel</button>
         </div>
       </form>
@@ -121,7 +142,7 @@
         <p class="muted small" x-show="!needs.items.length && !needs.unmapped.length && !needs.problems.length">No ingredient needs recorded this week.</p>
         <template x-for="m in needs.unmapped" :key="m.id">
           <div class="notice card small"><span x-text="formatDate(m.day) + ' ' + m.slot + ': ' + m.note + ' — no ingredients linked; needs cannot be calculated.'"></span>
-            <button class="small" @click="editUnmapped(m)">Edit and link ingredients</button>
+            <button class="small" @click="findUnmapped(m)">Find ingredients</button>
           </div>
         </template>
         <table class="small" x-show="needs.items.length">
@@ -171,6 +192,7 @@
           </div>
         </form>
         <div class="card" style="margin-top: 1rem" x-show="ideas.text">
+<p class="muted small" x-text="ideas.provenance"></p>
           <pre class="suggestion small" x-text="ideas.text"></pre>
         </div>
       </div>
@@ -188,7 +210,8 @@ function planPage() {
   return {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     busy: false, recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
-    ideasOpen: false, ideas: { days: 1, slots: ['dinner'], note: '', busy: false, text: '' },
+    ideasOpen: false, ideas: { days: 1, slots: ['dinner'], note: '', busy: false, text: '', provenance: '' },
+    discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
     meId: {{ user.id }},
 
     async init() {
@@ -213,6 +236,7 @@ function planPage() {
 
     openAdd(day) {
       this.adding = { request_id: saveRequestId(), day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null, ingredients: [] };
+      this.resetDiscovery();
       this.calcServings();
     },
     async openEdit(m) {
@@ -223,11 +247,42 @@ function planPage() {
         } catch (e) { return oops(e); }
       }
       this.adding = draft;
+      this.resetDiscovery();
     },
-    editUnmapped(m) {
+    resetDiscovery() {
+      this.discovery = {idea: this.adding?.note || '', matches: [], recipe: null, busy: false, message: '', provenance: ''};
+    },
+    async findForMeal(m) {
+      await this.openEdit(m);
+      if (this.adding) {
+        if (this.adding.recipe_id) { this.adding.recipe_id = ''; this.adding.note = m.note || m.recipe || ''; this.resetDiscovery(); }
+        await this.findIngredients(false);
+      }
+    },
+    async findUnmapped(m) {
       const meal = this.meals.find(x => x.id == m.id);
       this.needs = null;
-      if (meal) this.openEdit(meal);
+      if (meal) await this.findForMeal(meal);
+    },
+    async findIngredients(generate) {
+      const target = this.adding, state = this.discovery;
+      state.busy = true; state.recipe = null; state.message = '';
+      try {
+        const r = await api('/api/suggestions/ingredients', {method: 'POST', body: {
+          idea: state.idea || target.note, servings: Number(target.servings) || 1, generate}});
+        if (this.adding !== target || this.discovery !== state) return;
+        state.matches = r.matches; state.recipe = r.recipe;
+        state.message = r.message + (!r.matches.length && !generate ? ' No saved recipe matches. Enter ingredients manually or request a draft.' : '');
+        state.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
+      } catch (e) { if (this.adding === target) state.message = e.message; }
+      finally { state.busy = false; }
+    },
+    reviewDraft(r) {
+      this.adding.ingredients = r.ingredients.map(i => ({name: i.name, product_id: i.product_id || '',
+        suggested_product_id: i.suggested_product_id, amount: i.amount, unit_id: i.unit_id || '', note: i.note || ''}));
+      this.adding.reviewing = true;
+      this.discovery.recipe = null; this.discovery.matches = [];
+      this.discovery.message = 'Review every amount, unit and catalogue choice below. Cancel discards this draft. Saving does not add shopping or stock.';
     },
     pickIngredient(i) {
       const p = this.products.find(p => p.id == i.product_id);
@@ -271,6 +326,7 @@ function planPage() {
       try {
         const r = await api('/api/suggestions/meals', { method: 'POST', body: { days: this.ideas.days, slots: this.ideas.slots, note: this.ideas.note } });
         this.ideas.text = r.text;
+        this.ideas.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
       } catch (e) { oops(e); }
       this.ideas.busy = false;
     },

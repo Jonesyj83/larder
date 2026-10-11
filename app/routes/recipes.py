@@ -153,7 +153,7 @@ def missing_to_shopping(recipe_id: int, servings: Optional[float] = None, db=Dep
                              (i["product_id"], i["stock_unit_id"])).fetchone()[0]
         extra = i["missing"] - on_list
         if extra > 1e-9:
-            add_item(db, i["product_id"], extra, i["stock_unit_id"], user_id=user["id"])
+            add_item(db, i["product_id"], extra, i["stock_unit_id"], user_id=user["id"], source="recipe", source_ref=recipe_id, source_label=r["name"])
             added += 1
     db.commit()
     return {"added": added, "problems": [i["error"] for i in r["ingredients"] if i["error"]]}

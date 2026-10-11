@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS suggestion_settings (
     api_key TEXT NOT NULL DEFAULT '',
     model TEXT NOT NULL DEFAULT '',
     base_url TEXT NOT NULL DEFAULT '',
+    reuse_account INTEGER NOT NULL DEFAULT 0,
     shared INTEGER NOT NULL DEFAULT 0  -- let the rest of the household use it too
 );
 
@@ -117,6 +118,17 @@ CREATE TABLE IF NOT EXISTS shopping_list (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS shopping_sources (
+    id INTEGER PRIMARY KEY,
+    item_id INTEGER NOT NULL REFERENCES shopping_list(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL,
+    source_ref TEXT NOT NULL DEFAULT '',
+    label TEXT NOT NULL DEFAULT '',
+    amount REAL NOT NULL,
+    added_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
@@ -194,6 +206,8 @@ def init_db():
         conn.execute("INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, 1000)", (ids["l"], ids["ml"]))
     if "simple_meal" not in {r["name"] for r in conn.execute("PRAGMA table_info(meal_plan)")}:
         conn.execute("ALTER TABLE meal_plan ADD COLUMN simple_meal INTEGER NOT NULL DEFAULT 0")
+    if "reuse_account" not in {r["name"] for r in conn.execute("PRAGMA table_info(suggestion_settings)")}:
+        conn.execute("ALTER TABLE suggestion_settings ADD COLUMN reuse_account INTEGER NOT NULL DEFAULT 0")
     # Additive migration: preserve users, meals and existing conversion overrides.
     columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
     for name, default in (("date_format", "DD/MM/YYYY"), ("measurement_system", "metric")):

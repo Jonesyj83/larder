@@ -209,12 +209,12 @@ def plan_to_shopping(start: str, end: str, db=Depends(get_db), user=Depends(curr
     added = 0
     for i in n["items"]:
         if i["missing"] > 1e-9:
-            on_list = row(db.execute("SELECT amount FROM shopping_list WHERE product_id = ? AND done = 0 AND unit_id = ?",
+            on_list = row(db.execute("SELECT COALESCE(SUM(amount),0) AS amount FROM shopping_list WHERE product_id = ? AND done = 0 AND unit_id = ?",
                                      (i["id"], i["unit_id"])))
             # don't keep piling on if it's already listed with enough
             extra = i["missing"] - (on_list["amount"] if on_list else 0)
             if extra > 1e-9:
-                add_item(db, i["id"], round(extra, 3), i["unit_id"], user_id=user["id"])
+                add_item(db, i["id"], round(extra, 3), i["unit_id"], user_id=user["id"], source="meal_plan", source_ref=start + ":" + end, source_label="Meal plan " + start + " to " + end)
                 added += 1
     db.commit()
     return {"added": added, "problems": n["problems"], "unmapped": n["unmapped"]}

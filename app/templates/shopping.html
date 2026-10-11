@@ -32,6 +32,7 @@
           <span class="muted small" x-text="i.unit ? qty(i.amount, i.unit) : num(i.amount)"></span>
           <span class="pill" x-show="!i.product_id">not a product</span>
           <div class="small muted" x-show="i.note" x-text="i.note"></div>
+            <div class="small muted"><span x-show="i.origin_unknown">Origin not recorded. </span><template x-for="(source, idx) in (i.sources || [])" :key="idx"><span x-text="({manual: 'Manual addition', meal_plan: 'Meal plan', recipe: 'Recipe', low_stock: 'Low stock'})[source.kind] + (source.label ? ': ' + source.label : '') + ' (' + num(source.amount) + ') '"></span></template></div>
         </div>
         <button class="small" x-show="i.product_id" @click="bought(i)" title="Tick off and add to stock">Got it</button>
         <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>

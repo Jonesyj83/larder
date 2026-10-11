@@ -4,10 +4,10 @@
 <div x-data="recipesPage()">
   <div class="row page-head">
     <h1 class="grow">Recipes</h1>
-    <button @click="ideaOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Suggest a recipe</button>
+    <button @click="ideaOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Connect a provider in Settings to use this'">Suggest a recipe</button>
     <button class="primary" @click="edit(null)">New recipe</button>
   </div>
-  <p class="muted small" x-show="!suggest" x-cloak>Recipe suggestions are off. Add an API key in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
+  <p class="muted small" x-show="!suggest" x-cloak>Recipe suggestions are off. Connect a provider in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
   <!-- list -->
   <div x-show="!current">
@@ -102,7 +102,7 @@
           <div><label class="field">Name<input x-model="form.name" required></label></div>
           <div><label class="field">Servings<input type="number" step="any" min="0.25" x-model.number="form.servings" required></label></div>
         </div>
-        <label>Ingredients</label>
+        <label>Ingredients</label><p class="warn small" x-show="form.reviewing">Proposed recipe: review amounts and units. Unknown units require correction. Saving adds no stock or shopping.</p>
         <template x-for="(i, idx) in form.ingredients" :key="idx">
           <div class="ingredient-row">
             <div class="ingredient-product field">
@@ -112,6 +112,7 @@
                   <template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name + ' — on hand: ' + num(p.in_stock) + ' ' + p.unit"></option></template>
                 </select>
               </label>
+              <button type="button" class="small" x-show="i.suggested_product_id && !i.product_id" @click="i.product_id = i.suggested_product_id">Choose matching catalogue product</button>
               <label x-show="!i.product_id">Ingredient name
                 <input x-model="i.name" :required="!i.product_id" :disabled="!!i.product_id" placeholder="e.g. Bread">
               </label>
@@ -121,6 +122,7 @@
               <option value="">Choose unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
             </select></label>
             <button type="button" class="small danger" @click="form.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
+            <p class="warn small ingredient-note" x-show="i.unit && !i.unit_id" x-text="'Proposed unit: ' + i.unit + '. Choose a valid unit.'"></p>
             <label class="field ingredient-note">Ingredient note (optional)<input x-model="i.note"></label>
           </div>
         </template>
@@ -128,7 +130,7 @@
         <p class="muted small">New ingredients are saved to the catalogue only when you save. This adds no stock. If a name already exists, choose that catalogue product above. Units and names can be edited in Products.</p>
         <label class="field">Method<textarea x-model="form.instructions"></textarea></label>
         <div class="row" style="margin-top: 1rem">
-          <button class="primary" :disabled="busy">Save</button>
+          <button class="primary" :disabled="busy" x-text="form.reviewing ? 'Save reviewed ingredients' : 'Save'"></button>
           <button type="button" @click="form = null">Cancel</button>
         </div>
       </form>
@@ -151,6 +153,7 @@
         </form>
         <template x-if="idea.result && idea.result.recipe">
           <div style="margin-top: 1rem">
+            <p class="muted small" x-show="idea.result.provenance" x-text="idea.result.provenance ? 'Requested ' + idea.result.provenance.requested_provider + ' / ' + idea.result.provenance.requested_model + '; served ' + idea.result.provenance.served_provider + ' / ' + idea.result.provenance.served_model : ''"></p>
             <b x-text="idea.result.recipe.name"></b>
             <span class="muted small" x-text="'(' + num(idea.result.recipe.servings) + ' servings)'"></span>
             <ul class="small">
@@ -163,7 +166,7 @@
               </template>
             </ul>
             <pre class="suggestion small" x-text="idea.result.recipe.instructions"></pre>
-            <button class="primary" style="margin-top: .6rem" @click="saveIdea()">Save as a recipe</button>
+            <button class="primary" style="margin-top: .6rem" @click="saveIdea()">Review before saving</button>
           </div>
         </template>
         <template x-if="idea.result && !idea.result.recipe">
@@ -274,19 +277,10 @@ function recipesPage() {
     },
     async saveIdea() {
       const r = this.idea.result.recipe;
-      const matched = r.ingredients.filter(i => i.product_id);
-      const others = r.ingredients.filter(i => !i.product_id);
-      let instructions = r.instructions;
-      if (others.length) {
-        instructions = 'Also needs: ' + others.map(i => num(i.amount) + ' ' + i.unit + ' ' + i.name).join(', ') + '\n\n' + instructions;
-      }
-      try {
-        const saved = await api('/api/recipes', { method: 'POST', body: { name: r.name, servings: r.servings || 2, instructions,
-          ingredients: matched.map(i => ({ product_id: i.product_id, amount: i.amount, unit_id: i.unit_id, note: '' })) } });
-        this.ideaOpen = false; this.idea.result = null;
-        await this.load();
-        this.open(saved.id);
-      } catch (e) { oops(e); }
+      this.form = {request_id: saveRequestId(), id: null, name: r.name, servings: r.servings,
+        instructions: r.instructions, reviewing: true,
+        ingredients: r.ingredients.map(i => ({...i, product_id: i.product_id || '', unit_id: i.unit_id || ''}))};
+      this.ideaOpen = false; this.idea.result = null;
     },
   };
 }

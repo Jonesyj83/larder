@@ -56,26 +56,30 @@
 
   <h2>Suggestions</h2>
   <div class="card">
-    <p class="muted small">Meal ideas and recipe suggestions need an account with one of these providers.
-      Leave it empty and those buttons stay switched off. The key is stored on this server.</p>
+    <p class="muted small">Connect a provider for draft meal and ingredient suggestions. Keys stay on this server. Subscription sign-in uses the server terminal; saved recipes and manual ingredients work without a connection.</p>
     <form @submit.prevent="saveSuggest()">
       <div class="grid2">
         <div>
-          <label class="field">Provider<select x-model="sg.provider">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="openrouter">OpenRouter</option>
-            <option value="deepseek">DeepSeek</option>
-            <option value="ollama">Ollama (local)</option>
+          <label class="field">Provider<select x-model="sg.provider" @change="sg.api_key = ''; sg.has_key = false; sg.state = 'Setup required'; sg.base_url = ''; sg.model = ''; sg.reuse_account = false; sg.shared = false; connectionRoute = ''">
+            <template x-for="p in (sg.providers || [])" :key="p.slug"><option :value="p.slug" x-text="p.label + ' — ' + p.auth_type"></option></template>
           </select></label>
         </div>
         <div>
-          <label class="field">Model<input x-model="sg.model" :placeholder="modelHint()"></label>
+          <label class="field">Model (custom names allowed)<input x-model="sg.model" :placeholder="modelHint()" list="provider-models" maxlength="200"></label>
+          <datalist id="provider-models"><template x-for="m in (selectedProvider().models || [])" :key="m"><option :value="m"></option></template></datalist>
         </div>
       </div>
-      <label x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></label>
+      <p class="muted small" x-text="selectedProvider().setup"></p>
+<p class="small" role="status" x-text="sg.state || 'Setup required'"></p>
+      <p class="muted small" x-text="connectionRoute"></p>
+      <p class="muted small">Model choices come from the installed catalogue; account availability is checked only by an explicit connection test. Automatic fallback is disabled.</p>
+      {% if user.is_admin %}
+      <label class="inline"><input type="checkbox" x-model="sg.reuse_account"> Reuse this server's signed-in provider account (admin only)</label>
+      <p class="muted small">Private by default. Household use requires the separate sharing option below.</p>
+      {% endif %}
+      <label class="field"><span x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></span>
       <input :aria-label="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'" type="password" x-model="sg.api_key" autocomplete="off"
-             :placeholder="sg.has_key ? 'saved (' + (sg.key_hint || 'hidden') + '), leave blank to keep it' : ''">
+             :placeholder="sg.has_key ? 'saved (' + (sg.key_hint || 'hidden') + '), leave blank to keep it' : ''"></label>
       <label class="field">Base URL (optional)<input x-model="sg.base_url" :placeholder="sg.provider == 'ollama' ? 'http://localhost:11434' : 'leave blank for the default'"></label>
       <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="sg.shared"> Let everyone in the house use this</label>
       <div class="row" style="margin-top: .8rem">
@@ -120,7 +124,7 @@ function settingsPage() {
     dateFormat: preferences().date_format, measurementSystem: preferences().measurement_system,
     portion: '{{ user.portion_size }}', pw: { old: '', new: '' },
     keys: [], keyName: '', newKey: '',
-    sg: {}, testing: false,
+    sg: {}, testing: false, connectionRoute: '',
     users: [], nu: { username: '', password: '', portion_size: 'regular' },
     isAdmin: {{ 'true' if user.is_admin else 'false' }},
 
@@ -150,7 +154,9 @@ function settingsPage() {
       if (!confirm('Revoke this key? Anything using it will stop working.')) return;
       try { await api('/api/me/keys/' + k.id, { method: 'DELETE' }); this.keys = await api('/api/me/keys'); } catch (e) { oops(e); }
     },
+    selectedProvider() { return (this.sg.providers || []).find(p => p.slug === this.sg.provider) || {}; },
     modelHint() {
+      if (this.selectedProvider().default_model) return this.selectedProvider().default_model;
       return ({ openai: 'gpt-4o-mini', anthropic: 'claude-sonnet-5', openrouter: 'openai/gpt-4o-mini',
                 deepseek: 'deepseek-chat', ollama: 'llama3.1' })[this.sg.provider] || '';
     },
@@ -158,7 +164,7 @@ function settingsPage() {
       try {
         this.sg = await api('/api/me/suggestions', { method: 'PUT', body: {
           provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
-          model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared } });
+          model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared, reuse_account: !!this.sg.reuse_account } });
         this.sg.api_key = '';
         toast('Saved');
       } catch (e) { oops(e); }
@@ -167,7 +173,8 @@ function settingsPage() {
       this.testing = true;
       try {
         const r = await api('/api/me/suggestions/test', { method: 'POST' });
-        toast('Working, it said: ' + r.reply);
+        this.sg.state = 'Connection responded';
+        this.connectionRoute = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : ''; toast(r.reply);
       } catch (e) { oops(e); }
       this.testing = false;
     },
