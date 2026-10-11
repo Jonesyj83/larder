@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="scanPage()" x-init="init()">
-  <div class="tabs">
-    <button :class="mode == 'purchase' && 'on'" @click="setMode('purchase')">Purchase</button>
-    <button :class="mode == 'consume' && 'on'" @click="setMode('consume')">Consume</button>
+  <div class="row page-head">
+    <h1 class="grow">Scan</h1>
+    <div class="tabs">
+      <button :class="mode == 'purchase' && 'on'" @click="setMode('purchase')">Purchase</button>
+      <button :class="mode == 'consume' && 'on'" @click="setMode('consume')">Consume</button>
+    </div>
   </div>
 
   <div class="scanner">
@@ -18,9 +21,9 @@
     </div>
   </div>
 
-  <div class="row" style="margin: .6rem 0">
+  <div class="row toolbar" style="margin-top: 16px">
     <form class="row grow" @submit.prevent="lookup(manual)">
-      <input class="grow" x-model="manual" placeholder="Type a barcode" inputmode="numeric" autocomplete="off">
+      <input class="grow" aria-label="Barcode" x-model="manual" placeholder="Type a barcode" inputmode="numeric" autocomplete="off">
       <button>Look up</button>
     </form>
     <select x-model="engine" @change="saveEngine()" style="width: auto" title="Scanner">
@@ -45,7 +48,7 @@
           </div>
           <div class="small muted" x-text="'Barcode ' + code"></div>
         </div>
-        <a class="small" :href="'/products?id=' + product.id">edit</a>
+        <a class="small" :href="BASE + '/products?id=' + product.id">edit</a>
       </div>
       <div class="grid2">
         <div>

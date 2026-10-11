@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="stockPage()" x-init="load()" @stock-changed.window="load()">
-  <div class="row">
-    <h1 class="grow">Stock</h1>
-    <a class="btn primary" href="{{ base_path }}/scan">Scan</a>
+  <div class="row page-head">
+    <h1 class="grow">What’s in the kitchen</h1>
+    <a class="btn primary" href="{{ base_path }}/scan">Scan an item</a>
     <button @click="adding = true">Add stock</button>
   </div>
 
-  <div class="card" x-show="expiring.length" x-cloak>
+  <div class="card notice" x-show="expiring.length" x-cloak>
     <b>Going off soon</b>
     <template x-for="e in expiring" :key="e.id">
       <div class="small">
@@ -26,35 +26,35 @@
     <div class="small muted" x-text="missing.map(m => m.name + ' (' + num(m.amount) + '/' + num(m.min_stock) + ' ' + m.unit + ')').join(', ')"></div>
   </div>
 
-  <div class="row" style="margin-bottom: .6rem">
-    <input class="grow" placeholder="Filter" x-model="q">
-    <select x-model="loc" @change="load()" style="width: auto">
+  <div class="row toolbar">
+    <label class="grow" for="stock-search">Find food<input id="stock-search" type="search" placeholder="Name of an item" x-model="q"></label>
+    <label for="stock-location">Location<select id="stock-location" x-model="loc" @change="load()">
       <option value="">All locations</option>
       <template x-for="l in locations" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
-    </select>
+    </select></label>
   </div>
 
-  <div class="card">
+  <div class="card inventory">
+    <div class="stock-head" aria-hidden="true"><span></span><span>Food</span><span>On hand</span><span>Location</span><span>Date</span><span>Change stock</span></div>
     <p class="muted" x-show="loaded && !items.length" x-cloak>
       Nothing in stock yet. Add some <a href="{{ base_path }}/products">products</a>, then scan or add stock.
     </p>
+    <p class="muted" x-show="loaded && items.length && !filtered().length" x-cloak>No food matches. Clear the search or choose another location.</p>
     <template x-for="s in filtered()" :key="s.product_id">
       <div>
-        <div class="list-item">
-          <img x-show="s.picture" :src="pic(s.picture)" class="thumb">
+        <div class="stock-item">
+          <img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt="">
           <div x-show="!s.picture" class="thumb blank"></div>
-          <div class="grow" @click="toggle(s)" style="cursor: pointer">
-            <div><b x-text="s.name"></b></div>
-            <div class="small">
-              <span x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
-              <span class="muted" x-text="s.locations ? ' - ' + s.locations : ''"></span>
-              <span :class="expiry(s.next_expiry, s.shelf_life_kind).cls" x-text="' ' + expiry(s.next_expiry, s.shelf_life_kind).text"></span>
-            </div>
+          <button class="stock-name" @click="toggle(s)" :aria-expanded="open == s.product_id" x-text="s.name"></button>
+          <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
+          <span class="stock-place" x-text="s.locations || '—'"></span>
+          <span class="stock-date" :class="expiry(s.next_expiry, s.shelf_life_kind).cls" x-text="expiry(s.next_expiry, s.shelf_life_kind).text"></span>
+          <div class="row stock-actions">
+            <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume'})">Use</button>
+            <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Add</button>
           </div>
-          <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume'})">Use</button>
-          <button class="small hide-small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">+</button>
         </div>
-        <div x-show="open == s.product_id" x-cloak style="padding: 0 0 .6rem 3rem">
+        <div class="stock-details" x-show="open == s.product_id" x-cloak>
           <template x-for="e in entries" :key="e.id">
             <div class="row small" style="margin: .25rem 0">
               <input type="number" step="any" min="0" x-model.number="e.amount" style="width: 6rem">

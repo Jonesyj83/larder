@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="productsPage()" x-init="init()" @stock-changed.window="load()">
-  <div class="row">
+  <div class="row page-head">
     <h1 class="grow">Products</h1>
     <button class="primary" @click="edit(null)">New product</button>
   </div>
-  <input placeholder="Search" x-model="q" style="margin-bottom: .6rem">
+  <div class="toolbar"><label for="product-search">Find a product</label><input id="product-search" type="search" placeholder="Name of a product" x-model="q"></div>
 
   <div class="card">
     <p class="muted" x-show="loaded && !products.length" x-cloak>No products yet.</p>
@@ -21,8 +21,8 @@
             <span x-show="p.purchase_unit" x-text="' - bought by the ' + p.purchase_unit + ' (' + num(p.purchase_factor) + ' ' + p.unit + ')'"></span>
           </div>
         </div>
-        <button class="small" @click="$dispatch('stock-modal', {product_id: p.id, mode: 'purchase'})">+</button>
-        <button class="small" :disabled="!p.in_stock" @click="$dispatch('stock-modal', {product_id: p.id, mode: 'consume'})">-</button>
+        <button class="small" @click="$dispatch('stock-modal', {product_id: p.id, mode: 'purchase'})">Add</button>
+        <button class="small" :disabled="!p.in_stock" @click="$dispatch('stock-modal', {product_id: p.id, mode: 'consume'})">Use</button>
       </div>
     </template>
   </div>

@@ -6,7 +6,7 @@
 <title>{{ title }} - Larder</title>
 <script>window.BASE_PATH = {{ base_path | tojson }};</script>
 <link rel="manifest" href="{{ base_path }}/manifest.webmanifest">
-<meta name="theme-color" content="#2f6f4f">
+<meta name="theme-color" content="#171d25">
 <link rel="icon" href="{{ base_path }}/static/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ base_path }}/icon-192.png">
 <link rel="stylesheet" href="{{ base_path }}/static/style.css">
@@ -18,19 +18,22 @@
 {% set here = request.url.path %}
 <header class="top">
   <a class="brand" href="{{ base_path }}/">Larder</a>
-  <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" href="{{ base_path }}/">Stock</a>
-  <a class="nav {{ 'on' if here == base_path + '/scan' }}" href="{{ base_path }}/scan">Scan</a>
-  <a class="nav {{ 'on' if here == base_path + '/shopping' }}" href="{{ base_path }}/shopping">Shopping</a>
-  <a class="nav {{ 'on' if here.startswith(base_path + '/recipes') }}" href="{{ base_path }}/recipes">Recipes</a>
-  <a class="nav {{ 'on' if here == base_path + '/mealplan' }}" href="{{ base_path }}/mealplan">Meal plan</a>
-  <a class="nav {{ 'on' if here == base_path + '/products' }}" href="{{ base_path }}/products">Products</a>
-  <a class="nav {{ 'on' if here == base_path + '/manage' }}" href="{{ base_path }}/manage">Locations &amp; units</a>
-  <span class="spacer"></span>
-  <a class="nav {{ 'on' if here == base_path + '/settings' }}" href="{{ base_path }}/settings">{{ user.username }}</a>
+  <nav aria-label="Main navigation">
+  <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" aria-current="{{ 'page' if here == base_path + '/' or here == base_path else 'false' }}" href="{{ base_path }}/">Stock</a>
+  <a class="nav {{ 'on' if here == base_path + '/scan' }}" aria-current="{{ 'page' if here == base_path + '/scan' else 'false' }}" href="{{ base_path }}/scan">Scan</a>
+  <a class="nav {{ 'on' if here == base_path + '/shopping' }}" aria-current="{{ 'page' if here == base_path + '/shopping' else 'false' }}" href="{{ base_path }}/shopping">Shopping</a>
+  <a class="nav {{ 'on' if here.startswith(base_path + '/recipes') }}" aria-current="{{ 'page' if here.startswith(base_path + '/recipes') else 'false' }}" href="{{ base_path }}/recipes">Recipes</a>
+  <a class="nav {{ 'on' if here == base_path + '/mealplan' }}" aria-current="{{ 'page' if here == base_path + '/mealplan' else 'false' }}" href="{{ base_path }}/mealplan">Meal plan</a>
+  <a class="nav {{ 'on' if here == base_path + '/products' }}" aria-current="{{ 'page' if here == base_path + '/products' else 'false' }}" href="{{ base_path }}/products">Products</a>
+  <a class="nav {{ 'on' if here == base_path + '/manage' }}" aria-current="{{ 'page' if here == base_path + '/manage' else 'false' }}" href="{{ base_path }}/manage">Locations &amp; units</a>
+  </nav>
+  <div class="account">
+  <a class="nav {{ 'on' if here == base_path + '/settings' }}" aria-current="{{ 'page' if here == base_path + '/settings' else 'false' }}" href="{{ base_path }}/settings" aria-label="Settings for {{ user.username }}">Settings</a>
   <a class="nav" href="#" onclick="logout(); return false">Log out</a>
+  </div>
 </header>
 {% endif %}
-<main>
+<main id="main">
 {% block content %}{% endblock %}
 </main>
 <div x-data x-cloak x-show="$store.toast.msg" class="toast" :class="$store.toast.bad && 'bad'"

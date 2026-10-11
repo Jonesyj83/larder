@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="shoppingPage()" x-init="init()">
-  <div class="row">
+  <div class="row page-head">
     <h1 class="grow">Shopping list</h1>
     <button @click="addMissing()">Add what's running low</button>
   </div>
 
   <form class="card" @submit.prevent="add()">
     <div class="row">
-      <input class="grow" placeholder="Add something" x-model="text" list="product-names" autocomplete="off">
-      <input type="number" step="any" min="0" x-model.number="amount" style="width: 5rem">
-      <select x-model="unit_id" style="width: auto">
+      <input class="grow" aria-label="Item to add" placeholder="Add something" x-model="text" list="product-names" autocomplete="off">
+      <input type="number" step="any" min="0" aria-label="Amount" x-model.number="amount" style="width: 5rem">
+      <select aria-label="Unit" x-model="unit_id" style="width: auto">
         <option value="">unit</option>
         <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
       </select>
@@ -34,7 +34,7 @@
           <div class="small muted" x-show="i.note" x-text="i.note"></div>
         </div>
         <button class="small" x-show="i.product_id" @click="bought(i)" title="Tick off and add to stock">Got it</button>
-        <button class="small danger" @click="remove(i)">x</button>
+        <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>
       </div>
     </template>
     <div class="row" style="margin-top: .6rem" x-show="items.some(i => i.done)">

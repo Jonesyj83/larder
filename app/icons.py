@@ -3,10 +3,10 @@ Same idea as icon.svg, just blockier."""
 import struct
 import zlib
 
-GREEN = (47, 111, 79)
-JAR = (246, 244, 239)
-LID = (232, 220, 192)
-LABEL = (201, 139, 58)
+BACKGROUND = (23, 29, 37)
+JAR = (242, 244, 247)
+LID = (186, 196, 209)
+LABEL = (233, 180, 71)
 
 
 def _pixel(x, y):
@@ -17,7 +17,7 @@ def _pixel(x, y):
         if 150 <= x < 362 and 250 <= y < 340:
             return LABEL
         return JAR
-    return GREEN
+    return BACKGROUND
 
 
 def make_png(size):

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="loginPage()" x-init="init()" style="max-width: 360px; margin: 3rem auto">
-  <h1>Larder</h1>
+<div x-data="loginPage()" x-init="init()" class="login">
+  <div class="page-head"><h1>Larder</h1></div>
   <div class="card">
     <p x-show="setup" x-cloak class="muted">First run. Make an account, it'll be the admin one.</p>
     <form @submit.prevent="go()">
-      <label>Username</label>
-      <input x-model="username" autocomplete="username" autofocus required>
-      <label>Password</label>
-      <input type="password" x-model="password" :autocomplete="setup ? 'new-password' : 'current-password'" required>
+      <label for="login-username">Username</label>
+      <input id="login-username" x-model="username" autocomplete="username" autofocus required>
+      <label for="login-password">Password</label>
+      <input id="login-password" type="password" x-model="password" :autocomplete="setup ? 'new-password' : 'current-password'" required>
       <p class="bad small" x-text="err"></p>
       <button class="primary" :disabled="busy" x-text="setup ? 'Create account' : 'Log in'"></button>
     </form>

@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="planPage()" x-init="init()">
-  <div class="row">
+  <div class="row page-head">
     <h1 class="grow">Meal plan</h1>
     <button @click="ideasOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
   </div>
   <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Add an API key in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
-  <div class="row" style="margin-bottom: .7rem">
-    <button @click="move(-7)">&larr;</button>
+  <div class="row toolbar">
+    <button aria-label="Previous week" @click="move(-7)">&larr;</button>
     <b x-text="weekLabel()"></b>
-    <button @click="move(7)">&rarr;</button>
+    <button aria-label="Next week" @click="move(7)">&rarr;</button>
     <button class="small" @click="start = monday(today()); load()">This week</button>
     <span class="grow"></span>
     <button @click="showNeeds()">What we need</button>
@@ -29,7 +29,7 @@
             <template x-for="m in mealsFor(d, s)" :key="m.id">
               <div class="meal">
                 <span>
-                  <a x-show="m.recipe_id" :href="'/recipes?id=' + m.recipe_id" x-text="m.recipe"></a>
+                  <a x-show="m.recipe_id" :href="BASE + '/recipes?id=' + m.recipe_id" x-text="m.recipe"></a>
                   <span x-show="!m.recipe_id" x-text="m.note"></span>
                   <span class="muted" x-show="m.servings" x-text="'x' + num(m.servings)"></span>
                 </span>
