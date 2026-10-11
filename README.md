@@ -98,5 +98,12 @@ for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: <key>` 
 
 - Uploaded pictures under `/uploads` don't need a login to view. Didn't seem worth the
   hassle for photos of tins.
-- Logging out clears the cookie. Sessions last 60 days otherwise.
+- Logging out clears the cookie. Sessions last 60 days otherwise. Changing a password (or
+  an admin resetting it) logs that account out everywhere else.
+- Scripts should use an API key. Changes made with just the login cookie are refused
+  unless they come from the app's own pages.
+- Ten wrong passwords for the same username from the same address locks that login for
+  15 minutes (it's kept in memory, so a restart clears it).
+- A custom base URL for suggestions can't point at this machine or the home network,
+  except for Ollama, which is meant to run there.
 - There's no import from Grocy, at least not yet.

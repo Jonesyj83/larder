@@ -47,7 +47,8 @@ class Discovery(unittest.TestCase):
 class ProviderSafety(unittest.TestCase):
     def test_sanitized_upstream_errors(self):
         import httpx
-        with patch.object(httpx,'post',return_value=httpx.Response(401,text='secret-token')):
+        transport = httpx.MockTransport(lambda request: httpx.Response(401,text='secret-token'))
+        with patch.object(providers,'_transport',transport):
             with self.assertRaises(providers.ProviderError) as e: providers._post('https://example.invalid',{}, {})
         self.assertNotIn('secret-token',str(e.exception))
     def test_standalone_and_configuration(self):
@@ -56,10 +57,10 @@ class ProviderSafety(unittest.TestCase):
     def test_opencode_go_sends_session_header(self):
         import httpx
         captured = {}
-        def fake_post(url, headers=None, json=None, params=None, timeout=None):
-            captured['headers'] = headers
+        def fake_post(request):
+            captured['headers'] = request.headers
             return httpx.Response(200, json={'choices':[{'message':{'content':'ok'}}]})
-        with patch.object(httpx,'post',side_effect=fake_post):
+        with patch.object(providers,'_transport',httpx.MockTransport(fake_post)):
             text = providers.opencode_go('hi','key','deepseek-v4.1-flash',None)
         self.assertEqual(text,'ok')
         self.assertIn('x-opencode-session',captured['headers'])

@@ -1,6 +1,7 @@
+import math
 from datetime import date, timedelta
 
-from .db import row, rows
+from .db import begin, row, rows
 
 
 class StockError(Exception):
@@ -35,7 +36,7 @@ def conversion_factor(db, source, target):
     """Walk reversible rules, so lb -> g -> kg works without count guesses."""
     direct = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id=? AND to_unit_id=?",
                         (source, target)).fetchone()
-    if direct:
+    if direct and direct[0] > 0:
         return direct[0]
     reverse = db.execute("SELECT factor FROM unit_conversions WHERE from_unit_id=? AND to_unit_id=?",
                          (target, source)).fetchone()
@@ -61,29 +62,45 @@ def in_stock(db, product_id):
     return db.execute("SELECT COALESCE(SUM(amount), 0) FROM stock WHERE product_id = ?", (product_id,)).fetchone()[0]
 
 
-def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=None,
-             price=None, user_id=None):
-    p = get_product(db, product_id)
-    if amount <= 0:
+def _check_amount(amount):
+    if amount is None or not math.isfinite(amount) or amount <= 0:
         raise StockError("Amount has to be more than zero")
+
+
+def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=None,
+             price=None, user_id=None, commit=True):
+    begin(db)
+    p = get_product(db, product_id)
+    _check_amount(amount)
+    if price is not None and (not math.isfinite(price) or price < 0):
+        raise StockError("Price can't be negative")
     qty = to_stock_units(db, p, amount, unit_id)
+    if not math.isfinite(qty) or qty <= 0:
+        raise StockError("That amount is too big to store")
     location_id = location_id or p["location_id"]
+    if location_id and not db.execute("SELECT 1 FROM locations WHERE id = ?", (location_id,)).fetchone():
+        raise StockError("No such location")
     if not expires_on and p["default_days"]:
-        expires_on = (date.today() + timedelta(days=p["default_days"])).isoformat()
+        try:
+            expires_on = (date.today() + timedelta(days=p["default_days"])).isoformat()
+        except OverflowError:
+            expires_on = None
     cur = db.execute(
         "INSERT INTO stock (product_id, location_id, amount, expires_on, price) VALUES (?, ?, ?, ?, ?)",
         (product_id, location_id, qty, expires_on or None, price))
     db.execute("INSERT INTO stock_log (product_id, user_id, kind, amount, location_id) VALUES (?, ?, 'purchase', ?, ?)",
                (product_id, user_id, qty, location_id))
-    db.commit()
+    if commit:
+        db.commit()
     return {"stock_id": cur.lastrowid, "added": qty, "in_stock": in_stock(db, product_id)}
 
 
 def consume(db, product_id, amount, unit_id=None, spoiled=False, location_id=None, user_id=None,
-            allow_partial=False):
+            allow_partial=False, commit=True):
+    # lock first: two tabs using the last of something must not both succeed
+    begin(db)
     p = get_product(db, product_id)
-    if amount <= 0:
-        raise StockError("Amount has to be more than zero")
+    _check_amount(amount)
     qty = to_stock_units(db, p, amount, unit_id)
 
     sql = "SELECT id, amount FROM stock WHERE product_id = ?"
@@ -113,7 +130,8 @@ def consume(db, product_id, amount, unit_id=None, spoiled=False, location_id=Non
 
     db.execute("INSERT INTO stock_log (product_id, user_id, kind, amount, location_id) VALUES (?, ?, ?, ?, ?)",
                (product_id, user_id, "spoiled" if spoiled else "consume", -qty, location_id))
-    db.commit()
+    if commit:
+        db.commit()
     return {"removed": qty, "in_stock": in_stock(db, product_id)}
 
 

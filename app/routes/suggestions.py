@@ -18,20 +18,20 @@ router = APIRouter(prefix="/api", tags=["suggestions"])
 
 class SettingsIn(BaseModel):
     provider: str = Field(default="anthropic", max_length=120)
-    api_key: str | None = None  # None = keep the one that's saved
-    model: str = ""
-    base_url: str = ""
+    api_key: str | None = Field(default=None, max_length=1000)  # None = keep the one that's saved
+    model: str = Field(default="", max_length=200)
+    base_url: str = Field(default="", max_length=500)
     shared: bool = False
 
 
 class MealIdeasIn(BaseModel):
     days: int = 1
-    slots: list[str] = ["dinner"]
-    note: str = ""
+    slots: list[str] = Field(default=["dinner"], max_length=10)
+    note: str = Field(default="", max_length=2000)
 
 
 class RecipeIdeaIn(BaseModel):
-    idea: str = ""
+    idea: str = Field(default="", max_length=2000)
     use_expiring: bool = True
 
 
@@ -73,9 +73,12 @@ def _kitchen(db):
             GROUP BY p.id ORDER BY exp IS NULL, exp""")):
         line = f"- {s['name']}: {round(s['amount'], 2):g} {s['unit']}"
         if s["exp"]:
-            days = (date.fromisoformat(s["exp"]) - today).days
             label = "use by" if s["shelf_life_kind"] == "use_by" else "best by"
-            line += f" ({label} {s['exp']}, {days} days)"
+            try:
+                days = (date.fromisoformat(s["exp"]) - today).days
+                line += f" ({label} {s['exp']}, {days} days)"
+            except ValueError:
+                line += f" ({label} {s['exp']})"  # an odd date from an old import shouldn't break this
         lines.append(line)
     return "\n".join(lines) or "(nothing in stock)"
 
@@ -117,6 +120,8 @@ def get_settings(db=Depends(get_db), user=Depends(current_user)):
 def save_settings(data: SettingsIn, db=Depends(get_db), user=Depends(current_user)):
     try:
         providers.validate_settings(data.provider, data.model.strip(), data.base_url.strip())
+        if data.api_key is not None:
+            providers.validate_key(data.api_key.strip())
     except providers.ProviderError as e:
         raise HTTPException(400, str(e))
     old = row(db.execute("SELECT * FROM suggestion_settings WHERE user_id = ?", (user["id"],)))

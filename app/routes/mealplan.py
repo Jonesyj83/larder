@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 
 from .. import stock as st
 from ..auth import current_user
-from ..db import get_db, row, rows
-from .shopping import add_item
-from ..ingredients import IngredientIn, atomic_save, save_ingredients
+from ..db import begin, get_db, row, rows
+from .shopping import add_item, listed_amount
+from ..ingredients import MAX_SERVINGS, IngredientIn, atomic_save, save_ingredients
 from .stock import canonical_date
 
 router = APIRouter(prefix="/api", tags=["meal plan"])
@@ -26,9 +26,9 @@ class MealIn(BaseModel):
     slot: Slot
     recipe_id: Optional[int] = None
     note: str = ""
-    servings: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
+    servings: Optional[float] = Field(default=None, gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
     ingredients: list[IngredientIn] = []
-    eaters: list[int] = []  # user ids, used to work out servings from portion sizes
+    eaters: list[int] = Field(default=[], max_length=200)  # user ids, used to work out servings from portion sizes
 
 
 class MealEdit(BaseModel):
@@ -38,7 +38,7 @@ class MealEdit(BaseModel):
     day: Optional[str] = None
     slot: Optional[Slot] = None
     note: Optional[str] = None
-    servings: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
+    servings: Optional[float] = Field(default=None, gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
 
 
 def _day(s):
@@ -80,7 +80,10 @@ def household(db=Depends(get_db), user=Depends(current_user)):
 def week(start: Optional[str] = None, days: int = 7, db=Depends(get_db), user=Depends(current_user)):
     first = _day(start) if start else date.today() - timedelta(days=date.today().weekday())
     days = max(1, min(days, 42))
-    last = first + timedelta(days=days - 1)
+    try:
+        last = first + timedelta(days=days - 1)
+    except OverflowError:
+        raise HTTPException(400, "That week is past the end of the calendar")
     meals = rows(db.execute("""
         SELECT m.*, r.name AS recipe, r.servings AS recipe_servings, u.username
         FROM meal_plan m LEFT JOIN recipes r ON r.id = m.recipe_id LEFT JOIN users u ON u.id = m.user_id
@@ -185,7 +188,9 @@ def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
             unmapped.append({"id": m["id"], "day": m["day"], "slot": m["slot"],
                              "note": m["note"] or m["recipe"], "reason": "No ingredients linked"})
             continue
-        scale = (m["servings"] or m["recipe_servings"]) / m["recipe_servings"]
+        # older rows can have 0 servings on the recipe; treat that as "as written"
+        base = m["recipe_servings"] if m["recipe_servings"] and m["recipe_servings"] > 0 else None
+        scale = (m["servings"] or base) / base if base else 1
         for i in ingredients:
             p = st.get_product(db, i["product_id"])
             try:
@@ -205,16 +210,15 @@ def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
 
 @router.post("/mealplan/shopping")
 def plan_to_shopping(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
+    begin(db)
     n = needs(start, end, db, user)
     added = 0
     for i in n["items"]:
         if i["missing"] > 1e-9:
-            on_list = row(db.execute("SELECT COALESCE(SUM(amount),0) AS amount FROM shopping_list WHERE product_id = ? AND done = 0 AND unit_id = ?",
-                                     (i["id"], i["unit_id"])))
-            # don't keep piling on if it's already listed with enough
-            extra = i["missing"] - (on_list["amount"] if on_list else 0)
-            if extra > 1e-9:
-                add_item(db, i["id"], round(extra, 3), i["unit_id"], user_id=user["id"], source="meal_plan", source_ref=start + ":" + end, source_label="Meal plan " + start + " to " + end)
+            # don't keep piling on if it's already listed with enough, in whatever unit
+            extra = round(i["missing"] - listed_amount(db, i["id"]), 3)
+            if extra > 0:
+                add_item(db, i["id"], extra, i["unit_id"], user_id=user["id"], source="meal_plan", source_ref=start + ":" + end, source_label="Meal plan " + start + " to " + end)
                 added += 1
     db.commit()
     return {"added": added, "problems": n["problems"], "unmapped": n["unmapped"]}

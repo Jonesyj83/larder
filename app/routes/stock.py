@@ -2,11 +2,12 @@ from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from .. import stock as st
 from ..auth import current_user
-from ..db import get_db, row, rows
+from ..db import begin, get_db, row, rows
+from ..ingredients import MAX_AMOUNT
 
 router = APIRouter(prefix="/api/stock", tags=["stock"])
 
@@ -33,23 +34,23 @@ class DatedInput(BaseModel):
 
 class PurchaseIn(DatedInput):
     product_id: int
-    amount: float
+    amount: float = Field(gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
     unit_id: Optional[int] = None  # defaults to the product's stock unit
     location_id: Optional[int] = None
     expires_on: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[float] = Field(default=None, ge=0, le=MAX_AMOUNT, allow_inf_nan=False)
 
 
 class ConsumeIn(BaseModel):
     product_id: int
-    amount: float
+    amount: float = Field(gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
     unit_id: Optional[int] = None
     location_id: Optional[int] = None
     spoiled: bool = False
 
 
 class EntryEdit(DatedInput):
-    amount: float
+    amount: float = Field(ge=0, le=MAX_AMOUNT, allow_inf_nan=False)  # 0 removes the entry
     location_id: Optional[int] = None
     expires_on: Optional[str] = None
     opened: bool = False
@@ -78,6 +79,7 @@ def overview(location_id: Optional[int] = None, db=Depends(get_db), user=Depends
 
 @router.get("/expiring")
 def expiring(days: int = 3, db=Depends(get_db), user=Depends(current_user)):
+    days = max(-3650, min(days, 3650))
     cutoff = (date.today() + timedelta(days=days)).isoformat()
     return rows(db.execute("""
         SELECT s.*, p.name, p.shelf_life_kind, u.name AS unit, l.name AS location
@@ -108,7 +110,8 @@ def log(limit: int = 50, product_id: Optional[int] = None, db=Depends(get_db), u
         sql += " WHERE g.product_id = ?"
         args.append(product_id)
     sql += " ORDER BY g.id DESC LIMIT ?"
-    args.append(min(limit, 500))
+    # sqlite treats a negative LIMIT as no limit at all
+    args.append(max(1, min(limit, 500)))
     return rows(db.execute(sql, args))
 
 
@@ -118,6 +121,7 @@ def purchase(data: PurchaseIn, db=Depends(get_db), user=Depends(current_user)):
         return st.purchase(db, data.product_id, data.amount, data.unit_id, data.location_id,
                            data.expires_on, data.price, user["id"])
     except st.StockError as e:
+        db.rollback()
         raise HTTPException(400, str(e))
 
 
@@ -127,14 +131,20 @@ def consume(data: ConsumeIn, db=Depends(get_db), user=Depends(current_user)):
         return st.consume(db, data.product_id, data.amount, data.unit_id, data.spoiled,
                           data.location_id, user["id"])
     except st.StockError as e:
+        db.rollback()
         raise HTTPException(400, str(e))
 
 
 @router.put("/entries/{entry_id}")
 def edit_entry(entry_id: int, data: EntryEdit, db=Depends(get_db), user=Depends(current_user)):
+    begin(db)
     e = row(db.execute("SELECT * FROM stock WHERE id = ?", (entry_id,)))
     if not e:
+        db.rollback()
         raise HTTPException(404, "Stock entry not found")
+    if data.location_id and not db.execute("SELECT 1 FROM locations WHERE id = ?", (data.location_id,)).fetchone():
+        db.rollback()
+        raise HTTPException(400, "No such location")
     if data.amount <= 0:
         db.execute("DELETE FROM stock WHERE id = ?", (entry_id,))
     else:

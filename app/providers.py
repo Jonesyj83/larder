@@ -4,12 +4,24 @@ Each provider is a small function: (prompt, key, model, base_url, system) -> tex
 Plain HTTP calls with httpx, no vendor SDKs. Add another one by writing the
 function, adding it to PROVIDERS, and (optionally) giving it a model list.
 """
+import json
+import re
+import time
 import uuid
 from urllib.parse import urlsplit
 
 import httpx
 
-TIMEOUT = 90
+from .netcheck import check_host, is_local
+
+# connect quickly or not at all; generating a reply can take a while
+TIMEOUT = httpx.Timeout(90, connect=10)
+# read timeouts reset on every chunk, so a reply that trickles in also needs an overall cap
+DEADLINE = 120
+MAX_REPLY = 2 * 1024 * 1024
+
+# tests swap this for an httpx.MockTransport
+_transport = None
 
 
 class ProviderError(Exception):
@@ -17,16 +29,26 @@ class ProviderError(Exception):
 
 
 def _post(url, headers, body, params=None):
+    started = time.monotonic()
+    data = bytearray()
     try:
-        r = httpx.post(url, headers=headers, json=body, params=params, timeout=TIMEOUT)
+        with httpx.Client(transport=_transport, timeout=TIMEOUT, follow_redirects=False) as client:
+            with client.stream("POST", url, headers=headers, json=body, params=params) as r:
+                if r.status_code >= 400:
+                    raise ProviderError(f"Provider rejected request (HTTP {r.status_code}); check connection settings")
+                for chunk in r.iter_bytes():
+                    data += chunk
+                    if len(data) > MAX_REPLY:
+                        raise ProviderError("Provider reply was too large")
+                    if time.monotonic() - started > DEADLINE:
+                        raise ProviderError("Provider took too long to answer")
     except httpx.HTTPError:
-        raise ProviderError("Provider request failed or timed out")
-    if r.status_code >= 400:
-        raise ProviderError(f"Provider rejected request (HTTP {r.status_code}); check connection settings")
+        # from None: the original error can carry the full url, key included
+        raise ProviderError("Provider request failed or timed out") from None
     try:
-        return r.json()
+        return json.loads(bytes(data))
     except ValueError:
-        raise ProviderError("Provider sent back something that isn't json")
+        raise ProviderError("Provider sent back something that isn't json") from None
 
 
 def _chat_completions(url, prompt, key, model, system, extra_headers=None):
@@ -88,7 +110,8 @@ def gemini(prompt, key, model, base_url, system=None):
     body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}]}
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
-    data = _post(f"{base}/models/{model}:generateContent", {}, body, params={"key": key})
+    # key in a header rather than ?key=, so it never ends up in a url or a log line
+    data = _post(f"{base}/models/{model}:generateContent", {"x-goog-api-key": key or ""}, body)
     try:
         parts = data["candidates"][0]["content"]["parts"]
         return "".join(p.get("text", "") for p in parts)
@@ -178,20 +201,37 @@ def catalogue():
     return out
 
 
+MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@+-]*")
+
+
 def validate_settings(provider, model, base_url):
     if provider not in PROVIDERS:
         raise ProviderError("Unknown provider")
-    if len(model) > 200 or any(ord(c) < 32 for c in model):
+    # the model ends up in a url path for some providers, so keep it to plain names
+    if len(model) > 200 or (model and (not MODEL_NAME.fullmatch(model) or ".." in model)):
         raise ProviderError("Invalid model name")
     if base_url:
         try:
             u = urlsplit(base_url)
+            port = u.port or (443 if u.scheme == "https" else 80)
         except ValueError:
             raise ProviderError("Invalid base URL")
         if u.scheme not in {"http", "https"} or not u.hostname or u.username or u.password or u.query or u.fragment:
             raise ProviderError("Use an HTTP(S) base URL without credentials, query or fragment")
-        if u.scheme == "http" and u.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        # only ollama is meant to live on this machine or the home network
+        local_ok = provider == "ollama"
+        try:
+            check_host(u.hostname, port, allow_local=local_ok)
+        except ValueError:
+            raise ProviderError("That base URL points at a private or internal address" if not local_ok
+                                else "That base URL points at an address that isn't allowed")
+        if u.scheme == "http" and not (local_ok and is_local(u.hostname, port)):
             raise ProviderError("Remote endpoints require HTTPS")
+
+
+def validate_key(key):
+    if len(key) > 1000 or any(ord(c) <= 32 or ord(c) > 126 for c in key):
+        raise ProviderError("That API key has characters an API key can't have")
 
 
 def is_configured(settings):
@@ -212,7 +252,7 @@ def ask_with_provenance(settings, prompt, system=None):
     text = PROVIDERS[settings["provider"]](prompt, settings.get("api_key"), model, settings.get("base_url"), system)
     if not isinstance(text, str) or len(text) > 100000:
         raise ProviderError("Provider returned invalid or oversized text")
-    if settings.get("api_key"):
+    if settings.get("api_key") and len(settings["api_key"]) >= 8:
         text = text.replace(settings["api_key"], "[redacted]")
     return dict(text=text, requested_provider=settings["provider"], served_provider=settings["provider"],
                 requested_model=model, served_model=model, fallback=False)

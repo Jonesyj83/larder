@@ -48,7 +48,9 @@ async def check():
                     assert value.startswith(BASE_PATH + '/'), (tag, key, value)
         return parsed.tags
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://testserver') as client:
+    # the pages' api() helper always sends X-Requested-With; do the same here
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://testserver',
+                           headers={'X-Requested-With': 'fetch'}) as client:
         for route in PAGES:
             r = (await client.get(route, follow_redirects=False))
             assert r.status_code == 307

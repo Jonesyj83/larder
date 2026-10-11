@@ -195,7 +195,9 @@ def init_db():
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     conn = connect()
     conn.execute("PRAGMA journal_mode = WAL")
-    conn.executescript(SCHEMA)
+    # all of it under one write lock: two workers starting at once shouldn't both
+    # try to add the same column or seed the same rows
+    conn.executescript("BEGIN IMMEDIATE;\n" + SCHEMA)
     if conn.execute("SELECT COUNT(*) FROM locations").fetchone()[0] == 0:
         for i, (name, freezer) in enumerate(DEFAULT_LOCATIONS):
             conn.execute("INSERT INTO locations (name, is_freezer, sort) VALUES (?, ?, ?)", (name, freezer, i))
@@ -234,6 +236,13 @@ def get_db():
         yield conn
     finally:
         conn.close()
+
+
+def begin(db):
+    """Take the write lock before reading, so a read-then-write can't interleave
+    with the same thing happening in another tab."""
+    if not db.in_transaction:
+        db.execute("BEGIN IMMEDIATE")
 
 
 def rows(cur):

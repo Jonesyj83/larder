@@ -1,26 +1,30 @@
 import sqlite3
-from typing import Literal, Optional
+import threading
+import time
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth import (admin_user, check_password, current_user, hash_key, hash_password,
-                    new_api_key)
-from ..db import get_db, row, rows
+                    new_api_key, start_session, waste_a_check)
+from ..db import begin, get_db, row, rows
 
 router = APIRouter(prefix="/api", tags=["account"])
 
 PORTIONS = Literal["small", "regular", "large"]
+Username = Annotated[str, Field(max_length=100)]
+Password = Annotated[str, Field(max_length=1024)]
 
 
 class LoginIn(BaseModel):
-    username: str
-    password: str
+    username: Username
+    password: Password
 
 
 class PasswordIn(BaseModel):
-    old_password: str
-    new_password: str
+    old_password: Password
+    new_password: Password
 
 
 class PrefsIn(BaseModel):
@@ -30,19 +34,19 @@ class PrefsIn(BaseModel):
 
 
 class KeyIn(BaseModel):
-    name: str = ""
+    name: str = Field(default="", max_length=100)
 
 
 class NewUserIn(BaseModel):
-    username: str
-    password: str
+    username: Username
+    password: Password
     is_admin: bool = False
     portion_size: PORTIONS = "regular"
 
 
 class UserEdit(BaseModel):
     is_admin: Optional[bool] = None
-    password: Optional[str] = None
+    password: Optional[Password] = None
 
 
 def public(user):
@@ -52,8 +56,42 @@ def public(user):
 def _check_new(username, password):
     if not username.strip():
         raise HTTPException(400, "Username can't be empty")
+    if any(ord(c) < 32 or ord(c) == 127 for c in username):
+        raise HTTPException(400, "Username can't have control characters in it")
     if len(password) < 6:
         raise HTTPException(400, "Password needs at least 6 characters")
+
+
+# Wrong passwords per address and username. Kept in memory, so a restart clears it.
+MAX_FAILURES = 10
+FAILURE_WINDOW = 15 * 60
+_failures = {}
+_failures_lock = threading.Lock()
+
+
+def _attempt_key(request, username):
+    return (request.client.host if request.client else "", username.strip().casefold())
+
+
+def _recent_failures(key):
+    now = time.monotonic()
+    with _failures_lock:
+        recent = [t for t in _failures.get(key, []) if now - t < FAILURE_WINDOW]
+        if recent:
+            _failures[key] = recent
+        else:
+            _failures.pop(key, None)
+        return len(recent)
+
+
+def _record_failure(key):
+    now = time.monotonic()
+    with _failures_lock:
+        if len(_failures) > 10_000:
+            # someone's spraying usernames; forget the stale ones rather than grow forever
+            for k in [k for k, v in _failures.items() if now - v[-1] >= FAILURE_WINDOW]:
+                del _failures[k]
+        _failures.setdefault(key, []).append(now)
 
 
 @router.get("/auth/status")
@@ -65,23 +103,35 @@ def status(db=Depends(get_db)):
 
 @router.post("/auth/setup")
 def setup(data: LoginIn, request: Request, db=Depends(get_db)):
-    if db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
-        raise HTTPException(400, "Already set up")
     _check_new(data.username, data.password)
+    password_hash = hash_password(data.password)
+    # two first-run tabs racing must not both end up as admin
+    begin(db)
+    if db.execute("SELECT COUNT(*) FROM users").fetchone()[0]:
+        db.rollback()
+        raise HTTPException(400, "Already set up")
     cur = db.execute("INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
-                     (data.username.strip(), hash_password(data.password)))
+                     (data.username.strip(), password_hash))
     db.commit()
-    request.session["user_id"] = cur.lastrowid
-    return public(row(db.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,))))
+    user = row(db.execute("SELECT * FROM users WHERE id = ?", (cur.lastrowid,)))
+    start_session(request, user)
+    return public(user)
 
 
 @router.post("/auth/login")
 def login(data: LoginIn, request: Request, db=Depends(get_db)):
+    attempt = _attempt_key(request, data.username)
+    if _recent_failures(attempt) >= MAX_FAILURES:
+        raise HTTPException(429, "Too many wrong passwords, wait a few minutes and try again")
     user = row(db.execute("SELECT * FROM users WHERE username = ?", (data.username.strip(),)))
+    if not user:
+        waste_a_check(data.password)
     if not user or not check_password(data.password, user["password_hash"]):
+        _record_failure(attempt)
         raise HTTPException(401, "Wrong username or password")
-    request.session.clear()
-    request.session["user_id"] = user["id"]
+    with _failures_lock:
+        _failures.pop(attempt, None)
+    start_session(request, user)
     return public(user)
 
 
@@ -107,12 +157,14 @@ def update_me(data: PrefsIn, user=Depends(current_user), db=Depends(get_db)):
 
 
 @router.post("/me/password")
-def change_password(data: PasswordIn, user=Depends(current_user), db=Depends(get_db)):
+def change_password(data: PasswordIn, request: Request, user=Depends(current_user), db=Depends(get_db)):
     if not check_password(data.old_password, user["password_hash"]):
         raise HTTPException(400, "Current password is wrong")
     _check_new(user["username"], data.new_password)
     db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(data.new_password), user["id"]))
     db.commit()
+    # every other session for this account stops working; keep this one
+    start_session(request, row(db.execute("SELECT * FROM users WHERE id = ?", (user["id"],))))
     return {"ok": True}
 
 
@@ -157,7 +209,7 @@ def add_user(data: NewUserIn, user=Depends(admin_user), db=Depends(get_db)):
 
 
 @router.put("/users/{user_id}")
-def edit_user(user_id: int, data: UserEdit, user=Depends(admin_user), db=Depends(get_db)):
+def edit_user(user_id: int, data: UserEdit, request: Request, user=Depends(admin_user), db=Depends(get_db)):
     target = row(db.execute("SELECT * FROM users WHERE id = ?", (user_id,)))
     if not target:
         raise HTTPException(404, "No such user")
@@ -169,7 +221,10 @@ def edit_user(user_id: int, data: UserEdit, user=Depends(admin_user), db=Depends
         _check_new(target["username"], data.password)
         db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(data.password), user_id))
     db.commit()
-    return public(row(db.execute("SELECT * FROM users WHERE id = ?", (user_id,))))
+    target = row(db.execute("SELECT * FROM users WHERE id = ?", (user_id,)))
+    if data.password and user_id == user["id"] and "user_id" in request.session:
+        start_session(request, target)  # an admin resetting their own password stays logged in here
+    return public(target)
 
 
 @router.delete("/users/{user_id}")

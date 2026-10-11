@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -28,6 +29,53 @@ app = FastAPI(title="Larder", version="0.1", description="Household pantry track
               "(or `Authorization: Bearer <key>`).")
 app.add_middleware(SessionMiddleware, secret_key=secret_key(), session_cookie="larder_session",
                    max_age=60 * 60 * 24 * 60, same_site="lax")
+
+EXTRA_HEADERS = [(b"x-content-type-options", b"nosniff"), (b"x-frame-options", b"SAMEORIGIN"),
+                 (b"referrer-policy", b"same-origin")]
+
+
+class SameOriginWrites:
+    """Anything that changes data and rides on the login cookie has to come from
+    our own pages. The pages send X-Requested-With, which another site can't add
+    without a CORS preflight we never answer. Failing that, a matching Origin
+    (e.g. /docs) is fine too. API keys aren't sent by browsers on their own, so
+    requests carrying one don't need either."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        if not self.allowed(scope):
+            response = JSONResponse({"detail": "Request refused: it didn't come from this app"}, status_code=403)
+            return await response(scope, receive, send)
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                have = {k.lower() for k, _ in message.get("headers", [])}
+                message["headers"] = list(message.get("headers", [])) + [h for h in EXTRA_HEADERS if h[0] not in have]
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+    @staticmethod
+    def allowed(scope):
+        if scope["method"] not in ("POST", "PUT", "PATCH", "DELETE"):
+            return True
+        headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope["headers"]}
+        if headers.get("x-api-key") or headers.get("authorization", "").lower().startswith("bearer "):
+            return True
+        if headers.get("x-requested-with"):
+            return True
+        origin = headers.get("origin")
+        if origin and origin != "null":
+            host = urlsplit(origin).netloc.lower()
+            return host in {headers.get("host", "").lower(), headers.get("x-forwarded-host", "").lower()} - {""}
+        return False
+
+
+app.add_middleware(SameOriginWrites)
 
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -61,9 +109,10 @@ async def validation_error(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(Exception)
 async def anything_else(request: Request, exc: Exception):
-    # the frontend always expects json back, never an html error page
+    # the frontend always expects json back, never an html error page. The details
+    # (paths, sql, whatever) go to the server log, not to the browser.
     log.exception("unhandled error on %s", request.url.path)
-    return JSONResponse({"detail": f"Something went wrong: {exc}"}, status_code=500)
+    return JSONResponse({"detail": "Something went wrong on the server. It's been logged."}, status_code=500)
 
 
 # --- pages ---

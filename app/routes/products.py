@@ -7,28 +7,29 @@ from pydantic import BaseModel, Field
 
 from ..auth import current_user
 from ..db import get_db, row, rows
-from ..pictures import fetch_picture, remove_picture, save_picture
+from ..ingredients import MAX_AMOUNT
+from ..pictures import MAX_SIZE, fetch_picture, remove_picture, save_picture
 
 router = APIRouter(prefix="/api", tags=["products"], dependencies=[Depends(current_user)])
 
 
 class ProductIn(BaseModel):
-    name: str
+    name: str = Field(max_length=200)
     location_id: Optional[int] = None
     unit_id: int
     purchase_unit_id: Optional[int] = None
-    purchase_factor: float = Field(default=1, gt=0, allow_inf_nan=False)
+    purchase_factor: float = Field(default=1, gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
     shelf_life_kind: Literal["best_by", "use_by"] = "best_by"
-    default_days: Optional[int] = None
-    min_stock: float = Field(default=0, ge=0, allow_inf_nan=False)
+    default_days: Optional[int] = Field(default=None, ge=0, le=36500)
+    min_stock: float = Field(default=0, ge=0, le=MAX_AMOUNT, allow_inf_nan=False)
     notes: str = ""
     barcodes: list[str] = []
     picture_url: Optional[str] = None  # fetched and saved locally on create
 
 
 class BarcodeIn(BaseModel):
-    code: str
-    amount: Optional[float] = None
+    code: str = Field(max_length=500)
+    amount: Optional[float] = Field(default=None, gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
 
 
 class PictureUrlIn(BaseModel):
@@ -111,7 +112,8 @@ def add_product(data: ProductIn, db=Depends(get_db)):
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (data.name.strip(), data.location_id, data.unit_id, data.purchase_unit_id, data.purchase_factor,
              data.shelf_life_kind, data.default_days, data.min_stock, data.notes, picture))
-        for code in data.barcodes:
+        # the same code twice in the list would otherwise clash with itself
+        for code in dict.fromkeys(c.strip() for c in data.barcodes):
             _add_barcode(db, cur.lastrowid, code)
     except HTTPException:
         db.rollback()
@@ -170,6 +172,8 @@ def delete_product(product_id: int, db=Depends(get_db)):
 @router.post("/products/{product_id}/barcodes", status_code=201)
 def add_barcode(product_id: int, data: BarcodeIn, db=Depends(get_db)):
     load_product(db, product_id)
+    if not data.code.strip():
+        raise HTTPException(400, "Barcode can't be empty")
     _add_barcode(db, product_id, data.code, data.amount)
     db.commit()
     return load_product(db, product_id)
@@ -192,7 +196,9 @@ def _set_picture(db, product_id, name):
 
 @router.post("/products/{product_id}/picture")
 async def upload_picture(product_id: int, file: UploadFile = File(...), db=Depends(get_db)):
-    data = await file.read()
+    load_product(db, product_id)
+    # read one byte past the limit rather than the whole upload, however big it is
+    data = await file.read(MAX_SIZE + 1)
     try:
         name = save_picture(data, file.content_type)
     except ValueError as e:
@@ -202,10 +208,13 @@ async def upload_picture(product_id: int, file: UploadFile = File(...), db=Depen
 
 @router.post("/products/{product_id}/picture-url")
 def picture_from_url(product_id: int, data: PictureUrlIn, db=Depends(get_db)):
+    load_product(db, product_id)
     try:
         name = fetch_picture(data.url)
-    except (ValueError, httpx.HTTPError) as e:
+    except ValueError as e:
         raise HTTPException(400, f"Couldn't fetch that picture: {e}")
+    except httpx.HTTPError:
+        raise HTTPException(400, "Couldn't fetch that picture")
     return _set_picture(db, product_id, name)
 
 

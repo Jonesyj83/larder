@@ -11,20 +11,21 @@ router = APIRouter(prefix="/api", tags=["locations & units"], dependencies=[Depe
 
 
 class LocationIn(BaseModel):
-    name: str
+    name: str = Field(max_length=100)
     is_freezer: Optional[bool] = None
-    sort: int = 0
+    sort: int = Field(default=0, ge=-1_000_000, le=1_000_000)  # sqlite can't store past 64 bits
 
 
 class UnitIn(BaseModel):
-    name: str
-    name_plural: str = ""
+    name: str = Field(max_length=50)
+    name_plural: str = Field(default="", max_length=50)
 
 
 class ConversionIn(BaseModel):
     from_unit_id: int
     to_unit_id: int
-    factor: float = Field(gt=0, allow_inf_nan=False)
+    # bounded both ways so chaining rules can't overflow to infinity or round to zero
+    factor: float = Field(ge=1e-9, le=1e9, allow_inf_nan=False)
 
 
 def _name(s):
@@ -99,7 +100,10 @@ def edit_unit(unit_id: int, data: UnitIn, db=Depends(get_db)):
     except sqlite3.IntegrityError:
         raise HTTPException(400, "That unit already exists")
     db.commit()
-    return row(db.execute("SELECT * FROM units WHERE id = ?", (unit_id,)))
+    unit = row(db.execute("SELECT * FROM units WHERE id = ?", (unit_id,)))
+    if not unit:
+        raise HTTPException(404, "Unit not found")
+    return unit
 
 
 @router.delete("/units/{unit_id}")

@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import os
 import secrets
 
 from fastapi import Depends, HTTPException, Request
@@ -22,6 +23,16 @@ def check_password(password, stored):
     return hmac.compare_digest(test.hex(), h)
 
 
+_dummy = []
+
+
+def waste_a_check(password):
+    """Same work as a real check, so a wrong username takes as long as a wrong password."""
+    if not _dummy:
+        _dummy.append(hash_password(secrets.token_hex(8)))
+    check_password(password, _dummy[0])
+
+
 def hash_key(key):
     return hashlib.sha256(key.encode()).hexdigest()
 
@@ -37,9 +48,32 @@ def secret_key():
         return path.read_text().strip()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     key = secrets.token_urlsafe(48)
-    path.write_text(key)
-    path.chmod(0o600)
+    # written 0600 from the start, then linked into place whole, so nobody else can
+    # read it and a second worker starting at the same moment never sees half a file
+    tmp = DATA_DIR / f"secret.key.{secrets.token_hex(4)}"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(key)
+    try:
+        os.link(tmp, path)
+    except FileExistsError:
+        key = path.read_text().strip()  # another worker got there first
+    except OSError:
+        os.replace(tmp, path)  # filesystem without hard links
+    finally:
+        tmp.unlink(missing_ok=True)
     return key
+
+
+def session_check(user):
+    """Changes whenever the password does, so changing it logs out every other session."""
+    return hashlib.sha256(("session:" + user["password_hash"]).encode()).hexdigest()[:24]
+
+
+def start_session(request, user):
+    request.session.clear()
+    request.session["user_id"] = user["id"]
+    request.session["check"] = session_check(user)
 
 
 def user_from_request(request, db):
@@ -58,7 +92,9 @@ def user_from_request(request, db):
 
     uid = request.session.get("user_id")
     if uid:
-        return row(db.execute("SELECT * FROM users WHERE id = ?", (uid,)))
+        user = row(db.execute("SELECT * FROM users WHERE id = ?", (uid,)))
+        if user and hmac.compare_digest(str(request.session.get("check", "")), session_check(user)):
+            return user
     return None
 
 

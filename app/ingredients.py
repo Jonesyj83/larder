@@ -8,10 +8,15 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 
+MAX_SERVINGS = 10_000
+# way past anything a kitchen holds, but keeps sums and dates from overflowing
+MAX_AMOUNT = 1_000_000_000
+
+
 class IngredientIn(BaseModel):
     product_id: Optional[int] = Field(default=None, gt=0)
-    name: str = ''
-    amount: float = Field(gt=0, allow_inf_nan=False)
+    name: str = Field(default='', max_length=200)
+    amount: float = Field(gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
     unit_id: Optional[int] = Field(default=None, gt=0)
     note: str = ''
 

@@ -3,7 +3,8 @@
 const BASE = window.BASE_PATH || '';
 
 async function api(path, opts = {}) {
-  const o = { method: opts.method || 'GET', headers: {}, credentials: 'same-origin' };
+  // the server refuses cookie-authenticated writes without this header (see SameOriginWrites)
+  const o = { method: opts.method || 'GET', headers: {'X-Requested-With': 'fetch'}, credentials: 'same-origin' };
   if (opts.body instanceof FormData) {
     o.body = opts.body;
   } else if (opts.body !== undefined) {
