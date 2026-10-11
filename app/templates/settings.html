@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="settingsPage()" x-init="init()">
+  <h1>Settings</h1>
+
+  <h2>You</h2>
+  <div class="card">
+    <label>Portion size</label>
+    <div class="row">
+      <select x-model="portion" style="width: auto" @change="savePortion()">
+        <option value="small">Small portions</option>
+        <option value="regular">Regular</option>
+        <option value="large">Large</option>
+      </select>
+      <span class="muted small">Used for working out servings in the meal plan and for meal ideas.</span>
+    </div>
+    <form @submit.prevent="changePassword()" style="margin-top: 1rem">
+      <b class="small">Change password</b>
+      <div class="grid2">
+        <div><label>Current</label><input type="password" x-model="pw.old" autocomplete="current-password" required></div>
+        <div><label>New</label><input type="password" x-model="pw.new" autocomplete="new-password" required></div>
+      </div>
+      <button style="margin-top: .6rem">Change</button>
+    </form>
+  </div>
+
+  <h2>API keys</h2>
+  <div class="card">
+    <p class="muted small">For phone apps, scripts and so on. Send it as an <code>X-API-Key</code> header.
+      Everything is listed at <a href="/docs">/docs</a>.</p>
+    <template x-for="k in keys" :key="k.id">
+      <div class="row small" style="margin-bottom: .3rem">
+        <code x-text="k.prefix + '...'"></code>
+        <span class="grow" x-text="k.name || '(no name)'"></span>
+        <span class="muted" x-text="k.last_used ? 'last used ' + k.last_used : 'never used'"></span>
+        <button class="small danger" @click="deleteKey(k)">Revoke</button>
+      </div>
+    </template>
+    <div class="card" x-show="newKey" style="margin-top: .6rem">
+      <b>Copy this now, it won't be shown again:</b>
+      <div><code x-text="newKey" style="word-break: break-all"></code></div>
+    </div>
+    <form class="row" @submit.prevent="createKey()" style="margin-top: .6rem">
+      <input class="grow" x-model="keyName" placeholder="What's it for? e.g. scanner app">
+      <button>New key</button>
+    </form>
+  </div>
+
+  <h2>Suggestions</h2>
+  <div class="card">
+    <p class="muted small">Meal ideas and recipe suggestions need an account with one of these providers.
+      Leave it empty and those buttons stay switched off. The key is stored on this server.</p>
+    <form @submit.prevent="saveSuggest()">
+      <div class="grid2">
+        <div>
+          <label>Provider</label>
+          <select x-model="sg.provider">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openrouter">OpenRouter</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="ollama">Ollama (local)</option>
+          </select>
+        </div>
+        <div>
+          <label>Model</label>
+          <input x-model="sg.model" :placeholder="modelHint()">
+        </div>
+      </div>
+      <label x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></label>
+      <input type="password" x-model="sg.api_key" autocomplete="off"
+             :placeholder="sg.has_key ? 'saved (' + (sg.key_hint || 'hidden') + '), leave blank to keep it' : ''">
+      <label>Base URL (optional)</label>
+      <input x-model="sg.base_url" :placeholder="sg.provider == 'ollama' ? 'http://localhost:11434' : 'leave blank for the default'">
+      <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="sg.shared"> Let everyone in the house use this</label>
+      <div class="row" style="margin-top: .8rem">
+        <button class="primary">Save</button>
+        <button type="button" @click="testSuggest()" :disabled="testing" x-text="testing ? 'Testing...' : 'Test it'"></button>
+        <button type="button" class="danger" x-show="sg.has_key || sg.provider == 'ollama'" @click="clearSuggest()">Remove</button>
+      </div>
+    </form>
+  </div>
+
+  {% if user.is_admin %}
+  <h2>People</h2>
+  <div class="card">
+    <template x-for="u in users" :key="u.id">
+      <div class="row" style="margin-bottom: .4rem">
+        <b class="grow" x-text="u.username"></b>
+        <span class="muted small" x-text="u.portion_size"></span>
+        <label class="inline small"><input type="checkbox" :checked="u.is_admin" @change="toggleAdmin(u, $event.target.checked)"> admin</label>
+        <button class="small" @click="resetPassword(u)">Set password</button>
+        <button class="small danger" x-show="u.id != {{ user.id }}" @click="deleteUser(u)">Delete</button>
+      </div>
+    </template>
+    <form @submit.prevent="addUser()" style="margin-top: .8rem">
+      <b class="small">Add someone</b>
+      <div class="grid3">
+        <div><label>Username</label><input x-model="nu.username" required></div>
+        <div><label>Password</label><input type="password" x-model="nu.password" autocomplete="new-password" required></div>
+        <div>
+          <label>Portion size</label>
+          <select x-model="nu.portion_size">
+            <option value="small">Small</option><option value="regular">Regular</option><option value="large">Large</option>
+          </select>
+        </div>
+      </div>
+      <button style="margin-top: .6rem">Add</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+<script>
+function settingsPage() {
+  return {
+    portion: '{{ user.portion_size }}', pw: { old: '', new: '' },
+    keys: [], keyName: '', newKey: '',
+    sg: {}, testing: false,
+    users: [], nu: { username: '', password: '', portion_size: 'regular' },
+    isAdmin: {{ 'true' if user.is_admin else 'false' }},
+
+    async init() {
+      [this.keys, this.sg] = await Promise.all([api('/api/me/keys'), api('/api/me/suggestions')]);
+      this.sg.api_key = '';
+      if (this.isAdmin) this.users = await api('/api/users');
+    },
+    async savePortion() {
+      try { await api('/api/me', { method: 'PUT', body: { portion_size: this.portion } }); toast('Saved'); } catch (e) { oops(e); }
+    },
+    async changePassword() {
+      try {
+        await api('/api/me/password', { method: 'POST', body: { old_password: this.pw.old, new_password: this.pw.new } });
+        this.pw = { old: '', new: '' };
+        toast('Password changed');
+      } catch (e) { oops(e); }
+    },
+    async createKey() {
+      try {
+        const k = await api('/api/me/keys', { method: 'POST', body: { name: this.keyName } });
+        this.newKey = k.key; this.keyName = '';
+        this.keys = await api('/api/me/keys');
+      } catch (e) { oops(e); }
+    },
+    async deleteKey(k) {
+      if (!confirm('Revoke this key? Anything using it will stop working.')) return;
+      try { await api('/api/me/keys/' + k.id, { method: 'DELETE' }); this.keys = await api('/api/me/keys'); } catch (e) { oops(e); }
+    },
+    modelHint() {
+      return ({ openai: 'gpt-4o-mini', anthropic: 'claude-sonnet-5', openrouter: 'openai/gpt-4o-mini',
+                deepseek: 'deepseek-chat', ollama: 'llama3.1' })[this.sg.provider] || '';
+    },
+    async saveSuggest() {
+      try {
+        this.sg = await api('/api/me/suggestions', { method: 'PUT', body: {
+          provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
+          model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared } });
+        this.sg.api_key = '';
+        toast('Saved');
+      } catch (e) { oops(e); }
+    },
+    async testSuggest() {
+      this.testing = true;
+      try {
+        const r = await api('/api/me/suggestions/test', { method: 'POST' });
+        toast('Working, it said: ' + r.reply);
+      } catch (e) { oops(e); }
+      this.testing = false;
+    },
+    async clearSuggest() {
+      if (!confirm('Remove the saved key and settings?')) return;
+      try {
+        await api('/api/me/suggestions', { method: 'DELETE' });
+        this.sg = await api('/api/me/suggestions');
+        this.sg.api_key = '';
+      } catch (e) { oops(e); }
+    },
+    async addUser() {
+      try {
+        await api('/api/users', { method: 'POST', body: this.nu });
+        this.nu = { username: '', password: '', portion_size: 'regular' };
+        this.users = await api('/api/users');
+      } catch (e) { oops(e); }
+    },
+    async toggleAdmin(u, on) {
+      try { await api('/api/users/' + u.id, { method: 'PUT', body: { is_admin: on } }); } catch (e) { oops(e); }
+      this.users = await api('/api/users');
+    },
+    async resetPassword(u) {
+      const pw = prompt('New password for ' + u.username);
+      if (!pw) return;
+      try { await api('/api/users/' + u.id, { method: 'PUT', body: { password: pw } }); toast('Done'); } catch (e) { oops(e); }
+    },
+    async deleteUser(u) {
+      if (!confirm('Delete ' + u.username + '?')) return;
+      try { await api('/api/users/' + u.id, { method: 'DELETE' }); this.users = await api('/api/users'); } catch (e) { oops(e); }
+    },
+  };
+}
+</script>
+{% endblock %}
