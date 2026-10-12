@@ -109,7 +109,15 @@ SYSTEM = ("You help a household plan meals from what they already have at home. 
           "per its packet - never boiled, never added raw to a soup or stew. If a stock "
           "name doesn't tell you how it's meant to be cooked, cook it the ordinary way "
           "that kind of food is actually cooked at home, not a method that happens to "
-          "fit the recipe you're writing.")
+          "fit the recipe you're writing. If stock already has a packet, sachet or jar "
+          "that does the whole job - a taco seasoning, curry paste, a 'Chilli Con Carne' "
+          "or similar named mix - use just that one product for the seasoning, exactly "
+          "as a person would cook from the packet. Don't also add separate raw spices "
+          "(chilli powder, paprika, garlic powder, cumin and so on) on top of it; that mix "
+          "already contains them. Only add raw spices to a dish that has no ready-made mix "
+          "for it, or when the mix needs a single genuine thing a packet always calls for "
+          "(like extra garlic or onion). If two different complete mixes could both make "
+          "the same dish, pick the one whose name matches the dish, not both.")
 
 
 @router.get("/suggestions/status")
