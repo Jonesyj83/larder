@@ -1,8 +1,16 @@
 # Larder
 
-Keeps track of what's in the fridge, freezer and cupboards. I wanted something like Grocy
-but smaller, so this only does the bits we actually use at home: stock, a shopping list,
-barcode scanning, recipes and a meal plan.
+Keeps track of what's in the fridge, freezer and cupboards. I'd been running Grocy for a
+while and it's a genuinely solid piece of software - properly thought out, does a lot, free.
+But it's built to do everything, and I only ever touched about a third of it. The rest of
+the screen was just stuff to work around: chores I wasn't going to track, equipment I don't
+own, a barcode/unit setup that wanted more fiddling than I had patience for on a weeknight.
+So I built Larder to just do the parts I actually use, in a way that fits how my house
+actually runs - small portions matter here more than most households, I'm away from home
+every second week on a rotating roster, and I wanted meal planning that works with what's
+already sitting in the freezer instead of pretending the fridge is empty.
+If your household is different, Grocy's flexibility might suit you better than this will -
+this is deliberately the smaller, opinionated version.
 
 It's a FastAPI app with a single SQLite file. The frontend is plain HTML with Alpine.js,
 so there's no build step.
@@ -86,16 +94,16 @@ without any of this.
 ## API
 
 Everything the web pages do goes through the JSON API under `/api`, and FastAPI's docs
-for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: <key>` (or
-`Authorization: Bearer <key>`):
+for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: your-key-here` (or
+`Authorization: Bearer your-key-here`).
 
-    curl -H "X-API-Key: lk_..." http://localhost:8000/api/stock
+    curl -H "X-API-Key: your-key-here" http://localhost:8000/api/stock
 
-    curl -X POST -H "X-API-Key: lk_..." -H "Content-Type: application/json" \
+    curl -X POST -H "X-API-Key: your-key-here" -H "Content-Type: application/json" \
          -d '{"product_id": 3, "amount": 1}' http://localhost:8000/api/stock/consume
 
     # barcode lookup, encode the barcode since QR codes can have slashes in them
-    curl -H "X-API-Key: lk_..." http://localhost:8000/api/scan/5000157024671
+    curl -H "X-API-Key: your-key-here" http://localhost:8000/api/scan/5000157024671
 
 ## Things to know
 
@@ -110,3 +118,15 @@ for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: <key>` 
 - A custom base URL for suggestions can't point at this machine or the home network,
   except for Ollama, which is meant to run there.
 - There's no import from Grocy, at least not yet.
+
+## What's next
+
+Things I know are missing and might get to:
+
+- A low-stock count somewhere visible on the Stock page, so you notice you're running low
+  on something without having to go looking.
+- Pulling a shopping list into a format that's quicker to work through at a particular
+  supermarket.
+- Proper import from Grocy's export, instead of the one-off script I used for my own data.
+
+If you build any of these first, a pull request is very welcome.

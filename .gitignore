@@ -1,6 +1,4 @@
-CLAUDE.md
 build.log
-.claude/
 __pycache__/
 *.pyc
 *.db
