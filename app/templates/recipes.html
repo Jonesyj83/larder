@@ -14,6 +14,7 @@
     <label class="inline toolbar"><input type="checkbox" x-model="onlyReady"> Only what I can make right now</label>
     <div class="card">
       <p class="muted" x-show="loaded && !recipes.length" x-cloak>No recipes yet.</p>
+      <p class="muted" x-show="loaded && recipes.length && !shown().length" x-cloak>No saved recipes can be made with the stock on hand.</p>
       <template x-for="r in shown()" :key="r.id">
         <div class="list-item" style="cursor: pointer" @click="open(r.id)">
           <div class="grow">
@@ -35,13 +36,14 @@
         <div class="row">
           <h2 class="grow" style="margin: 0" x-text="current.name"></h2>
           <span x-show="current.can_make" class="ok">You've got everything</span>
-          <span x-show="!current.can_make" class="warn" x-text="current.missing_count + ' missing'"></span>
+          <span x-show="!current.can_make && current.ingredients.length" class="warn" x-text="current.missing_count + ' missing'"></span>
         </div>
         <div class="row" style="margin: .6rem 0">
           <span>Servings</span>
           <input aria-label="Recipe servings" type="number" step="any" min="0.000001" x-model.number="servings" @change="open(current.id)" style="width: 5.5rem">
           <span class="muted small" x-show="servings != current.servings" x-text="'(recipe is for ' + num(current.servings) + ')'"></span>
         </div>
+        <p class="muted" x-show="!current.ingredients.length">No ingredients recorded. Edit this recipe to check what you need.</p>
         <table>
           <tr><th>Ingredient</th><th>Needs</th><th class="hide-small">Have</th><th></th></tr>
           <template x-for="i in current.ingredients" :key="i.id">
@@ -160,8 +162,9 @@
               <template x-for="i in idea.result.recipe.ingredients">
                 <li>
                   <span x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></span>
-                  <span x-show="i.product && !(i.short > 0)" class="ok" x-text="'- ' + i.product"></span>
-                  <span x-show="i.product && i.short > 0" class="bad" x-text="'- have ' + num(i.have) + ' ' + i.unit + ', short ' + num(i.short)"></span>
+                  <span x-show="i.product && i.short === 0" class="ok" x-text="'- ' + i.product"></span>
+                  <span x-show="i.product && i.short > 0" class="bad" x-text="'- have ' + qty(i.have, i.short_unit) + ', short ' + qty(i.short, i.short_unit)"></span>
+                  <span x-show="i.product && i.short === null" class="warn">- choose a valid unit to check stock</span>
                   <span x-show="!i.product" class="bad">- don't have this yet</span>
                 </li>
               </template>

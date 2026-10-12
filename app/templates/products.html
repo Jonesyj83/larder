@@ -10,6 +10,7 @@
 
   <div class="card">
     <p class="muted" x-show="loaded && !products.length" x-cloak>No products yet.</p>
+    <p class="muted" x-show="loaded && products.length && !filtered().length" x-cloak>No products match. Try another name or clear the search.</p>
     <template x-for="p in filtered()" :key="p.id">
       <div class="list-item">
         <img x-show="p.picture" :src="pic(p.picture)" class="thumb">

@@ -80,7 +80,7 @@ def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=
     location_id = location_id or p["location_id"]
     if location_id and not db.execute("SELECT 1 FROM locations WHERE id = ?", (location_id,)).fetchone():
         raise StockError("No such location")
-    if not expires_on and p["default_days"]:
+    if not expires_on and p["default_days"] is not None:
         try:
             expires_on = (date.today() + timedelta(days=p["default_days"])).isoformat()
         except OverflowError:

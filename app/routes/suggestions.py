@@ -379,6 +379,7 @@ def review_recipe(db, parsed, wanted=None):
     products = rows(db.execute('SELECT * FROM products'))
     stock_units = {u['id']: u for u in rows(db.execute('SELECT * FROM units'))}
     ingredients = []
+    remaining = {}
     for item in items:
         if not isinstance(item,dict) or not isinstance(item.get('name'),str) or not 1 <= len(item['name'].strip()) <= 200:
             raise HTTPException(502, 'Invalid ingredient name; nothing was saved')
@@ -392,11 +393,13 @@ def review_recipe(db, parsed, wanted=None):
         match = next((p for p in products if p['name'].casefold() == name.casefold()),None)
         unit_id = units.get(unit.strip().casefold())
         have = short = short_unit_id = short_unit = None
-        if match:
+        if match and unit_id is not None:
             try:
                 need = st.to_stock_units(db, match, amount, unit_id)
                 have = st.in_stock(db, match['id'])
-                short = max(0.0, need - have)
+                available = remaining.get(match['id'], have)
+                short = max(0.0, need - available)
+                remaining[match['id']] = max(0.0, available - need)
                 short_unit_id = match['unit_id']  # short is in the product's own stock unit
                 short_unit = stock_units.get(short_unit_id, {}).get('name')
             except st.StockError:
@@ -431,9 +434,12 @@ def add_missing_from_suggestion(data: AddMissingIn, db=Depends(get_db), user=Dep
     as a recipe first. The amount sent for each line is already net of what's in
     stock (the review screen already worked that out) - this only avoids double
     counting against whatever's already sitting on the shopping list."""
-    from .shopping import add_item, listed_amount
+    from .shopping import _check_unit, add_item, listed_amount
+    for item in data.ingredients:
+        _check_unit(db, item.unit_id)
     begin(db)
     added = 0
+    totals = {}
     for item in data.ingredients:
         pid = item.suggested_product_id
         if pid:
@@ -441,19 +447,36 @@ def add_missing_from_suggestion(data: AddMissingIn, db=Depends(get_db), user=Dep
             if not p:
                 pid = None
         if pid:
+            if item.unit_id is None and item.unit.strip():
+                db.rollback()
+                raise HTTPException(400, "Choose a valid unit before adding this ingredient")
             try:
                 need = st.to_stock_units(db, p, item.amount, item.unit_id)
             except st.StockError:
-                continue
+                db.rollback()
+                raise HTTPException(400, "Choose a unit that converts to this product's stock unit")
+            key = (pid, p["unit_id"], "", "")
+            totals[key] = totals.get(key, 0) + need
+        elif item.name.strip():
+            note = "Proposed unit: " + item.unit.strip() if item.unit.strip() and item.unit_id is None else ""
+            key = (None, item.unit_id, item.name.strip(), note)
+            totals[key] = totals.get(key, 0) + item.amount
+    for (pid, unit_id, name, note), need in totals.items():
+        if pid:
             extra = need - listed_amount(db, pid)
             if extra > 1e-9:
-                add_item(db, pid, extra, p["unit_id"], user_id=user["id"],
+                add_item(db, pid, extra, unit_id, user_id=user["id"],
                          source="suggestion", source_label=data.name)
                 added += 1
-        elif item.name.strip():
-            add_item(db, None, item.amount, item.unit_id, name=item.name.strip(),
-                     user_id=user["id"], source="suggestion", source_label=data.name)
-            added += 1
+        else:
+            listed = sum(i["amount"] for i in rows(db.execute(
+                "SELECT name, amount FROM shopping_list WHERE product_id IS NULL AND done=0 AND unit_id IS ? AND note=?",
+                (unit_id, note))) if i["name"].casefold() == name.casefold())
+            extra = need - listed
+            if extra > 1e-9:
+                add_item(db, None, extra, unit_id, name=name, note=note,
+                         user_id=user["id"], source="suggestion", source_label=data.name)
+                added += 1
     db.commit()
     return {"added": added}
 

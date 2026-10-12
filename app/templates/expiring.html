@@ -17,7 +17,7 @@
         <template x-for="s in past" :key="s.id">
           <div class="stock-item">
             <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><span x-text="s.name"></span></div>
-            <span class="stock-quantity" x-text="qty(s.amount, s.unit)"></span>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
             <span class="stock-place" x-text="s.location || '—'"></span>
             <span class="stock-date bad" x-text="expiry(s.expires_on, s.shelf_life_kind).text"></span>
           </div>
@@ -31,7 +31,7 @@
         <template x-for="s in soon" :key="s.id">
           <div class="stock-item">
             <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><span x-text="s.name"></span></div>
-            <span class="stock-quantity" x-text="qty(s.amount, s.unit)"></span>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
             <span class="stock-place" x-text="s.location || '—'"></span>
             <span class="stock-date warn" x-text="expiry(s.expires_on, s.shelf_life_kind).text"></span>
           </div>
@@ -45,7 +45,7 @@
         <template x-for="s in fresh" :key="s.id">
           <div class="stock-item">
             <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><span x-text="s.name"></span></div>
-            <span class="stock-quantity" x-text="qty(s.amount, s.unit)"></span>
+            <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
             <span class="stock-place" x-text="s.location || '—'"></span>
             <span class="stock-date ok" x-text="expiry(s.expires_on, s.shelf_life_kind).text"></span>
           </div>

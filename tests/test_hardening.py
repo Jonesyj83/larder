@@ -129,6 +129,12 @@ class StockInput(MemoryDB):
         self.assertEqual(st.purchase(self.db, pid, 1)['added'], 1)
         self.assertIsNone(self.db.execute('SELECT expires_on FROM stock').fetchone()[0])
 
+    def test_zero_day_shelf_life_means_today(self):
+        from datetime import date
+        pid = product(self.db, 'Eat today', 'piece', default_days=0)
+        st.purchase(self.db, pid, 1)
+        self.assertEqual(self.db.execute('SELECT expires_on FROM stock').fetchone()[0], date.today().isoformat())
+
     def test_query_bounds(self):
         from app.routes.stock import expiring, log
         pid = product(self.db, 'Rice', 'g')
@@ -139,6 +145,16 @@ class StockInput(MemoryDB):
         self.assertEqual(len(log(limit=10 ** 6, product_id=None, db=self.db, user=USER)), 5)
         expiring(days=10 ** 12, db=self.db, user=USER)
         expiring(days=-10 ** 12, db=self.db, user=USER)
+
+    def test_expiring_entries_keep_product_picture_and_plural(self):
+        from datetime import date
+        from app.routes.stock import expiring
+        pid = product(self.db, 'Eggs', 'piece', picture='eggs.jpg')
+        self.db.execute("UPDATE units SET name_plural='pieces' WHERE name='piece'")
+        self.db.commit()
+        st.purchase(self.db, pid, 6, expires_on=date.today().isoformat())
+        item = expiring(db=self.db, user=USER)[0]
+        self.assertEqual((item['picture'], item['unit_plural']), ('eggs.jpg', 'pieces'))
 
     def test_shopping_list_validation(self):
         from app.routes.shopping import ItemEdit, ItemIn, add, edit
@@ -178,6 +194,37 @@ class StockInput(MemoryDB):
         for factor in (0, -1, float('nan'), float('inf'), 1e12, 1e-12):
             with self.assertRaises(ValidationError):
                 ConversionIn(from_unit_id=1, to_unit_id=2, factor=factor)
+
+    def test_stock_unit_edit_does_not_relabel_existing_amounts(self):
+        from app.routes.products import ProductIn, edit_product
+        pid = product(self.db, 'Rice', 'g')
+        st.purchase(self.db, pid, 500)
+        data = ProductIn(name='Rice', unit_id=self.ids['kg'])
+        with self.assertRaises(HTTPException) as error:
+            edit_product(pid, data, self.db)
+        self.assertEqual(error.exception.status_code, 400)
+        self.assertEqual(st.get_product(self.db, pid)['unit_id'], self.ids['g'])
+        self.assertEqual(st.in_stock(self.db, pid), 500)
+        st.consume(self.db, pid, 500)
+        with self.assertRaises(HTTPException):
+            edit_product(pid, data, self.db)  # history must still mean grams
+        unused = product(self.db, 'Unused', 'g')
+        self.assertEqual(edit_product(unused, ProductIn(name='Unused', unit_id=self.ids['kg']),
+                                      self.db)['unit_id'], self.ids['kg'])
+
+    def test_stock_unit_edit_preserves_recipe_and_shopping_references(self):
+        from app.routes.products import ProductIn, edit_product
+        from app.routes.recipes import RecipeIn, add_recipe
+        from app.routes.shopping import ItemIn, add
+        for name, reference in (('Recipe rice', 'recipe'), ('Listed rice', 'shopping')):
+            pid = product(self.db, name, 'g')
+            if reference == 'recipe':
+                add_recipe(RecipeIn(name='Rice dish', ingredients=[{'product_id':pid,'amount':500}]),
+                           self.db, USER)
+            else:
+                add(ItemIn(product_id=pid, amount=500), self.db, USER)
+            with self.assertRaises(HTTPException):
+                edit_product(pid, ProductIn(name=name, unit_id=self.ids['kg']), self.db)
 
 
 class Races(unittest.TestCase):

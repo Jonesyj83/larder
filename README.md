@@ -45,11 +45,13 @@ instead. You can also pick zxing yourself for QR codes and Data Matrix.
   a "bought as" unit with a conversion, e.g. bought as 1 pack = 20 pieces for frozen
   chicken strips. General conversions like kg to g are on the Locations & units page.
 - **Products** - name, default location, unit, picture, and whether the date on it is a
-  "Best by" or a "Use by". Use by dates going past show in red, best by in orange.
+  "Best by" or a "Use by". Past dates show in red, dates within three days in amber,
+  later dates in green.
 - **Stock** - purchase adds stock, consume takes it away (oldest date first). Ticking
   "spoiled" logs it as thrown out instead of eaten.
-- **Shopping list** - add products or just free text. "Got it" ticks it off and adds it
-  to stock. Products with a minimum amount set can be added automatically when they run low.
+- **Shopping list** - add products or just free text. "Got it" adds it to stock and removes it
+  from the list. The checkbox just ticks it off. Products with a minimum amount set
+  can be added automatically when they run low.
 - **Recipes** - ingredients and amounts. Each recipe shows what you have and what's
   short, scaled to however many servings you want. "Put missing on shopping list" does
   what it says, and "Cooked it" takes the ingredients out of stock.
@@ -69,10 +71,11 @@ browser.
 ## Suggestions (optional)
 
 The Meal plan and Recipes pages have "Meal ideas" and "Suggest a recipe" buttons. These
-send your stock list to a text generation API and show what comes back, so they need an
-account with one of: OpenAI, Anthropic, OpenRouter, DeepSeek, or a local Ollama. Put the
-key in Settings. Without one the buttons just stay greyed out and nothing gets sent
-anywhere. A key can be shared with the rest of the household with the tickbox under it.
+send your stock list to a text generation API and show what comes back. Connect one of
+Anthropic, OpenAI, local Ollama, OpenCode Go, Gemini, or OpenRouter in Settings. Ollama
+usually just needs its address; the others need an API key. Without a connection the
+buttons stay greyed out and nothing gets sent anywhere. A connection can be shared
+with the rest of the household with the tickbox under it.
 
 Keys are stored as plain text in the database, since the server needs them to make the
 calls. Bear that in mind with your backups.

@@ -192,5 +192,16 @@ class ScanRegression(unittest.TestCase):
           assert.equal(calls[0].body.spoiled, true); assert.equal(calls[0].body.amount, 3);
         """)
 
+    def test_malformed_lookup_reply_is_an_unknown_barcode(self):
+        from unittest.mock import patch
+        from app.routes.scan import lookup_off
+        import httpx
+        for reply in ([], None, {'status':1,'product':[]},
+                      {'status':1,'product':{'product_name':42}},
+                      {'status':1,'product':{'brands':['Brand']}}):
+            with self.subTest(reply=reply), patch('app.routes.scan.httpx.get',
+                    return_value=httpx.Response(200, json=reply)):
+                self.assertIsNone(lookup_off('123456789'))
+
 if __name__ == '__main__':
     unittest.main()

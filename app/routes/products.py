@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from ..auth import current_user
-from ..db import get_db, row, rows
+from ..db import begin, get_db, row, rows
 from ..ingredients import MAX_AMOUNT
 from ..pictures import MAX_SIZE, fetch_picture, remove_picture, save_picture
 
@@ -130,7 +130,14 @@ def add_product(data: ProductIn, db=Depends(get_db)):
 @router.put("/products/{product_id}")
 def edit_product(product_id: int, data: ProductIn, db=Depends(get_db)):
     _check(data)
-    load_product(db, product_id)
+    begin(db)
+    existing_product = load_product(db, product_id)
+    if data.unit_id != existing_product["unit_id"]:
+        used = any(db.execute(f"SELECT 1 FROM {table} WHERE product_id=? LIMIT 1", (product_id,)).fetchone()
+                   for table in ("stock", "stock_log", "recipe_ingredients", "shopping_list"))
+        if used:
+            db.rollback()
+            raise HTTPException(400, "Stock unit is already used by stock, recipes or shopping. Keep this unit or make a separate product.")
     try:
         db.execute("""
             UPDATE products SET name = ?, location_id = ?, unit_id = ?, purchase_unit_id = ?, purchase_factor = ?,

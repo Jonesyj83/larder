@@ -91,3 +91,21 @@ class Planning(unittest.TestCase):
         self.meal([{'name':'Bread','amount':1,'unit_id':1},{'name':' bread ','amount':1,'unit_id':1}])
         self.assertEqual(self.count('products'),1)
         self.assertEqual(needs('2026-10-12','2026-10-18',self.db,self.user)['items'][0]['need'],2)
+
+    def test_repeated_product_uses_stock_once_and_shops_total_shortfall(self):
+        from app.routes.recipes import check, missing_to_shopping, cook
+        r = add_recipe(RecipeIn(name='Toast twice', servings=1, ingredients=[
+            {'name':'Bread','amount':2,'unit_id':1},
+            {'name':'Bread','amount':2,'unit_id':1}]), self.db, self.user)
+        pid = r['ingredients'][0]['product_id']
+        purchase(self.db, pid, 3, 1, user_id=1)
+        checked = check(self.db, r['id'])
+        self.assertFalse(checked['can_make'])
+        self.assertEqual([i['missing'] for i in checked['ingredients']], [0, 1])
+        self.assertEqual(missing_to_shopping(r['id'], None, self.db, self.user)['added'], 1)
+        self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 1)
+        self.assertEqual(missing_to_shopping(r['id'], None, self.db, self.user)['added'], 0)
+        cook(r['id'], None, self.db, self.user)
+        self.assertEqual(check(self.db, r['id'])['missing_count'], 2)
+        missing_to_shopping(r['id'], None, self.db, self.user)
+        self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 4)

@@ -4,9 +4,9 @@
 <div x-data="planPage()">
   <div class="row page-head">
     <h1 class="grow">Meal plan</h1>
-    <button @click="openIdeas()" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
+    <button @click="openIdeas()" :disabled="!suggest" :title="suggest ? '' : 'Connect a provider in Settings to use this'">Meal ideas</button>
   </div>
-  <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Add an API key in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
+  <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Connect a provider in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
   <div class="row toolbar">
     <button aria-label="Previous week" @click="move(-7)">&larr;</button>
@@ -265,7 +265,8 @@ function planPage() {
       const draft = {request_id: saveRequestId(), ...m, recipe_id: m.simple_meal ? '' : (m.recipe_id || ''), eaters: [], ingredients: []};
       if (m.simple_meal && m.recipe_id) {
         try { const r = await api('/api/recipes/' + m.recipe_id);
-          draft.ingredients = r.ingredients.map(i => ({product_id: i.product_id, amount: i.amount, unit_id: i.unit_id || i.stock_unit_id, note: i.note}));
+          const scale = r.servings > 0 && m.servings > 0 ? m.servings / r.servings : 1;
+          draft.ingredients = r.ingredients.map(i => ({product_id: i.product_id, amount: i.amount * scale, unit_id: i.unit_id || i.stock_unit_id, note: i.note}));
         } catch (e) { return oops(e); }
       }
       this.adding = draft;
@@ -350,8 +351,10 @@ function planPage() {
     },
     ideasDays() {
       const i = this.ideas;
-      const n = i.length === 'custom' ? Math.min(42, Math.max(1, Math.round((new Date(i.rangeTo + 'T12:00:00') - new Date(i.rangeFrom + 'T12:00:00')) / 86400000) + 1))
+      if (!i.rangeFrom || (i.length === 'custom' && (!i.rangeTo || i.rangeTo < i.rangeFrom))) return [];
+      const n = i.length === 'custom' ? Math.min(42, Math.round((new Date(i.rangeTo + 'T12:00:00') - new Date(i.rangeFrom + 'T12:00:00')) / 86400000) + 1)
         : { week: 7, '2weeks': 14, '4weeks': 28 }[i.length] || 7;
+      if (!Number.isFinite(n) || n < 1) return [];
       return [...Array(n)].map((_, idx) => addDays(i.rangeFrom, idx));
     },
     buildIdeasGrid() {
@@ -381,6 +384,7 @@ function planPage() {
       return cells;
     },
     async getIdeas() {
+      if (!this.ideasDays().length) { toast('Choose a valid date range, with the end on or after the start'); return; }
       const cells = this.ideasCells();
       if (!cells.length) { toast('Tick at least one day and meal'); return; }
       this.ideas.busy = true; this.ideas.text = '';

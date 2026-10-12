@@ -40,11 +40,13 @@ def check(db, recipe_id, servings=None):
         LEFT JOIN units u ON u.id = i.unit_id
         WHERE i.recipe_id = ? ORDER BY i.id""", (recipe_id,)))
     missing = 0
+    remaining = {}
     for i in ings:
         p = st.get_product(db, i["product_id"])
         i["amount_scaled"] = i["amount"] * scale
         i["unit"] = i["unit"] or i["stock_unit"]
         i["have"] = st.in_stock(db, i["product_id"])
+        available = remaining.get(i["product_id"], i["have"])
         try:
             i["need"] = st.to_stock_units(db, p, i["amount_scaled"], i["unit_id"])
             i["error"] = None
@@ -55,7 +57,8 @@ def check(db, recipe_id, servings=None):
             i["missing"] = None
             i["enough"] = False
         else:
-            i["missing"] = max(0.0, i["need"] - i["have"])
+            i["missing"] = max(0.0, i["need"] - available)
+            remaining[i["product_id"]] = max(0.0, available - i["need"])
             i["enough"] = i["missing"] <= 1e-9
         if not i["enough"]:
             missing += 1
@@ -147,12 +150,16 @@ def missing_to_shopping(recipe_id: int, servings: Optional[float] = None, db=Dep
     begin(db)
     r = check(db, recipe_id, servings)
     added = 0
+    shortfalls = {}
     for i in r["ingredients"]:
         if i["need"] is None:
             continue
-        extra = i["missing"] - listed_amount(db, i["product_id"])
+        pid = i["product_id"]
+        shortfalls[pid] = shortfalls.get(pid, 0) + i["missing"]
+    for pid, short in shortfalls.items():
+        extra = short - listed_amount(db, pid)
         if extra > 1e-9:
-            add_item(db, i["product_id"], extra, i["stock_unit_id"], user_id=user["id"], source="recipe", source_ref=recipe_id, source_label=r["name"])
+            add_item(db, pid, extra, st.get_product(db, pid)["unit_id"], user_id=user["id"], source="recipe", source_ref=recipe_id, source_label=r["name"])
             added += 1
     db.commit()
     return {"added": added, "problems": [i["error"] for i in r["ingredients"] if i["error"]]}

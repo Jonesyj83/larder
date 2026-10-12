@@ -1,4 +1,4 @@
-"""Plain direct API backends for meal/recipe suggestions. No Hermes involved.
+"""Plain direct API backends for meal/recipe suggestions.
 
 Each provider is a small function: (prompt, key, model, base_url, system) -> text.
 Plain HTTP calls with httpx, no vendor SDKs. Add another one by writing the

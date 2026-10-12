@@ -111,6 +111,7 @@ function stockPage() {
   return {
     items: [], missing: [], history: [], locations: [], entries: [],
     q: '', loc: '', open: null, loaded: false, adding: false, pq: '', found: [],
+    init() { this.q = new URLSearchParams(location.search).get('q') || ''; },
     async load() {
       try {
         const loc = this.loc ? '?location_id=' + this.loc : '';

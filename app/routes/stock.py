@@ -82,7 +82,7 @@ def expiring(days: int = 3, db=Depends(get_db), user=Depends(current_user)):
     days = max(-3650, min(days, 3650))
     cutoff = (date.today() + timedelta(days=days)).isoformat()
     return rows(db.execute("""
-        SELECT s.*, p.name, p.shelf_life_kind, u.name AS unit, l.name AS location
+        SELECT s.*, p.name, p.picture, p.shelf_life_kind, u.name AS unit, u.name_plural AS unit_plural, l.name AS location
         FROM stock s JOIN products p ON p.id = s.product_id JOIN units u ON u.id = p.unit_id
         LEFT JOIN locations l ON l.id = s.location_id
         WHERE s.expires_on IS NOT NULL AND s.expires_on <= ?

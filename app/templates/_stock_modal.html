@@ -78,7 +78,7 @@ function stockModal() {
     setMode(m) {
       this.mode = m;
       this.unit_id = (m == 'purchase' && this.p.purchase_unit_id) ? this.p.purchase_unit_id : this.p.unit_id;
-      this.expires_on = this.p.default_days ? addDays(today(), this.p.default_days) : '';
+      this.expires_on = this.p.default_days != null ? addDays(today(), this.p.default_days) : '';
     },
     unitChoices() {
       // Keep the product units and custom choices; foreground preferred measurements.

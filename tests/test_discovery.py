@@ -172,6 +172,43 @@ class Discovery(unittest.TestCase):
         self.assertEqual(again['added'],0)
         self.assertEqual({i['label']: i['amount'] for i in list_items(self.db,self.user)}['Bread'],3)
 
+    def test_unknown_unit_does_not_guess_stock_and_bad_shopping_is_atomic(self):
+        from app.stock import purchase
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.commit()
+        purchase(self.db, 1, 20, 1, user_id=1)
+        draft = sg.review_recipe(self.db, {'servings':1, 'ingredients':[
+            {'name':'Bread','amount':2,'unit':'handful'}]})
+        i = draft['ingredients'][0]
+        self.assertIsNone(i['have'])
+        self.assertIsNone(i['short'])
+        for bad in ({'name':'Bread','amount':2,'unit':'handful','suggested_product_id':1},
+                    {'name':'Other','amount':1,'unit_id':999}):
+            with self.assertRaises(HTTPException) as error:
+                sg.add_missing_from_suggestion(sg.AddMissingIn(ingredients=[
+                    {'name':'Milk','amount':1}, bad]), self.db, self.user)
+            self.assertEqual(error.exception.status_code, 400)
+            self.assertEqual(self.count('shopping_list'), 0)
+
+    def test_repeated_suggestion_lines_and_free_text_retry(self):
+        from app.stock import purchase
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.commit()
+        purchase(self.db, 1, 1, 1, user_id=1)
+        draft = sg.review_recipe(self.db, {'servings':1, 'ingredients':[
+            {'name':'Bread','amount':2,'unit':'slice'},
+            {'name':'Bread','amount':2,'unit':'slice'}]})
+        self.assertEqual([i['short'] for i in draft['ingredients']], [1, 2])
+        data = sg.AddMissingIn(ingredients=[
+            {'name':'Bread','amount':i['short'],'unit_id':1,'suggested_product_id':1}
+            for i in draft['ingredients']] + [{'name':'Milk','amount':2,'unit':'bottle'}])
+        self.assertEqual(sg.add_missing_from_suggestion(data, self.db, self.user)['added'], 2)
+        self.assertEqual(sg.add_missing_from_suggestion(data, self.db, self.user)['added'], 0)
+        amounts = [r[0] for r in self.db.execute('SELECT amount FROM shopping_list ORDER BY id')]
+        self.assertEqual(amounts, [3, 2])
+        self.assertEqual(self.db.execute('SELECT note FROM shopping_list WHERE product_id IS NULL').fetchone()[0],
+                         'Proposed unit: bottle')
+
 class ProviderSafety(unittest.TestCase):
     def test_sanitized_upstream_errors(self):
         import httpx

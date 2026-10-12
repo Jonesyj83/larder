@@ -21,9 +21,16 @@ def lookup_off(code):
         data = r.json()
     except (httpx.HTTPError, ValueError):
         return None
-    if data.get("status") != 1:
+    if not isinstance(data, dict) or data.get("status") != 1:
         return None
-    p = data.get("product") or {}
+    p = data.get("product")
+    if p is None:
+        p = {}
+    if not isinstance(p, dict):
+        return None
+    if any(p.get(field) is not None and not isinstance(p[field], str) for field in
+           ("product_name", "generic_name", "brands", "quantity", "image_front_small_url", "image_small_url", "image_url")):
+        return None
     name = (p.get("product_name") or p.get("generic_name") or "").strip()
     brand = (p.get("brands") or "").split(",")[0].strip()
     # "Heinz" + "Baked Beans" -> "Heinz Baked Beans", but don't double up if the name already has it
