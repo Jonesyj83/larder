@@ -224,7 +224,7 @@
                   <span x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></span>
                   <span x-show="i.product && i.short === 0" class="ok" x-text="'- ' + i.product"></span>
                   <span x-show="i.product && i.short > 0" class="bad" x-text="'- have ' + qty(i.have, i.short_unit) + ', short ' + qty(i.short, i.short_unit)"></span>
-                  <span x-show="i.product && i.short === null" class="warn">- choose a valid unit to check stock</span>
+                  <span x-show="i.product && i.short === null" class="warn" x-text="'- can\'t compare that amount to how ' + i.product + ' is stocked'"></span>
                   <span x-show="!i.product" class="bad">- don't have this yet</span>
                 </li>
               </template>
