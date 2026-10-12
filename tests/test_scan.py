@@ -203,5 +203,29 @@ class ScanRegression(unittest.TestCase):
                     return_value=httpx.Response(200, json=reply)):
                 self.assertIsNone(lookup_off('123456789'))
 
+    def test_off_quantity_sizes_a_scanned_product_instead_of_defaulting_to_piece(self):
+        appjs = (ROOT / 'app/static/app.js').read_text()
+        units = [{'id':1,'name':'piece'},{'id':3,'name':'g'},{'id':4,'name':'kg'},
+                 {'id':5,'name':'ml'},{'id':6,'name':'l'}]
+        body = f"""
+const assert = require('node:assert/strict');
+const units = {json.dumps(units)};
+assert.deepEqual(parseOffQuantity('500 g', units), {{unit_id: 3, amount: 500}});
+assert.deepEqual(parseOffQuantity('1 L', units), {{unit_id: 6, amount: 1}});
+assert.deepEqual(parseOffQuantity('750ml', units), {{unit_id: 5, amount: 750}});
+assert.deepEqual(parseOffQuantity('2kg', units), {{unit_id: 4, amount: 2}});
+assert.deepEqual(parseOffQuantity('1,5 l', units), {{unit_id: 6, amount: 1.5}});
+// a multipack total in brackets wins over the per-item number out front
+assert.deepEqual(parseOffQuantity('6 x 170g (1.02 kg)', units), {{unit_id: 4, amount: 1.02}});
+// nothing usable - caller falls back to piece on its own
+assert.equal(parseOffQuantity('', units), null);
+assert.equal(parseOffQuantity('a dozen or so', units), null);
+assert.equal(parseOffQuantity(null, units), null);
+// a unit this install doesn't have - don't invent one
+assert.equal(parseOffQuantity('3 oz', [{{id:1,name:'piece'}}]), null);
+"""
+        result = subprocess.run(['node'], input="const window = {}; const document = {addEventListener(){}};\n" + appjs + '\n' + body, text=True, capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
 if __name__ == '__main__':
     unittest.main()

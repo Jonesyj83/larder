@@ -313,9 +313,11 @@ function scanPage() {
           this.unknown = r;
           const off = r.off || {};
           const piece = this.units.find(u => u.name == 'piece') || this.units[0] || {};
-          this.np = { name: off.name || '', unit_id: piece.id, location_id: this.lastLocation(code) || '',
+          const sized = parseOffQuantity(off.quantity, this.units);
+          this.np = { name: off.name || '', unit_id: sized ? sized.unit_id : piece.id, location_id: this.lastLocation(code) || '',
                       purchase_unit_id: '', purchase_factor: 1, shelf_life_kind: 'best_by',
                       default_days: '', use_pic: !!off.image_url };
+          if (sized) this.amount = sized.amount;
           this.picture = off.image_url || '';
         }
       } catch (e) { oops(e); }

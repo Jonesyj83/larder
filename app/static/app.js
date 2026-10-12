@@ -219,3 +219,22 @@ function ingredientBody(i) {
 function saveRequestId() {
   return window.crypto?.randomUUID?.() || Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
 }
+
+// OpenFoodFacts gives a free-text pack size like "500 g", "1 L", "6 x 170g (1.02 kg)".
+// Pull out one usable number+unit so a scanned product starts in a real unit instead of
+// a generic, un-comparable "piece" - this is what makes it work for any product anywhere,
+// not just the handful someone bothers to size by hand.
+function parseOffQuantity(text, units) {
+  if (!text) return null;
+  // prefer a bracketed total if there is one ("6 x 170g (1.02 kg)" -> the 1.02 kg)
+  const bracket = text.match(/\(([^)]+)\)/);
+  const hay = bracket ? bracket[1] : text;
+  const m = hay.match(/([\d]+(?:[.,]\d+)?)\s*(kg|g|l|ml|L|litre|liter)\b/i);
+  if (!m) return null;
+  const amount = parseFloat(m[1].replace(',', '.'));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const unitName = { kg: 'kg', g: 'g', l: 'l', ml: 'ml', litre: 'l', liter: 'l' }[m[2].toLowerCase()];
+  const unit = units.find(u => u.name.toLowerCase() === unitName);
+  if (!unit) return null; // this install doesn't have that unit - leave it to the piece default
+  return { unit_id: unit.id, amount };
+}
