@@ -12,6 +12,7 @@ from .. import stock as st
 from ..auth import current_user
 from ..db import begin, get_db, row, rows
 from .mealplan import PORTION_FACTOR, SLOTS, _day
+from ..ingredients import MAX_SERVINGS
 from .recipes import list_recipes
 
 router = APIRouter(prefix="/api", tags=["suggestions"])
@@ -302,9 +303,36 @@ Recipes we already have saved:
 
 Use saved recipes where they fit. For each meal give the name, roughly what goes in it and
 how much to make for the portion sizes above. Point out anything we'd need to buy.
-Plain text, no tables."""
+Reply with only JSON, nothing before or after:
+{{"meals": [{{"day": "2026-10-20", "slot": "dinner", "name": "...", "servings": 2,
+"ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ..."}}]}}
+Return one meal per requested cell, using these exact day/slot pairs:
+{json.dumps([c.model_dump() for c in data.cells])}
+Use the stock ingredient names where possible. Units: piece, g, kg, ml, l, tin, pack.
+Give 1–50 ingredients per meal."""
     text = _run(db, user, prompt, SYSTEM)
-    return {"text": text, "provenance": getattr(text,"provenance",None)}
+    parsed = _parse_json(text)
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("meals"), list) or len(parsed["meals"]) > MAX_IDEA_CELLS:
+        raise HTTPException(502, "Malformed provider meals; nothing was saved")
+    requested = {(c.day, c.slot) for c in data.cells}
+    seen, meals = set(), []
+    for item in parsed["meals"]:
+        if not isinstance(item, dict) or not isinstance(item.get("day"), str) or not isinstance(item.get("slot"), str):
+            raise HTTPException(502, "Invalid suggested day or meal slot; nothing was saved")
+        cell = (item["day"], item["slot"])
+        if cell not in requested or cell in seen:
+            raise HTTPException(502, "Suggested meals must use each requested day and slot at most once; nothing was saved")
+        if not isinstance(item.get("name"), str) or not 1 <= len(item["name"].strip()) <= 200 or not isinstance(item.get("instructions"), str):
+            raise HTTPException(502, "Invalid suggested meal name or instructions; nothing was saved")
+        meal = review_recipe(db, item)
+        if meal["servings"] > MAX_SERVINGS:
+            raise HTTPException(502, "Suggested meal has too many servings; nothing was saved")
+        meals.append(dict(meal, day=cell[0], slot=cell[1]))
+        seen.add(cell)
+    order = lambda cell: (cell[0], SLOTS.index(cell[1]))
+    meals.sort(key=lambda meal: order((meal["day"], meal["slot"])))
+    missing = [dict(day=d, slot=s) for d, s in sorted(requested - seen, key=order)]
+    return {"meals": meals, "missing_cells": missing, "provenance": getattr(text, "provenance", None)}
 
 
 def _parse_json(text):
@@ -343,7 +371,7 @@ Use the same ingredient names as the stock list where an ingredient is something
 Units should be simple: piece, g, kg, ml, l, tin, pack."""
     text = _run(db, user, prompt, SYSTEM)
     parsed = _parse_json(text)
-    if not parsed or not isinstance(parsed.get("ingredients"), list):
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("ingredients"), list):
         raise HTTPException(502, "Malformed provider recipe; nothing was saved")
 
     recipe = review_recipe(db, parsed)

@@ -73,10 +73,13 @@ class Discovery(unittest.TestCase):
         self.db.commit()
         from app.stock import purchase
         purchase(self.db, 1, 500, 2, location_id=1, user_id=1)
+        self.db.execute("INSERT INTO recipes(name,servings) VALUES('Saved toast',2)")
+        self.db.commit()
         captured = {}
         def fake_run(db, user, prompt, system):
             captured['prompt'] = prompt
-            return sg.GeneratedText('ideas')
+            captured['system'] = system
+            return sg.GeneratedText(json.dumps({'meals': []}))
         with patch.object(sg, '_run', side_effect=fake_run):
             sg.meal_ideas(sg.MealIdeasIn(cells=[
                 {'day': '2026-10-21', 'slot': 'dinner'},
@@ -91,6 +94,66 @@ class Discovery(unittest.TestCase):
         self.assertIn('Mushrooms', prompt)
         self.assertIn('Chicken Tenders', prompt)
         self.assertIn('nothing spicy', prompt)
+        self.assertIn('no rice', prompt)
+        self.assertIn('[Freezer]', prompt)
+        self.assertIn('People in the house', prompt)
+        self.assertIn('Recipes we already have saved', prompt)
+        self.assertIn('Saved toast', prompt)
+        self.assertIn('"meals"', prompt)
+        self.assertIn('2026-10-20', prompt)
+        self.assertIn('never boiled', captured['system'])
+        self.assertIn('chilli con carne', captured['system'])
+        self.assertIn('pick the one whose name matches', captured['system'])
+
+    def test_structured_meals_review_partial_and_provenance(self):
+        self.db.execute("INSERT INTO units(id,name) VALUES(3,'pack')")
+        self.db.execute("INSERT INTO products(id,name,unit_id,purchase_unit_id,purchase_factor) VALUES(1,'Bread',1,3,6)")
+        self.db.execute("INSERT INTO stock(product_id,amount) VALUES(1,3)")
+        self.db.commit()
+        meal = {'day':'2026-10-20','slot':'dinner','name':'Toast','servings':2,
+                'ingredients':[{'name':'bread','amount':1,'unit':'pack'},
+                               {'name':'Butter','amount':1,'unit':'piece'}], 'instructions':'Toast it.'}
+        text = sg.GeneratedText('Here you go:\n```json\n' + json.dumps({'meals':[meal]}) + '\n```')
+        text.provenance = {'served_provider':'test'}
+        before = self.db.total_changes
+        with patch.object(sg, '_run', return_value=text), patch.object(sg, 'review_recipe', wraps=sg.review_recipe) as review:
+            result = sg.meal_ideas(sg.MealIdeasIn(cells=[{'day':'2026-10-20','slot':'lunch'},
+                                  {'day':'2026-10-20','slot':'dinner'}]),self.db,
+                                  {'id':1,'username':'test','portion_size':'regular'})
+        review.assert_called_once()
+        self.assertEqual(result['missing_cells'],[{'day':'2026-10-20','slot':'lunch'}])
+        self.assertEqual(result['provenance'], text.provenance)
+        bread, butter = result['meals'][0]['ingredients']
+        self.assertEqual((bread['have'],bread['short'],bread['short_unit']), (3,3,'slice'))
+        self.assertIsNone(butter['suggested_product_id'])
+        self.assertEqual(butter['short'],1)
+        self.assertEqual(self.db.total_changes,before)
+
+    def test_structured_meals_are_ordered_by_day_and_slot(self):
+        cells = [{'day':'2026-10-21','slot':'breakfast'}, {'day':'2026-10-20','slot':'dinner'},
+                 {'day':'2026-10-20','slot':'lunch'}]
+        meals = [dict(c,name='Toast',servings=1,ingredients=[{'name':'Bread','amount':1,'unit':'slice'}],
+                      instructions='Toast.') for c in cells]
+        with patch.object(sg,'_run',return_value=json.dumps({'meals':meals})):
+            result = sg.meal_ideas(sg.MealIdeasIn(cells=cells),self.db,
+                                  {'id':1,'username':'test','portion_size':'regular'})
+        self.assertEqual([(m['day'],m['slot']) for m in result['meals']],
+                         [('2026-10-20','lunch'),('2026-10-20','dinner'),('2026-10-21','breakfast')])
+        self.assertEqual(result['missing_cells'],[])
+
+    def test_structured_meals_reject_bad_shapes_and_unrequested_cells(self):
+        valid = {'day':'2026-10-20','slot':'dinner','name':'Toast','servings':1,
+                 'ingredients':[{'name':'Bread','amount':2,'unit':'slice'}], 'instructions':'Toast.'}
+        bad = ['ideas', '[]', json.dumps({'meals':None}), json.dumps({'meals':[None]}),
+               json.dumps({'meals':[dict(valid, day='2026-10-21')]}),
+               json.dumps({'meals':[valid,valid]}), json.dumps({'meals':[dict(valid,name=' ')]}),
+               json.dumps({'meals':[dict(valid,ingredients=[{'name':'Bread','amount':-1,'unit':'slice'}])]})]
+        for text in bad:
+            with self.subTest(text=text), patch.object(sg,'_run',return_value=text), self.assertRaises(HTTPException) as e:
+                sg.meal_ideas(sg.MealIdeasIn(cells=[{'day':'2026-10-20','slot':'dinner'}]),self.db,
+                              {'id':1,'username':'test','portion_size':'regular'})
+            self.assertEqual(e.exception.status_code,502)
+        self.assertEqual(self.count('meal_plan'),0)
 
     def test_kitchen_text_tags_the_location_for_frozen_items(self):
         self.db.execute("INSERT INTO locations (id,name) VALUES (1,'Freezer'),(2,'Pantry')")

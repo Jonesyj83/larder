@@ -146,6 +146,21 @@ async def check():
         assert n['items'][0]['need'] == 4 and n['items'][0]['missing'] == 2 and not n['unmapped']
         assert (await client.put('/api/mealplan/' + str(mid), json={'day':'13/10/2026'})).status_code == 400
         assert (await client.post('/api/stock/purchase', json={'product_id':pid,'amount':1,'expires_on':'2026-02-30'})).status_code == 422
+        suggested = {'request_id':'page-suggestion','day':'2026-10-14','slot':'dinner',
+                     'name':'Simple dinner','servings':2,'instructions':'Cook it.', 'ingredients':[
+                         {'name':'Compatibility item','amount':3,'unit':units[0]['name']},
+                         {'name':'Unlisted ingredient','amount':1,'unit':units[0]['name']}]}
+        saved = await client.post('/api/mealplan/from-suggestion', json=suggested)
+        assert saved.status_code == 201, saved.text
+        result = saved.json()
+        assert result['meal']['simple_meal'] == 1
+        assert result['not_added'][0]['name'] == 'Unlisted ingredient'
+        assert (await client.post('/api/mealplan/from-suggestion', json=suggested)).json() == result
+        assert len((await client.get('/api/products')).json()) == 1
+        recipe = (await client.get('/api/recipes/' + str(result['meal']['recipe_id']))).json()
+        assert len(recipe['ingredients']) == 1 and recipe['ingredients'][0]['product_id'] == pid
+        assert recipe['instructions'] == 'Cook it.'
+        assert (await client.post('/api/mealplan/from-suggestion', json=dict(suggested,slot='brunch'))).status_code == 422
         (await client.post('/api/auth/logout'))
         assert (await client.get('/api/stock')).status_code == 401
         r = (await client.post('/api/auth/login', json={'username': 'render-test', 'password': 'temporary-test-password'}))

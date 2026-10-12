@@ -209,10 +209,36 @@
             <button type="button" @click="ideasOpen = false">Close</button>
           </div>
         </form>
-        <div class="card" style="margin-top: 1rem" x-show="ideas.text">
-<p class="muted small" x-text="ideas.provenance"></p>
-          <pre class="suggestion small" x-text="ideas.text"></pre>
-        </div>
+        <p class="muted small" x-text="ideas.provenance"></p>
+        <template x-for="c in ideas.missingCells" :key="c.day + c.slot">
+          <p class="warn small" x-text="'No suggestion returned for ' + dayName(c.day) + ' ' + c.slot"></p>
+        </template>
+        <template x-for="m in ideas.meals" :key="m.day + m.slot">
+          <div class="card" style="margin-top: 1rem">
+            <p class="muted small" x-text="dayName(m.day) + ' ' + m.slot"></p>
+            <b x-text="m.name"></b>
+            <span class="muted small" x-text="'(' + num(m.servings) + ' servings)'"></span>
+            <ul class="small">
+              <template x-for="i in m.ingredients">
+                <li>
+                  <span x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></span>
+                  <span x-show="i.product && i.short === 0" class="ok" x-text="'- ' + i.product"></span>
+                  <span x-show="i.product && i.short > 0" class="bad" x-text="'- have ' + qty(i.have, i.short_unit) + ', short ' + qty(i.short, i.short_unit)"></span>
+                  <span x-show="i.product && i.short === null" class="warn">- choose a valid unit to check stock</span>
+                  <span x-show="!i.product" class="bad">- don't have this yet</span>
+                </li>
+              </template>
+            </ul>
+            <pre class="suggestion small" x-text="m.instructions"></pre>
+            <template x-for="(i, idx) in m.notAdded" :key="idx">
+              <p class="bad small" x-text="i.name + ' - ' + i.reason"></p>
+            </template>
+            <div class="row" style="margin-top: .6rem">
+              <button class="primary" @click="addIdeaToPlan(m)" :disabled="m.added || m.adding" x-text="m.added ? 'Added' : (m.adding ? 'Adding...' : 'Add to plan')"></button>
+              <button type="button" x-show="ideaMissing(m).length" :disabled="m.addingMissing" @click="addIdeaMissing(m)" x-text="m.addingMissing ? 'Adding...' : 'Add what we need to shopping'"></button>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </template>
@@ -229,7 +255,7 @@ function planPage() {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     busy: false, recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
     ideasOpen: false,
-    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', busy: false, text: '', provenance: '' },
+    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', busy: false, meals: [], missingCells: [], provenance: '' },
     discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
     meId: {{ user.id }},
 
@@ -345,7 +371,7 @@ function planPage() {
       } catch (e) { oops(e); }
     },
     openIdeas() {
-      this.ideas = { length: 'week', rangeFrom: this.start, rangeTo: addDays(this.start, 13), grid: {}, note: '', busy: false, text: '', provenance: '' };
+      this.ideas = { length: 'week', rangeFrom: this.start, rangeTo: addDays(this.start, 13), grid: {}, note: '', busy: false, meals: [], missingCells: [], provenance: '' };
       this.buildIdeasGrid();
       this.ideasOpen = true;
     },
@@ -383,17 +409,49 @@ function planPage() {
       }
       return cells;
     },
+    ideaMissing(m) {
+      return m.added ? m.notAdded.filter(i => !i.product) : m.ingredients.filter(i => !i.product || i.short > 0);
+    },
+    async addIdeaToPlan(m) {
+      if (m.added || m.adding) return;
+      m.adding = true;
+      try {
+        const r = await api('/api/mealplan/from-suggestion', {method: 'POST', body: {
+          request_id: m.request_id, day: m.day, slot: m.slot, name: m.name, servings: m.servings,
+          instructions: m.instructions, ingredients: m.ingredients.map(i => ({name: i.name, amount: i.amount, unit: i.unit}))}});
+        m.added = true; m.notAdded = r.not_added;
+        this.load();
+      } catch (e) { oops(e); }
+      finally { m.adding = false; }
+    },
+    async addIdeaMissing(m) {
+      if (m.addingMissing) return;
+      m.addingMissing = true;
+      try {
+        const res = await api('/api/suggestions/add-missing', {method: 'POST', body: {
+          name: m.name, ingredients: this.ideaMissing(m).map(i => ({name: i.name,
+            amount: i.short > 0 ? i.short : i.amount,
+            unit: i.product ? i.short_unit : i.unit,
+            unit_id: (i.product ? i.short_unit_id : i.unit_id) || null,
+            suggested_product_id: i.suggested_product_id || null}))}});
+        toast(res.added ? res.added + ' added to the shopping list' : 'Already on the list');
+      } catch (e) { oops(e); }
+      finally { m.addingMissing = false; }
+    },
     async getIdeas() {
       if (!this.ideasDays().length) { toast('Choose a valid date range, with the end on or after the start'); return; }
       const cells = this.ideasCells();
       if (!cells.length) { toast('Tick at least one day and meal'); return; }
-      this.ideas.busy = true; this.ideas.text = '';
+      const state = this.ideas;
+      state.busy = true; state.meals = []; state.missingCells = []; state.provenance = '';
       try {
         const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note } });
-        this.ideas.text = r.text;
+        if (this.ideas !== state || !this.ideasOpen) return;
+        state.meals = r.meals.map(m => ({...m, request_id: saveRequestId(), added: false, adding: false, addingMissing: false, notAdded: []}));
+        state.missingCells = r.missing_cells;
         this.ideas.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
       } catch (e) { oops(e); }
-      this.ideas.busy = false;
+      finally { state.busy = false; }
     },
   };
 }

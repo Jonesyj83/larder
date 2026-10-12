@@ -240,3 +240,53 @@ assert.equal(p.filtered().length, 4);
 """
         r = subprocess.run(['node'], input=pre+script+'\n'+stock+'\n'+body,text=True,capture_output=True)
         self.assertEqual(r.returncode,0,r.stderr)
+
+    def test_meal_idea_cards_save_shop_retry_and_reset_javascript(self):
+        plan = (ROOT/'app/templates/mealplan.html').read_text().split('<script>')[1].split('</script>')[0].replace('{{ user.id }}','1')
+        helpers = (ROOT/'app/static/app.js').read_text()
+        pre = """
+const assert=require('node:assert/strict');
+const window={}, document={addEventListener(){}}, navigator={};
+const calls=[]; let failSave=true, pendingResolve=null, deferIdeas=false;
+const ingredients=[{name:'Bread',amount:1,unit:'pack',unit_id:3,product:'Bread',short:3,have:3,short_unit:'slice',short_unit_id:1,suggested_product_id:1},
+ {name:'Butter',amount:1,unit:'piece',unit_id:2,product:null,short:1,suggested_product_id:null}];
+const response={meals:[{day:'2026-10-12',slot:'dinner',name:'Toast',servings:2,ingredients,instructions:'Toast.'}],missing_cells:[]};
+async function api(path,opts={}) {
+ calls.push({path,...opts});
+ if(path==='/api/suggestions/meals') return deferIdeas ? new Promise(resolve=>pendingResolve=resolve) : response;
+ if(path==='/api/mealplan/from-suggestion') {
+   if(failSave) {failSave=false; throw Error('temporary failure');}
+   return {meal:{id:7},not_added:[{...ingredients[1],reason:'not added - no matching product'}]};
+ }
+ return {added:1};
+}
+"""
+        helpers = helpers[helpers.index('function num'):].replace("function toast(msg, bad = false) { Alpine.store('toast').show(msg, bad); }", 'function toast() {}').replace("function oops(e) { toast(e.message || String(e), true); }", 'function oops() {}')
+        body = """
+(async()=>{
+ const p=planPage(); p.load=()=>{}; p.openIdeas(); await p.getIdeas();
+ const m=p.ideas.meals[0]; assert.equal(m.added,false);
+ await p.addIdeaMissing(m);
+ let shop=calls.find(c=>c.path==='/api/suggestions/add-missing');
+ assert.equal(shop.body.ingredients[0].amount,3); assert.equal(shop.body.ingredients[0].unit,'slice');
+ await p.addIdeaToPlan(m); assert.equal(m.added,false); assert.equal(m.adding,false);
+ await p.addIdeaToPlan(m); assert.equal(m.added,true); assert.equal(m.notAdded[0].name,'Butter');
+ const saves=calls.filter(c=>c.path==='/api/mealplan/from-suggestion');
+ assert.equal(saves[0].body.request_id,saves[1].body.request_id);
+ assert.equal(saves[1].body.day,'2026-10-12'); assert.equal(saves[1].body.name,'Toast');
+ await p.addIdeaToPlan(m); assert.equal(calls.filter(c=>c.path==='/api/mealplan/from-suggestion').length,2);
+ assert.equal(p.ideas.meals.length,1);
+ await p.addIdeaMissing(m); shop=calls.filter(c=>c.path==='/api/suggestions/add-missing').at(-1);
+ assert.deepEqual(shop.body.ingredients.map(i=>i.name),['Butter']);
+ p.ideasOpen=false; p.openIdeas(); assert.deepEqual(p.ideas.meals,[]);
+ deferIdeas=true; const old=p.ideas; const pending=p.getIdeas();
+ p.ideasOpen=false; p.openIdeas(); pendingResolve(response); await pending;
+ assert.deepEqual(p.ideas.meals,[]); assert.equal(old.busy,false);
+})().catch(e=>{console.error(e);process.exit(1)});
+"""
+        run=subprocess.run(['node'],input=pre+helpers+plan+body,text=True,capture_output=True,timeout=15)
+        self.assertEqual(run.returncode,0,run.stderr)
+        html=(ROOT/'app/templates/mealplan.html').read_text()
+        self.assertIn('m.added ? \'Added\'',html)
+        self.assertIn("- don't have this yet",html)
+        self.assertIn("qty(i.have, i.short_unit)",html)

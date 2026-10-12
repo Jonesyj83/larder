@@ -94,6 +94,10 @@ def week(start: Optional[str] = None, days: int = 7, db=Depends(get_db), user=De
 @router.post("/mealplan", status_code=201)
 @atomic_save
 def add_meal(data: MealIn, db=Depends(get_db), user=Depends(current_user)):
+    return _create_meal(data, db, user)
+
+
+def _create_meal(data, db, user):
     _day(data.day)
     if not data.recipe_id and not data.note.strip():
         raise HTTPException(400, "Pick a recipe or write something")
@@ -114,6 +118,47 @@ def add_meal(data: MealIn, db=Depends(get_db), user=Depends(current_user)):
     if data.ingredients:
         db.execute("UPDATE meal_plan SET simple_meal=1 WHERE id=?", (cur.lastrowid,))
     return row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (cur.lastrowid,)))
+
+
+class SuggestedIngredientIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    amount: float = Field(gt=0, le=1000000, allow_inf_nan=False)
+    unit: str = Field(max_length=80)
+
+
+class SuggestedMealIn(BaseModel):
+    request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    day: str
+    slot: Slot
+    name: str = Field(min_length=1, max_length=200)
+    servings: float = Field(gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
+    ingredients: list[SuggestedIngredientIn] = Field(min_length=1, max_length=50)
+    instructions: str = Field(default="", max_length=20000)
+
+
+@router.post("/mealplan/from-suggestion", status_code=201)
+@atomic_save
+def meal_from_suggestion(data: SuggestedMealIn, db=Depends(get_db), user=Depends(current_user)):
+    from .suggestions import review_recipe
+    _day(data.day)
+    reviewed = review_recipe(db, data.model_dump())
+    ingredients, not_added = [], []
+    for item in reviewed["ingredients"]:
+        reason = None
+        if not item["suggested_product_id"]:
+            reason = "not added - no matching product"
+        elif item["short"] is None:
+            reason = "not added - choose a valid unit that converts to the product's stock unit"
+        if reason:
+            not_added.append(dict(item, reason=reason))
+        else:
+            ingredients.append(IngredientIn(product_id=item["suggested_product_id"],
+                                            amount=item["amount"], unit_id=item["unit_id"]))
+    meal = _create_meal(MealIn(day=data.day, slot=data.slot, note=data.name,
+                                     servings=data.servings, ingredients=ingredients), db, user)
+    if meal["recipe_id"]:
+        db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, meal["recipe_id"]))
+    return {"meal": meal, "not_added": not_added}
 
 
 @router.put("/mealplan/{meal_id}")

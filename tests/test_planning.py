@@ -109,3 +109,51 @@ class Planning(unittest.TestCase):
         self.assertEqual(check(self.db, r['id'])['missing_count'], 2)
         missing_to_shopping(r['id'], None, self.db, self.user)
         self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 4)
+
+    def test_from_suggestion_only_existing_products_and_retry(self):
+        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.commit()
+        data = SuggestedMealIn(request_id='suggestion-retry', day='2026-10-12',slot='breakfast',
+            name='Toast',servings=2,instructions='Toast the bread.',ingredients=[
+                {'name':'BREAD','amount':4,'unit':'slice'},
+                {'name':'Butter','amount':1,'unit':'piece'}])
+        result = meal_from_suggestion(data,self.db,self.user)
+        self.assertEqual(meal_from_suggestion(data,self.db,self.user),result)
+        self.assertEqual((self.count('products'),self.count('meal_plan'),self.count('recipes')),(1,1,1))
+        m = result['meal']
+        self.assertEqual((m['day'],m['slot'],m['note'],m['servings'],m['simple_meal']),
+                         ('2026-10-12','breakfast','Toast',2,1))
+        self.assertEqual(self.db.execute('SELECT product_id,amount,unit_id FROM recipe_ingredients').fetchone()[:],(1,4,1))
+        self.assertEqual(self.db.execute('SELECT instructions FROM recipes').fetchone()[0],'Toast the bread.')
+        self.assertEqual(result['not_added'][0]['name'],'Butter')
+        self.assertEqual(result['not_added'][0]['reason'],'not added - no matching product')
+        self.assertEqual(needs('2026-10-12','2026-10-18',self.db,self.user)['items'][0]['need'],4)
+        self.assertEqual((self.count('shopping_list'),self.count('stock')),(0,0))
+        from app.routes.suggestions import AddMissingIn, add_missing_from_suggestion
+        self.assertEqual(add_missing_from_suggestion(AddMissingIn(name='Toast',ingredients=result['not_added']),self.db,self.user)['added'],1)
+        self.assertEqual(self.count('products'),1)
+        self.assertIsNone(self.db.execute('SELECT product_id FROM shopping_list').fetchone()[0])
+
+    def test_from_suggestion_unknown_and_invalid_units_are_reported(self):
+        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.commit()
+        result = meal_from_suggestion(SuggestedMealIn(day='2026-10-12',slot='lunch',name='Toast',servings=1,
+            ingredients=[{'name':'Bread','amount':1,'unit':'handful'},
+                         {'name':'Bread','amount':1,'unit':'piece'},
+                         {'name':'Butter','amount':1,'unit':'piece'}]),self.db,self.user)
+        self.assertEqual(len(result['not_added']),3)
+        self.assertIn('valid unit',result['not_added'][0]['reason'])
+        self.assertIsNone(result['meal']['recipe_id'])
+        self.assertEqual((self.count('products'),self.count('recipe_ingredients')),(1,0))
+
+    def test_from_suggestion_failure_rolls_back(self):
+        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
+        self.db.commit()
+        self.db.execute("CREATE TRIGGER fail_suggestion BEFORE INSERT ON meal_plan BEGIN SELECT RAISE(ABORT,'failed'); END")
+        with self.assertRaises(sqlite3.IntegrityError):
+            meal_from_suggestion(SuggestedMealIn(day='2026-10-12',slot='lunch',name='Toast',servings=1,
+                ingredients=[{'name':'Bread','amount':1,'unit':'slice'}]),self.db,self.user)
+        self.assertEqual((self.count('products'),self.count('recipes'),self.count('meal_plan')),(1,0,0))
