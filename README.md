@@ -125,10 +125,12 @@ Things I know are missing and might get to:
 
 - A low-stock count somewhere visible on the Stock page, so you notice you're running low
   on something without having to go looking.
-- Letting you pick which supermarkets you shop at (Woolworths, Coles, Aldi to start with,
-  since that's what's easy to get prices for in Australia) and pulling live prices for
-  everything on your shopping list from each one, side by side. Haven't worked out how this
-  would work outside Australia yet - the data just isn't as easy to get at everywhere.
+- A country and currency setting, with a list of supermarkets that updates based on which
+  country you pick (Woolworths, Coles, Aldi for Australia, wherever makes sense elsewhere).
+  Pick the ones you actually shop at and it pulls live prices for your shopping list from
+  each one, side by side. Realistically this will roll out country by country as the price
+  data becomes available rather than all at once - some places just don't publish anything
+  usable yet.
 - Proper import from Grocy's export, instead of the one-off script I used for my own data.
 
 If you build any of these first, a pull request is very welcome.
