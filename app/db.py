@@ -175,6 +175,14 @@ CREATE TABLE IF NOT EXISTS recent_suggestions (
     name TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- one shared row of household diet/taste rules, fed into every suggestion
+CREATE TABLE IF NOT EXISTS household_preferences (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    diet TEXT NOT NULL DEFAULT '[]',      -- json list of tags, e.g. ["vegetarian","no seafood"]
+    dislikes TEXT NOT NULL DEFAULT '[]',  -- json list of free-typed ingredient/dish tags to avoid
+    other TEXT NOT NULL DEFAULT ''        -- anything that doesn't fit a tag
+);
 """
 
 DEFAULT_LOCATIONS = [("Fridge", 0), ("Pantry", 0), ("Freezer", 1)]

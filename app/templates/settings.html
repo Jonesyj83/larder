@@ -54,6 +54,29 @@
     </form>
   </div>
 
+  <h2>Food preferences</h2>
+  <div class="card">
+    <p class="muted small">Shared by the whole household. Suggestions always respect these - they're rules, not nice-to-haves.</p>
+    <label>Diet</label>
+    <div class="tag-grid">
+      <template x-for="t in prefs.diet_tags" :key="t">
+        <label class="inline small"><input type="checkbox" :value="t" x-model="prefs.diet"> <span x-text="t"></span></label>
+      </template>
+    </div>
+    <label style="margin-top: .8rem">Avoid (ingredients or dishes)</label>
+    <div class="chip-row">
+      <template x-for="(d, idx) in prefs.dislikes" :key="d">
+        <span class="chip"><span x-text="d"></span><button type="button" aria-label="Remove" @click="prefs.dislikes.splice(idx,1)">×</button></span>
+      </template>
+      <input aria-label="Add something to avoid" placeholder="type and press enter, e.g. mushrooms" x-model="newDislike"
+             @keydown.enter.prevent="addDislike()" @keydown.comma.prevent="addDislike()" @blur="addDislike()">
+    </div>
+    <label class="field" style="margin-top: .8rem">Other notes<textarea x-model="prefs.other" placeholder="e.g. chilli goes on Doritos Mexicana, not rice"></textarea></label>
+    <div class="row" style="margin-top: .8rem">
+      <button class="primary" @click="savePreferences()">Save</button>
+    </div>
+  </div>
+
   <h2>Suggestions</h2>
   <div class="card">
     <p class="muted small">Connect a provider for draft meal and ingredient suggestions. Keys stay on this server. Saved recipes and manual ingredients work without a connection.</p>
@@ -120,13 +143,27 @@ function settingsPage() {
     portion: '{{ user.portion_size }}', pw: { old: '', new: '' },
     keys: [], keyName: '', newKey: '',
     sg: {}, testing: false, connectionRoute: '',
+    prefs: { diet: [], dislikes: [], other: '', diet_tags: [] }, newDislike: '',
     users: [], nu: { username: '', password: '', portion_size: 'regular' },
     isAdmin: {{ 'true' if user.is_admin else 'false' }},
 
     async init() {
-      [this.keys, this.sg] = await Promise.all([api('/api/me/keys'), api('/api/me/suggestions')]);
+      [this.keys, this.sg, this.prefs] = await Promise.all([api('/api/me/keys'), api('/api/me/suggestions'), api('/api/household/preferences')]);
       this.sg.api_key = '';
       if (this.isAdmin) this.users = await api('/api/users');
+    },
+    addDislike() {
+      const v = this.newDislike.trim().replace(/,$/, '');
+      if (v && !this.prefs.dislikes.includes(v)) this.prefs.dislikes.push(v);
+      this.newDislike = '';
+    },
+    async savePreferences() {
+      this.addDislike();
+      try {
+        this.prefs = await api('/api/household/preferences', { method: 'PUT',
+          body: { diet: this.prefs.diet, dislikes: this.prefs.dislikes, other: this.prefs.other } });
+        toast('Saved');
+      } catch (e) { oops(e); }
     },
     async savePortion() {
       try { await api('/api/me', { method: 'PUT', body: { portion_size: this.portion, date_format: this.dateFormat, measurement_system: this.measurementSystem } }); window.USER_PREFS = {date_format: this.dateFormat, measurement_system: this.measurementSystem}; toast('Saved'); } catch (e) { oops(e); }

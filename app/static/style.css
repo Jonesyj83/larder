@@ -225,6 +225,12 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
 .group-head:first-child { border-top: 0; }
 .group-head.bad { color: var(--bad); }
 .group-head.warn { color: var(--warn); }
+.tag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 12px; margin-top: 4px; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px;
+            background: var(--input); border: 1px solid var(--line); padding: 6px 10px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--control); border-radius: 2px; padding: 4px 6px 4px 10px; font-size: .85em; }
+.chip button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0 2px; font-size: 1em; line-height: 1; }
+.chip-row input { border: 0; background: none; flex: 1; min-width: 10rem; padding: 4px 0; margin: 0; }
 .stock-head { background: var(--control); font-size: 13px; font-weight: 700; }
 .stock-item > * { min-width: 0; overflow-wrap: anywhere; }
 .stock-item { border-bottom: 1px solid var(--line); }

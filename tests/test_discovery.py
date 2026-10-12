@@ -65,6 +65,34 @@ class Discovery(unittest.TestCase):
         self.assertIn('Chicken Tenders: 500 piece [Freezer]',text)
         self.assertIn('Rice: 1 piece [Pantry]',text)
 
+    def test_household_preferences_saved_and_fed_into_every_prompt(self):
+        saved = sg.save_preferences(sg.PreferencesIn(diet=['Vegetarian',' ','Vegetarian'],
+            dislikes=['Mushrooms',' olives ',''],other=' no rice, use Doritos '),self.db,self.user)
+        self.assertEqual(saved['diet'],['Vegetarian','Vegetarian'])  # exact dupes aren't deduped, that's fine - UI sends checkboxes
+        self.assertEqual(saved['dislikes'],['Mushrooms','olives'])
+        self.assertEqual(saved['other'],'no rice, use Doritos')
+        self.assertIn('Vegetarian',sg._preferences_text(self.db))
+        self.assertIn('Mushrooms',sg._preferences_text(self.db))
+        self.assertIn('Doritos',sg._preferences_text(self.db))
+        # it reaches an actual recipe prompt, not just the helper
+        captured = {}
+        def fake_run(db,user,prompt,system):
+            captured['prompt'] = prompt
+            return sg.GeneratedText(json.dumps({'name':'X','servings':1,'ingredients':[{'name':'Y','amount':1,'unit':'piece'}]}))
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=False),self.db,self.user)
+        self.assertIn('Vegetarian',captured['prompt'])
+        self.assertIn('Mushrooms',captured['prompt'])
+        # with nothing set, the prompt doesn't carry an empty preferences block
+        sg.save_preferences(sg.PreferencesIn(diet=[],dislikes=[],other=''),self.db,self.user)
+        self.assertEqual(sg._preferences_text(self.db),'')
+        # a long list is capped by the request schema, not silently truncated into garbage
+        with self.assertRaises(Exception):
+            sg.PreferencesIn(dislikes=['x']*51)
+        tags = sg.get_preferences(self.db,self.user)['diet_tags']
+        self.assertIn('No seafood',tags)
+        self.assertGreaterEqual(len(tags),10)
+
     def test_saved_search_without_provider_and_bad_payloads(self):
         self.meal([{'name':'Bread','amount':2,'unit_id':1}])
         with patch.object(sg,'_run',side_effect=AssertionError('no generation')):

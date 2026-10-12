@@ -95,6 +95,32 @@ def _people(db):
     return "\n".join(out)
 
 
+DIET_TAGS = [
+    "Vegetarian", "Vegan", "Pescatarian", "No seafood", "No pork", "No red meat",
+    "No shellfish", "Halal", "Kosher", "Gluten-free", "Dairy-free", "Lactose-free",
+    "Nut-free", "Egg-free", "Low-carb", "Keto", "No added sugar",
+]
+
+
+def _preferences(db):
+    p = row(db.execute("SELECT * FROM household_preferences WHERE id = 1"))
+    return dict(diet=json.loads(p["diet"]) if p else [], dislikes=json.loads(p["dislikes"]) if p else [],
+                other=p["other"] if p else "")
+
+
+def _preferences_text(db):
+    """Household diet/taste rules, written out for the prompt. Empty when nothing is set."""
+    p = _preferences(db)
+    lines = []
+    if p["diet"]:
+        lines.append("Dietary requirements (hard rules, never break these): " + ", ".join(p["diet"]) + ".")
+    if p["dislikes"]:
+        lines.append("Avoid these ingredients/dishes entirely: " + ", ".join(p["dislikes"]) + ".")
+    if p["other"].strip():
+        lines.append("Other household notes: " + p["other"].strip())
+    return "\n".join(lines)
+
+
 SYSTEM = ("You help a household plan meals from what they already have at home. "
           "Prefer using things that go off soonest. Keep it practical and short, "
           "home cooking, no fancy equipment. Respect portion sizes: 'small' means "
@@ -137,6 +163,30 @@ def get_settings(db=Depends(get_db), user=Depends(current_user)):
     s['providers'] = providers.catalogue()
     s['state'] = 'Connection not verified' if providers.is_configured(dict(s,api_key=key)) else 'Setup required'
     return s
+
+
+class PreferencesIn(BaseModel):
+    diet: list[str] = Field(default_factory=list, max_length=30)
+    dislikes: list[str] = Field(default_factory=list, max_length=50)
+    other: str = Field(default="", max_length=2000)
+
+
+@router.get("/household/preferences")
+def get_preferences(db=Depends(get_db), user=Depends(current_user)):
+    p = _preferences(db)
+    p["diet_tags"] = DIET_TAGS
+    return p
+
+
+@router.put("/household/preferences")
+def save_preferences(data: PreferencesIn, db=Depends(get_db), user=Depends(current_user)):
+    diet = [t.strip() for t in data.diet if t.strip()][:30]
+    dislikes = [t.strip()[:60] for t in data.dislikes if t.strip()][:50]
+    db.execute("""INSERT INTO household_preferences (id, diet, dislikes, other) VALUES (1, ?, ?, ?)
+                  ON CONFLICT(id) DO UPDATE SET diet = excluded.diet, dislikes = excluded.dislikes, other = excluded.other""",
+               (json.dumps(diet), json.dumps(dislikes), data.other.strip()))
+    db.commit()
+    return get_preferences(db, user)
 
 
 @router.put("/me/suggestions")
@@ -213,6 +263,8 @@ Asked by {me}.
 People in the house:
 {_people(db)}
 
+{_preferences_text(db)}
+
 In stock right now:
 {_kitchen(db)}
 
@@ -252,6 +304,7 @@ nutrition or medical advice.
   "but don't change what dish this is just to use them up.") if data.use_expiring else ''}
 {('Already suggested recently, so pick something different this time unless the request above '
   'genuinely only fits one of these: ' + ', '.join(recent) + '.') if recent and not ask else ''}
+{_preferences_text(db)}
 
 In stock right now (for reference - it's fine, expected even, if the dish above needs things we
 don't have; list them as normal ingredients, don't leave them out or swap them for what we have):
@@ -396,6 +449,7 @@ def discover_ingredients(data: DiscoveryIn, db=Depends(get_db), user=Depends(cur
         prompt = f"""Draft a proposed recipe for {data.idea}, for {data.servings} servings.
 Do not limit ingredients to current stock. Respect the requested variant (e.g. Vegemite or egg toast).
 Amounts are proposed estimates for user review, never established facts or nutrition/medical advice.
+{_preferences_text(db)}
 Return only JSON: {{"name":"...","servings":{data.servings},"ingredients":[{{"name":"Bread","amount":2,"unit":"slice"}}],"instructions":"..."}}.
 Use valid units where possible: {units}. Between 1 and 50 ingredients."""
         text = _run(db,user,prompt,'You draft practical home recipes for explicit human review. '
