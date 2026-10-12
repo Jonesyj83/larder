@@ -198,6 +198,14 @@ th { font-size: .8rem; color: var(--muted); font-weight: 600; background: var(--
 
 pre.suggestion { white-space: pre-wrap; font: inherit; margin: 0; }
 
+.idea-grid-wrap { max-height: 50vh; overflow: auto; border: 1px solid var(--line); margin-top: .4rem; }
+.idea-grid { table-layout: auto; width: 100%; }
+.idea-grid th, .idea-grid td { padding: 4px 8px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.idea-grid th:first-child, .idea-grid td:first-child { text-align: left; position: sticky; left: 0; background: var(--card); }
+.idea-grid thead th { position: sticky; top: 0; background: var(--control); z-index: 1; }
+.idea-grid thead th:first-child { z-index: 2; }
+.link-head { background: none; border: 0; min-height: auto; padding: 2px 0; color: var(--text); font-weight: 600; text-decoration: underline; text-decoration-style: dotted; text-decoration-color: var(--muted); }
+
 button, .btn, input:not([type=checkbox]):not([type=radio]), select { min-height: 44px; }
 button, a, input, select { touch-action: manipulation; }
 a { text-underline-offset: 4px; }

@@ -11,7 +11,7 @@ from .. import providers
 from .. import stock as st
 from ..auth import current_user
 from ..db import begin, get_db, row, rows
-from .mealplan import PORTION_FACTOR, SLOTS
+from .mealplan import PORTION_FACTOR, SLOTS, _day
 from .recipes import list_recipes
 
 router = APIRouter(prefix="/api", tags=["suggestions"])
@@ -25,9 +25,16 @@ class SettingsIn(BaseModel):
     shared: bool = False
 
 
+MAX_IDEA_CELLS = 60
+
+
+class MealIdeaCell(BaseModel):
+    day: str
+    slot: str
+
+
 class MealIdeasIn(BaseModel):
-    days: int = 1
-    slots: list[str] = Field(default=["dinner"], max_length=10)
+    cells: list[MealIdeaCell] = Field(default_factory=list, max_length=500)
     note: str = Field(default="", max_length=2000)
 
 
@@ -248,15 +255,35 @@ def test_settings(data: TestIn = TestIn(), db=Depends(get_db), user=Depends(curr
     return {"reply": "Connection responded", "provenance": getattr(text,"provenance",None)}
 
 
+def _grouped_cells(cells):
+    """Cells grouped by day, in slot order, for a readable prompt - e.g.
+    'Tue 20 Oct: lunch, dinner'."""
+    by_day = {}
+    for c in cells:
+        by_day.setdefault(c.day, set()).add(c.slot)
+    lines = []
+    for day in sorted(by_day):
+        wanted = [s for s in SLOTS if s in by_day[day]]
+        lines.append(f"{date.fromisoformat(day).strftime('%a %d %b')}: {', '.join(wanted)}")
+    return "\n".join(lines)
+
+
 @router.post("/suggestions/meals")
 def meal_ideas(data: MealIdeasIn, db=Depends(get_db), user=Depends(current_user)):
-    days = max(1, min(data.days, 7))
-    slots = [s for s in data.slots if s in SLOTS] or ["dinner"]
+    if not data.cells:
+        raise HTTPException(400, "Pick at least one day and meal to get ideas for")
+    if len(data.cells) > MAX_IDEA_CELLS:
+        raise HTTPException(400, f"That's too many day/meal combinations at once - stick to {MAX_IDEA_CELLS} or fewer")
+    for c in data.cells:
+        _day(c.day)
+        if c.slot not in SLOTS:
+            raise HTTPException(400, f"'{c.slot}' isn't a meal slot")
     recipes = list_recipes(db, user)
     known = "\n".join(f"- {r['name']}" + (" (everything in stock)" if r["can_make"] else f" ({r['missing_count']} things missing)")
                       for r in recipes) or "(none saved yet)"
     me = f"{user['username']}, who likes {user['portion_size']} portions (about {PORTION_FACTOR[user['portion_size']]}x normal)"
-    prompt = f"""Suggest meals for {days} day(s), covering: {', '.join(slots)}.
+    prompt = f"""Suggest meals for exactly these days and meals:
+{_grouped_cells(data.cells)}
 
 Asked by {me}.
 

@@ -4,7 +4,7 @@
 <div x-data="planPage()">
   <div class="row page-head">
     <h1 class="grow">Meal plan</h1>
-    <button @click="ideasOpen = true" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
+    <button @click="openIdeas()" :disabled="!suggest" :title="suggest ? '' : 'Add an API key in Settings to use this'">Meal ideas</button>
   </div>
   <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Add an API key in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
@@ -172,18 +172,36 @@
         <b>Meal ideas</b>
         <p class="muted small">Based on what's in stock, your saved recipes and everyone's portion sizes.</p>
         <form @submit.prevent="getIdeas()">
-          <div class="grid2">
-            <div>
-              <label class="field">How many days<input type="number" min="1" max="7" x-model.number="ideas.days"></label>
-            </div>
-            <div>
-              <label>Meals</label>
-              <div class="row">
+          <label class="field">How long<select x-model="ideas.length">
+            <option value="week">1 week</option>
+            <option value="2weeks">2 weeks</option>
+            <option value="4weeks">4 weeks</option>
+            <option value="custom">Custom range</option>
+          </select></label>
+          <div class="grid2" x-show="ideas.length === 'custom'" x-cloak>
+            <div><label>From</label>{{ date_field('ideas.rangeFrom', 'From', true) }}</div>
+            <div><label>To</label>{{ date_field('ideas.rangeTo', 'To', true) }}</div>
+          </div>
+          <label>Days &amp; meals - tick what you want ideas for</label>
+          <div class="idea-grid-wrap">
+            <table class="idea-grid small">
+              <thead><tr>
+                <th></th>
                 <template x-for="s in slots" :key="s">
-                  <label class="inline small"><input type="checkbox" :value="s" x-model="ideas.slots"> <span x-text="s"></span></label>
+                  <th><button type="button" class="link-head" @click="toggleSlotColumn(s)" x-text="s"></button></th>
                 </template>
-              </div>
-            </div>
+              </tr></thead>
+              <tbody>
+                <template x-for="d in ideasDays()" :key="d">
+                  <tr>
+                    <th><button type="button" class="link-head" @click="toggleDay(d)" x-text="dayName(d)"></button></th>
+                    <template x-for="s in slots" :key="s">
+                      <td><input type="checkbox" :aria-label="dayName(d) + ' ' + s" x-model="ideas.grid[d][s]"></td>
+                    </template>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
           <label class="field">Anything else?<input x-model="ideas.note" placeholder="e.g. no fish, something light"></label>
           <div class="row" style="margin-top: .6rem">
@@ -210,7 +228,8 @@ function planPage() {
   return {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     busy: false, recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
-    ideasOpen: false, ideas: { days: 1, slots: ['dinner'], note: '', busy: false, text: '', provenance: '' },
+    ideasOpen: false,
+    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', busy: false, text: '', provenance: '' },
     discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
     meId: {{ user.id }},
 
@@ -218,6 +237,9 @@ function planPage() {
       [this.recipes, this.household, this.products, this.units] = await Promise.all([api('/api/recipes/makeable'), api('/api/household'), api('/api/products'), api('/api/units')]);
       api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
       this.load();
+      this.$watch('ideas.length', () => this.buildIdeasGrid());
+      this.$watch('ideas.rangeFrom', () => this.buildIdeasGrid());
+      this.$watch('ideas.rangeTo', () => this.buildIdeasGrid());
     },
     async load() {
       try {
@@ -321,10 +343,49 @@ function planPage() {
         this.needs = null;
       } catch (e) { oops(e); }
     },
+    openIdeas() {
+      this.ideas = { length: 'week', rangeFrom: this.start, rangeTo: addDays(this.start, 13), grid: {}, note: '', busy: false, text: '', provenance: '' };
+      this.buildIdeasGrid();
+      this.ideasOpen = true;
+    },
+    ideasDays() {
+      const i = this.ideas;
+      const n = i.length === 'custom' ? Math.min(42, Math.max(1, Math.round((new Date(i.rangeTo + 'T12:00:00') - new Date(i.rangeFrom + 'T12:00:00')) / 86400000) + 1))
+        : { week: 7, '2weeks': 14, '4weeks': 28 }[i.length] || 7;
+      return [...Array(n)].map((_, idx) => addDays(i.rangeFrom, idx));
+    },
+    buildIdeasGrid() {
+      const grid = {};
+      for (const d of this.ideasDays()) {
+        grid[d] = this.ideas.grid[d] || Object.fromEntries(this.slots.map(s => [s, s === 'dinner']));
+      }
+      this.ideas.grid = grid;
+    },
+    toggleDay(d) {
+      const row = this.ideas.grid[d];
+      const allOn = this.slots.every(s => row[s]);
+      for (const s of this.slots) row[s] = !allOn;
+    },
+    toggleSlotColumn(s) {
+      const days = this.ideasDays();
+      const allOn = days.every(d => this.ideas.grid[d][s]);
+      for (const d of days) this.ideas.grid[d][s] = !allOn;
+    },
+    ideasCells() {
+      const cells = [];
+      for (const d of this.ideasDays()) {
+        for (const s of this.slots) {
+          if (this.ideas.grid[d]?.[s]) cells.push({ day: d, slot: s });
+        }
+      }
+      return cells;
+    },
     async getIdeas() {
+      const cells = this.ideasCells();
+      if (!cells.length) { toast('Tick at least one day and meal'); return; }
       this.ideas.busy = true; this.ideas.text = '';
       try {
-        const r = await api('/api/suggestions/meals', { method: 'POST', body: { days: this.ideas.days, slots: this.ideas.slots, note: this.ideas.note } });
+        const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note } });
         this.ideas.text = r.text;
         this.ideas.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
       } catch (e) { oops(e); }

@@ -54,6 +54,44 @@ class Discovery(unittest.TestCase):
                 sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=False),self.db,self.user)
         self.assertEqual(self.count('recent_suggestions'),10)
 
+    def test_meal_ideas_cell_validation(self):
+        user = {'id': 1, 'username': 'test', 'portion_size': 'regular'}
+        with self.assertRaises(HTTPException):
+            sg.meal_ideas(sg.MealIdeasIn(cells=[]), self.db, user)
+        with self.assertRaises(HTTPException):
+            sg.meal_ideas(sg.MealIdeasIn(cells=[{'day': '2026-02-30', 'slot': 'dinner'}]), self.db, user)
+        with self.assertRaises(HTTPException):
+            sg.meal_ideas(sg.MealIdeasIn(cells=[{'day': '2026-10-12', 'slot': 'brunch'}]), self.db, user)
+        with self.assertRaises(HTTPException):
+            sg.meal_ideas(sg.MealIdeasIn(cells=[{'day': '2026-10-12', 'slot': 'dinner'}] * 61), self.db, user)
+
+    def test_meal_ideas_prompt_groups_by_day_and_keeps_context(self):
+        user = {'id': 1, 'username': 'test', 'portion_size': 'regular'}
+        sg.save_preferences(sg.PreferencesIn(diet=['Vegetarian'], dislikes=['Mushrooms'], other='no rice'), self.db, user)
+        self.db.execute("INSERT INTO locations (id,name) VALUES (1,'Freezer')")
+        self.db.execute("INSERT INTO products (id,name,unit_id) VALUES (1,'Chicken Tenders',2)")
+        self.db.commit()
+        from app.stock import purchase
+        purchase(self.db, 1, 500, 2, location_id=1, user_id=1)
+        captured = {}
+        def fake_run(db, user, prompt, system):
+            captured['prompt'] = prompt
+            return sg.GeneratedText('ideas')
+        with patch.object(sg, '_run', side_effect=fake_run):
+            sg.meal_ideas(sg.MealIdeasIn(cells=[
+                {'day': '2026-10-21', 'slot': 'dinner'},
+                {'day': '2026-10-20', 'slot': 'lunch'},
+                {'day': '2026-10-20', 'slot': 'dinner'},
+            ], note='nothing spicy'), self.db, user)
+        prompt = captured['prompt']
+        self.assertIn('Tue 20 Oct: lunch, dinner', prompt)
+        self.assertIn('Wed 21 Oct: dinner', prompt)
+        self.assertLess(prompt.index('Tue 20 Oct'), prompt.index('Wed 21 Oct'))
+        self.assertIn('Vegetarian', prompt)
+        self.assertIn('Mushrooms', prompt)
+        self.assertIn('Chicken Tenders', prompt)
+        self.assertIn('nothing spicy', prompt)
+
     def test_kitchen_text_tags_the_location_for_frozen_items(self):
         self.db.execute("INSERT INTO locations (id,name) VALUES (1,'Freezer'),(2,'Pantry')")
         self.db.execute("INSERT INTO products (id,name,unit_id) VALUES (1,'Chicken Tenders',2),(2,'Rice',2)")
