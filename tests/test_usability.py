@@ -29,11 +29,33 @@ class Usability(unittest.TestCase):
         from pydantic import ValidationError
         u = update_me(PrefsIn(date_format='MM/DD/YYYY', measurement_system='imperial'), self.user, self.db)
         self.assertEqual((u['date_format'], u['measurement_system'], u['portion_size']), ('MM/DD/YYYY', 'imperial', 'regular'))
+        self.assertEqual(u['show_prices'], 0)  # off by default
         update_me(PrefsIn(portion_size='small'), self.user, self.db)
         u = dict(self.db.execute('SELECT * FROM users').fetchone())
         self.assertEqual(u['date_format'], 'MM/DD/YYYY')
         with self.assertRaises(ValidationError):
             PrefsIn(date_format='DD/YY/MM')
+        # turning it on and back off both stick - False isn't mistaken for "not sent"
+        u = update_me(PrefsIn(show_prices=True), self.user, self.db)
+        self.assertEqual(u['show_prices'], 1)
+        u = update_me(PrefsIn(show_prices=False), self.user, self.db)
+        self.assertEqual(u['show_prices'], 0)
+
+    def test_stock_entry_price_is_optional_and_editable(self):
+        from app.routes.stock import EntryEdit, edit_entry
+        from app.stock import purchase
+        from app.routes.products import load_product
+        stock_id = purchase(self.db, 1, 2, price=4.5, user_id=self.user['id'])['stock_id']
+        p = load_product(self.db, 1)
+        self.assertEqual(p['stock'][0]['price'], 4.5)
+        # editing without clearing price keeps it
+        edit_entry(stock_id, EntryEdit(amount=2, price=4.5), self.db, self.user)
+        p = load_product(self.db, 1)
+        self.assertEqual(p['stock'][0]['price'], 4.5)
+        # clearing it is a real action, not ignored
+        edit_entry(stock_id, EntryEdit(amount=2, price=None), self.db, self.user)
+        p = load_product(self.db, 1)
+        self.assertIsNone(p['stock'][0]['price'])
 
     def test_note_edit_to_ingredients_and_shopping(self):
         from app.routes.mealplan import MealIn, MealEdit, add_meal, edit_meal, needs, plan_to_shopping
@@ -155,6 +177,7 @@ class Usability(unittest.TestCase):
         pre = """
 const assert=require('node:assert/strict'); const today=()=> '2026-10-12';
 const addDays=x=>x, oops=e=>{throw e;}, toast=()=>{};
+const preferences=()=>({show_prices:false});
 const window={}; const calls=[]; async function api(path,opts={}) {calls.push({path,...opts}); return [];}
 """
         body = """

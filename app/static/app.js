@@ -109,7 +109,7 @@ if ('serviceWorker' in navigator) {
 }
 
 function preferences() {
-  return window.USER_PREFS || {date_format: 'DD/MM/YYYY', measurement_system: 'metric'};
+  return window.USER_PREFS || {date_format: 'DD/MM/YYYY', measurement_system: 'metric', show_prices: false};
 }
 
 function formatDate(iso, format = preferences().date_format) {

@@ -60,6 +60,8 @@
                 </template>
               </select>
               {{ date_field('e.expires_on', 'Date', false) }}
+              <input x-show="prices" x-cloak type="number" step="0.01" min="0" x-model.number="e.price"
+                     aria-label="Price paid" placeholder="Price">
               <label class="inline small"><input type="checkbox" x-model="e.opened"> opened</label>
               <button class="small">Save</button>
             </form>
@@ -111,6 +113,7 @@ function stockPage() {
   return {
     items: [], missing: [], history: [], locations: [], entries: [],
     q: '', loc: '', open: null, loaded: false, adding: false, pq: '', found: [],
+    prices: !!preferences().show_prices,
     init() { this.q = new URLSearchParams(location.search).get('q') || ''; },
     async load() {
       try {
@@ -141,7 +144,8 @@ function stockPage() {
       try {
         await api('/api/stock/entries/' + e.id, { method: 'PUT', body: {
           amount: e.amount, location_id: e.location_id ? Number(e.location_id) : null,
-          expires_on: e.expires_on || null, opened: e.opened } });
+          expires_on: e.expires_on || null, opened: e.opened,
+          price: e.price === '' || e.price == null ? null : Number(e.price) } });
         toast('Saved');
         this.load();
       } catch (err) { oops(err); }

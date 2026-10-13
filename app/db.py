@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
     portion_size TEXT NOT NULL DEFAULT 'regular',
     date_format TEXT NOT NULL DEFAULT 'DD/MM/YYYY',
     measurement_system TEXT NOT NULL DEFAULT 'metric',
+    show_prices INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -231,6 +232,8 @@ def init_db():
     for name, default in (("date_format", "DD/MM/YYYY"), ("measurement_system", "metric")):
         if name not in columns:
             conn.execute(f"ALTER TABLE users ADD COLUMN {name} TEXT NOT NULL DEFAULT '{default}'")
+    if "show_prices" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN show_prices INTEGER NOT NULL DEFAULT 0")
     conn.executemany("INSERT OR IGNORE INTO units(name, name_plural) VALUES (?, ?)",
                      DEFAULT_UNITS + [("oz", "oz"), ("lb", "lb"), ("fl oz (US)", "fl oz (US)")])
     ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}

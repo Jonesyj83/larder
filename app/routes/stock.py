@@ -54,6 +54,7 @@ class EntryEdit(DatedInput):
     location_id: Optional[int] = None
     expires_on: Optional[str] = None
     opened: bool = False
+    price: Optional[float] = Field(default=None, ge=0, le=MAX_AMOUNT, allow_inf_nan=False)
 
 
 @router.get("")
@@ -148,8 +149,8 @@ def edit_entry(entry_id: int, data: EntryEdit, db=Depends(get_db), user=Depends(
     if data.amount <= 0:
         db.execute("DELETE FROM stock WHERE id = ?", (entry_id,))
     else:
-        db.execute("UPDATE stock SET amount = ?, location_id = ?, expires_on = ?, opened = ? WHERE id = ?",
-                   (data.amount, data.location_id, data.expires_on or None, int(data.opened), entry_id))
+        db.execute("UPDATE stock SET amount = ?, location_id = ?, expires_on = ?, opened = ?, price = ? WHERE id = ?",
+                   (data.amount, data.location_id, data.expires_on or None, int(data.opened), data.price, entry_id))
     if data.amount != e["amount"]:
         db.execute("INSERT INTO stock_log (product_id, user_id, kind, amount, location_id) VALUES (?, ?, 'adjust', ?, ?)",
                    (e["product_id"], user["id"], max(data.amount, 0) - e["amount"], data.location_id))

@@ -22,6 +22,8 @@
         <option value="metric">Metric</option><option value="imperial">Imperial (US volume)</option>
       </select><p class="muted small">Suggests units and formats quantities. Counts and stored amounts stay as entered.</p></div>
     </div>
+    <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="showPrices" @change="savePortion()"> Show prices</label>
+    <p class="muted small">Price is always optional when adding or scanning stock. This just controls whether it's shown back to you afterward.</p>
     <form @submit.prevent="changePassword()" style="margin-top: 1rem">
       <b class="small">Change password</b>
       <div class="grid2">
@@ -140,7 +142,7 @@
 function settingsPage() {
   return {
     dateFormat: preferences().date_format, measurementSystem: preferences().measurement_system,
-    portion: '{{ user.portion_size }}', pw: { old: '', new: '' },
+    portion: '{{ user.portion_size }}', showPrices: !!preferences().show_prices, pw: { old: '', new: '' },
     keys: [], keyName: '', newKey: '',
     sg: {}, testing: false, connectionRoute: '',
     prefs: { diet: [], dislikes: [], other: '', diet_tags: [] }, newDislike: '',
@@ -166,7 +168,7 @@ function settingsPage() {
       } catch (e) { oops(e); }
     },
     async savePortion() {
-      try { await api('/api/me', { method: 'PUT', body: { portion_size: this.portion, date_format: this.dateFormat, measurement_system: this.measurementSystem } }); window.USER_PREFS = {date_format: this.dateFormat, measurement_system: this.measurementSystem}; toast('Saved'); } catch (e) { oops(e); }
+      try { await api('/api/me', { method: 'PUT', body: { portion_size: this.portion, date_format: this.dateFormat, measurement_system: this.measurementSystem, show_prices: this.showPrices } }); window.USER_PREFS = {date_format: this.dateFormat, measurement_system: this.measurementSystem, show_prices: this.showPrices}; toast('Saved'); } catch (e) { oops(e); }
     },
     async changePassword() {
       try {
