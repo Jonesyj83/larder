@@ -13,7 +13,7 @@ If your household is different, Grocy's flexibility might suit you better than t
 this is deliberately the smaller, opinionated version.
 
 It's a FastAPI app with a single SQLite file. The frontend is plain HTML with Alpine.js,
-so there's no build step. See [CHANGELOG.md](CHANGELOG.md) for what's changed recently.
+so there's no build step. [CHANGELOG.md](CHANGELOG.md) has what's new.
 
 ## Running it
 
