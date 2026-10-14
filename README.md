@@ -132,5 +132,12 @@ Things I know are missing and might get to:
   data becomes available rather than all at once - some places just don't publish anything
   usable yet.
 - Proper import from Grocy's export, instead of the one-off script I used for my own data.
+- A nicer recipe page - photo-forward card layout, a proper filter row instead of the one
+  checkbox, and a better add/edit form with optional ingredient groupings.
+- Importing recipes instead of typing them in by hand: paste a block of text, paste a link
+  to a recipe site, or a photo of a cookbook page, and have it come back as a real recipe
+  you review before saving - the same review screen suggestions already use. Paste-a-link
+  can read structured recipe data straight off most recipe sites without needing a model at
+  all; a photo needs a provider that can actually look at images.
 
 If you build any of these first, a pull request is very welcome.
