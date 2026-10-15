@@ -11,18 +11,29 @@
 
   <!-- list -->
   <div x-show="!current">
-    <label class="inline toolbar"><input type="checkbox" x-model="onlyReady"> Only what I can make right now</label>
-    <div class="card">
-      <p class="muted" x-show="loaded && !recipes.length" x-cloak>No recipes yet.</p>
-      <p class="muted" x-show="loaded && recipes.length && !shown().length" x-cloak>No saved recipes can be made with the stock on hand.</p>
+    <div class="row toolbar">
+      <div class="seg" role="group" aria-label="Filter recipes">
+        <button type="button" :class="{on: filter == 'all'}" @click="filter = 'all'">All</button>
+        <button type="button" :class="{on: filter == 'ready'}" @click="filter = 'ready'">Can make</button>
+        <button type="button" :class="{on: filter == 'missing'}" @click="filter = 'missing'">Missing a few</button>
+      </div>
+    </div>
+    <p class="muted" x-show="loaded && !recipes.length" x-cloak>No recipes yet.</p>
+    <p class="muted" x-show="loaded && recipes.length && !shown().length" x-cloak>No saved recipes match that filter.</p>
+    <div class="recipe-grid">
       <template x-for="r in shown()" :key="r.id">
-        <div class="list-item" style="cursor: pointer" @click="open(r.id)">
-          <div class="grow">
-            <b x-text="r.name"></b>
-            <div class="small muted" x-text="num(r.servings) + ' servings, ' + r.ingredient_count + ' ingredients'"></div>
+        <div class="recipe-card" @click="open(r.id)">
+          <div class="recipe-thumb" :class="{empty: !r.picture}">
+            <img x-show="r.picture" :src="pic(r.picture)" alt="">
           </div>
-          <span x-show="r.can_make" class="ok small">can make it</span>
-          <span x-show="!r.can_make && r.ingredient_count" class="warn small" x-text="r.missing_count + ' missing'"></span>
+          <b x-text="r.name"></b>
+          <div class="small muted" x-text="num(r.servings) + ' servings, ' + r.ingredient_count + ' ingredients'"></div>
+          <div class="row" style="margin-top: .3rem">
+            <span class="stars small" x-text="stars(r.rating)" x-show="r.rating"></span>
+            <span class="spacer grow"></span>
+            <span x-show="r.can_make" class="ok small">can make it</span>
+            <span x-show="!r.can_make && r.ingredient_count" class="warn small" x-text="r.missing_count + ' missing'"></span>
+          </div>
         </div>
       </template>
     </div>
@@ -33,10 +44,18 @@
     <div>
       <p><a href="{{ base_path }}/recipes" @click.prevent="close()">&larr; all recipes</a></p>
       <div class="card">
+        <div class="recipe-banner" x-show="current.picture"><img :src="pic(current.picture)" alt=""></div>
         <div class="row">
           <h2 class="grow" style="margin: 0" x-text="current.name"></h2>
           <span x-show="current.can_make" class="ok">You've got everything</span>
           <span x-show="!current.can_make && current.ingredients.length" class="warn" x-text="current.missing_count + ' missing'"></span>
+        </div>
+        <div class="row" style="margin: .4rem 0">
+          <span class="muted small">Rate it</span>
+          <template x-for="n in [1,2,3,4,5]" :key="n">
+            <button type="button" class="star-btn" :aria-label="'Rate ' + n + ' stars'" @click="rate(n)" x-text="n <= current.rating ? '★' : '☆'"></button>
+          </template>
+          <button type="button" class="small" x-show="current.rating" @click="rate(0)">Clear</button>
         </div>
         <div class="row" style="margin: .6rem 0">
           <span>Servings</span>
@@ -187,7 +206,7 @@
 <script>
 function recipesPage() {
   return {
-    recipes: [], products: [], units: [], loaded: false, onlyReady: false,
+    recipes: [], products: [], units: [], loaded: false, filter: 'all',
     current: null, servings: null, form: null, busy: false, suggest: false,
     slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     planOpen: false, plan: { day: today(), slot: 'dinner', servings: null },
@@ -203,7 +222,12 @@ function recipesPage() {
     async load() {
       try { this.recipes = await api('/api/recipes/makeable'); this.loaded = true; } catch (e) { oops(e); }
     },
-    shown() { return this.recipes.filter(r => !this.onlyReady || r.can_make); },
+    shown() {
+      if (this.filter == 'ready') return this.recipes.filter(r => r.can_make);
+      if (this.filter == 'missing') return this.recipes.filter(r => !r.can_make && r.ingredient_count);
+      return this.recipes;
+    },
+    stars(n) { return '★'.repeat(n || 0); },
     async open(id) {
       try {
         const same = this.current && this.current.id == id;
@@ -252,6 +276,14 @@ function recipesPage() {
     async remove() {
       if (!confirm('Delete ' + this.current.name + '?')) return;
       try { await api('/api/recipes/' + this.current.id, { method: 'DELETE' }); this.close(); } catch (e) { oops(e); }
+    },
+    async rate(n) {
+      try {
+        await api('/api/recipes/' + this.current.id + '/rating', { method: 'PUT', body: { rating: n } });
+        this.current.rating = n;
+        const r = this.recipes.find(x => x.id == this.current.id);
+        if (r) r.rating = n;
+      } catch (e) { oops(e); }
     },
     async toShopping() {
       try {

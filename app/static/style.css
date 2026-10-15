@@ -292,6 +292,21 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
 .conversion-row { grid-template-columns: minmax(0,1fr) minmax(6rem,.6fr) minmax(0,1fr) auto; }
 .manage-row { margin-bottom: 12px; }
 .stock-entry { display: grid; grid-template-columns: 6rem auto minmax(8rem, 1fr) minmax(9rem, 1fr) auto auto; gap: 8px; align-items: center; margin: 12px 0; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); }
+.seg button { background: none; border: 0; border-radius: 0; min-height: 40px; padding: 6px 14px; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent); color: var(--accent-text); font-weight: 700; }
+
+.recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.recipe-card { background: var(--card); padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.recipe-thumb { aspect-ratio: 16 / 9; background: var(--bg); overflow: hidden; margin-bottom: 4px; }
+.recipe-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.recipe-thumb.empty { border: 1px dashed var(--line); }
+.recipe-banner { margin: -20px -20px 16px; aspect-ratio: 21 / 9; overflow: hidden; background: var(--bg); }
+.recipe-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stars { color: var(--accent); letter-spacing: 1px; }
+.star-btn { background: none; border: 0; min-height: auto; min-width: auto; padding: 2px 1px; font-size: 1.2rem; color: var(--accent); line-height: 1; }
 .scanner-choice { width: min(100%, 17rem); }
 .portion-choice { width: min(100%, 14rem); }
 @media (max-width: 1050px) and (min-width: 801px) { .week { grid-template-columns: repeat(4, minmax(0,1fr)); } }

@@ -363,3 +363,38 @@ async function api(path,opts={}) {
         recipes=(root/'app/templates/recipes.html').read_text().split('<script>')[1].split('</script>')[0]
         run=subprocess.run(['node'],input=pre+helpers+script+recipes+body,text=True,capture_output=True,timeout=15)
         self.assertEqual(run.returncode,0,run.stderr)
+
+    def test_recipe_filter_and_rating_javascript(self):
+        import subprocess
+        from pathlib import Path
+        root=Path(__file__).resolve().parents[1]
+        recipes=(root/'app/templates/recipes.html').read_text().split('<script>')[1].split('</script>')[0]
+        body="""
+const assert=require('node:assert/strict'), window={}, calls=[];
+const today=()=> '2026-10-12', addDays=x=>x, toast=()=>{}, oops=e=>{throw e};
+async function api(path,opts={}) { calls.push({path,...opts}); return {}; }
+(async()=>{
+const r = recipesPage();
+r.recipes = [
+  {id:1, name:'Chilli', can_make:true, ingredient_count:5, rating:4},
+  {id:2, name:'Soup', can_make:false, ingredient_count:3, rating:0},
+  {id:3, name:'Draft idea', can_make:false, ingredient_count:0, rating:0},
+];
+assert.equal(r.shown().length, 3);
+r.filter = 'ready'; assert.deepEqual(r.shown().map(x=>x.id), [1]);
+r.filter = 'missing'; assert.deepEqual(r.shown().map(x=>x.id), [2]);
+r.filter = 'all'; assert.equal(r.shown().length, 3);
+assert.equal(r.stars(4), '\\u2605\\u2605\\u2605\\u2605');
+assert.equal(r.stars(0), '');
+assert.equal(r.stars(undefined), '');
+r.current = {id:1, rating:4};
+await r.rate(2);
+assert.equal(r.current.rating, 2);
+assert.equal(r.recipes.find(x=>x.id==1).rating, 2);
+assert.equal(calls[0].path, '/api/recipes/1/rating');
+assert.equal(calls[0].method, 'PUT');
+assert.deepEqual(calls[0].body, {rating: 2});
+})().catch(e=>{console.error(e);process.exit(1)});
+"""
+        run=subprocess.run(['node'],input=recipes+body,text=True,capture_output=True,timeout=15)
+        self.assertEqual(run.returncode,0,run.stderr)

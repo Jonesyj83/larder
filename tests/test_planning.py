@@ -157,3 +157,19 @@ class Planning(unittest.TestCase):
             meal_from_suggestion(SuggestedMealIn(day='2026-10-12',slot='lunch',name='Toast',servings=1,
                 ingredients=[{'name':'Bread','amount':1,'unit':'slice'}]),self.db,self.user)
         self.assertEqual((self.count('products'),self.count('recipes'),self.count('meal_plan')),(1,0,0))
+
+    def test_recipe_rating(self):
+        from app.routes.recipes import RatingIn, rate_recipe
+        r = add_recipe(RecipeIn(name='Toast', servings=1, ingredients=[]), self.db, self.user)
+        self.assertEqual(r['rating'], 0)  # unrated by default
+        rate_recipe(r['id'], RatingIn(rating=4), self.db, self.user)
+        self.assertEqual(self.db.execute('SELECT rating FROM recipes WHERE id=?', (r['id'],)).fetchone()[0], 4)
+        # clearing it back to 0 is a real action
+        rate_recipe(r['id'], RatingIn(rating=0), self.db, self.user)
+        self.assertEqual(self.db.execute('SELECT rating FROM recipes WHERE id=?', (r['id'],)).fetchone()[0], 0)
+        with self.assertRaises(ValidationError):
+            RatingIn(rating=6)
+        with self.assertRaises(ValidationError):
+            RatingIn(rating=-1)
+        with self.assertRaises(HTTPException):
+            rate_recipe(99999, RatingIn(rating=3), self.db, self.user)

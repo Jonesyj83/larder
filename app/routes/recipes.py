@@ -144,6 +144,19 @@ def delete_recipe(recipe_id: int, db=Depends(get_db), user=Depends(current_user)
     return {"ok": True}
 
 
+class RatingIn(BaseModel):
+    rating: int = Field(ge=0, le=5)
+
+
+@router.put("/{recipe_id}/rating")
+def rate_recipe(recipe_id: int, data: RatingIn, db=Depends(get_db), user=Depends(current_user)):
+    if not db.execute("SELECT 1 FROM recipes WHERE id = ?", (recipe_id,)).fetchone():
+        raise HTTPException(404, "Recipe not found")
+    db.execute("UPDATE recipes SET rating = ? WHERE id = ?", (data.rating, recipe_id))
+    db.commit()
+    return {"rating": data.rating}
+
+
 @router.post("/{recipe_id}/shopping")
 def missing_to_shopping(recipe_id: int, servings: Optional[float] = None, db=Depends(get_db), user=Depends(current_user)):
     """Put whatever's short onto the shopping list, in stock units."""

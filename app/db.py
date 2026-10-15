@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS recipes (
     servings REAL NOT NULL DEFAULT 2,
     instructions TEXT NOT NULL DEFAULT '',
     picture TEXT,
+    rating INTEGER NOT NULL DEFAULT 0 CHECK (rating BETWEEN 0 AND 5),
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -234,6 +235,8 @@ def init_db():
             conn.execute(f"ALTER TABLE users ADD COLUMN {name} TEXT NOT NULL DEFAULT '{default}'")
     if "show_prices" not in columns:
         conn.execute("ALTER TABLE users ADD COLUMN show_prices INTEGER NOT NULL DEFAULT 0")
+    if "rating" not in {r["name"] for r in conn.execute("PRAGMA table_info(recipes)")}:
+        conn.execute("ALTER TABLE recipes ADD COLUMN rating INTEGER NOT NULL DEFAULT 0")
     conn.executemany("INSERT OR IGNORE INTO units(name, name_plural) VALUES (?, ?)",
                      DEFAULT_UNITS + [("oz", "oz"), ("lb", "lb"), ("fl oz (US)", "fl oz (US)")])
     ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}

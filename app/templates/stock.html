@@ -8,11 +8,11 @@
     <button @click="adding = true">Add stock</button>
   </div>
 
-  <div class="row toolbar" x-show="soonCount || overdueCount" x-cloak>
+  <div class="row toolbar" x-show="soonCount || overdueCount || missing.length" x-cloak>
     <span class="grow small">
-      <span class="warn" x-show="soonCount" x-text="soonCount + ' going off soon'"></span><span x-show="soonCount && overdueCount">, </span><span class="bad" x-show="overdueCount" x-text="overdueCount + ' past date'"></span>
+      <span class="warn" x-show="soonCount" x-text="soonCount + ' going off soon'"></span><span x-show="soonCount && (overdueCount || missing.length)">, </span><span class="bad" x-show="overdueCount" x-text="overdueCount + ' past date'"></span><span x-show="overdueCount && missing.length">, </span><span class="warn" x-show="missing.length" x-text="missing.length + ' running low'"></span>
     </span>
-    <a class="small" href="{{ base_path }}/expiring">See the use by list</a>
+    <a class="small" href="{{ base_path }}/expiring" x-show="soonCount || overdueCount">See the use by list</a>
   </div>
 
   <div class="card" x-show="missing.length" x-cloak>
