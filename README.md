@@ -139,5 +139,14 @@ Things I know are missing and might get to:
   you review before saving - the same review screen suggestions already use. Paste-a-link
   can read structured recipe data straight off most recipe sites without needing a model at
   all; a photo needs a provider that can actually look at images.
+- A quick "give me an idea" right on a single meal plan slot instead of only the whole-grid
+  version - type what you feel like for just that one meal and get one answer back.
+- Tracking cooked meals as their own thing, not just raw stock. Cook something for 4, eat 1,
+  and the other 3 become portions sitting in the fridge or freezer that the meal plan can
+  pull from directly instead of cooking fresh again. A short code written on the container
+  (something like B102) ties a container back to its batch - reuses the barcode system
+  already there, just handwritten instead of scanned.
+- A rating on recipes - nothing fancy, just enough to look back and go "oh that one was good"
+  or "never again."
 
 If you build any of these first, a pull request is very welcome.
