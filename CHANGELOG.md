@@ -2,6 +2,16 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-15
+
+- Recipes page is a card grid now instead of a flat list, with a real filter
+  (all / can make / missing a few) instead of one checkbox.
+- You can rate a recipe now, 1 to 5 stars, so you can look back and know which
+  ones are actually worth making again.
+- Running low on something now shows up in the same summary line at the top of
+  Stock as the going-off-soon/past-date counts, as long as you've set a "keep
+  at least" amount on the product.
+
 ## 2026-10-14
 
 - Prices are optional now when you buy or scan something in, and you can turn on

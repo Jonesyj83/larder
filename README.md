@@ -123,8 +123,6 @@ for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: your-ke
 
 Things I know are missing and might get to:
 
-- A low-stock count somewhere visible on the Stock page, so you notice you're running low
-  on something without having to go looking.
 - A country and currency setting, with a list of supermarkets that updates based on which
   country you pick (Woolworths, Coles, Aldi for Australia, wherever makes sense elsewhere).
   Pick the ones you actually shop at and it pulls live prices for your shopping list from
@@ -132,8 +130,6 @@ Things I know are missing and might get to:
   data becomes available rather than all at once - some places just don't publish anything
   usable yet.
 - Proper import from Grocy's export, instead of the one-off script I used for my own data.
-- A nicer recipe page - photo-forward card layout, a proper filter row instead of the one
-  checkbox, and a better add/edit form with optional ingredient groupings.
 - Importing recipes instead of typing them in by hand: paste a block of text, paste a link
   to a recipe site, or a photo of a cookbook page, and have it come back as a real recipe
   you review before saving - the same review screen suggestions already use. Paste-a-link
@@ -146,7 +142,5 @@ Things I know are missing and might get to:
   pull from directly instead of cooking fresh again. A short code written on the container
   (something like B102) ties a container back to its batch - reuses the barcode system
   already there, just handwritten instead of scanned.
-- A rating on recipes - nothing fancy, just enough to look back and go "oh that one was good"
-  or "never again."
 
 If you build any of these first, a pull request is very welcome.
