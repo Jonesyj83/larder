@@ -2,6 +2,19 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-18
+
+- Cooking a recipe can now ask how many portions are left over and where
+  they're going (fridge or freezer). Each batch gets a short code (B1, B2...)
+  to write on the container.
+- Stock page shows what's stored and waiting to be eaten, with a button to
+  use a portion or take it off the list when it's gone.
+- Meal plan can pull a stored meal straight into a day instead of cooking
+  fresh - no stock gets taken twice, that already happened when it was cooked.
+- Diet options now include gastric sleeve, gastric bypass, high protein and
+  low sugar, spelled out in real cooking terms (small portions, protein
+  first, no fizzy drinks) rather than just handed to the model as a label.
+
 ## 2026-10-15
 
 - Recipes page is a card grid now instead of a flat list, with a real filter
