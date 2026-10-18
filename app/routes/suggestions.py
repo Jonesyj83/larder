@@ -107,7 +107,22 @@ DIET_TAGS = [
     "Vegetarian", "Vegan", "Pescatarian", "No seafood", "No pork", "No red meat",
     "No shellfish", "Halal", "Kosher", "Gluten-free", "Dairy-free", "Lactose-free",
     "Nut-free", "Egg-free", "Low-carb", "Keto", "No added sugar",
+    "Gastric sleeve", "Gastric bypass", "High protein", "Low sugar",
 ]
+
+# Medical/dietary tags that need spelling out in plain cooking terms, not just a label -
+# a model won't reliably turn "gastric sleeve" into the right portion/texture advice on its own.
+DIET_GUIDANCE = {
+    "Gastric sleeve": "a sleeve patient can only manage a small portion, well under a normal "
+        "plate - protein first, then veg, carbs last and often skipped. Low sugar, no fizzy "
+        "drinks. Avoid dry, fibrous or doughy textures that are hard to get down.",
+    "Gastric bypass": "a bypass patient can only manage a small portion, well under a normal "
+        "plate - protein first. Low sugar and not too rich/fatty - sugary or fatty food in any "
+        "real amount risks dumping syndrome. No fizzy drinks.",
+    "High protein": "lean toward protein-dense meals and bulk them up with extra meat, eggs, "
+        "beans or dairy where it makes sense.",
+    "Low sugar": "avoid added sugar and very sweet dishes or sauces.",
+}
 
 
 def _preferences(db):
@@ -122,6 +137,9 @@ def _preferences_text(db):
     lines = []
     if p["diet"]:
         lines.append("Dietary requirements (hard rules, never break these): " + ", ".join(p["diet"]) + ".")
+        for tag in p["diet"]:
+            if tag in DIET_GUIDANCE:
+                lines.append(f"For \"{tag}\": " + DIET_GUIDANCE[tag])
     if p["dislikes"]:
         lines.append("Avoid these ingredients/dishes entirely: " + ", ".join(p["dislikes"]) + ".")
     if p["other"].strip():

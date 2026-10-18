@@ -194,6 +194,20 @@ class Discovery(unittest.TestCase):
         self.assertIn('No seafood',tags)
         self.assertGreaterEqual(len(tags),10)
 
+    def test_gastric_sleeve_gets_spelled_out_in_plain_cooking_terms(self):
+        # a model can't be trusted to turn "gastric sleeve" into the right advice on its own
+        sg.save_preferences(sg.PreferencesIn(diet=['Gastric sleeve'],dislikes=[],other=''),self.db,self.user)
+        text = sg._preferences_text(self.db)
+        self.assertIn('Gastric sleeve',text)
+        self.assertIn('small portion',text)
+        self.assertIn('protein first',text)
+        self.assertIn('Gastric sleeve',sg.DIET_TAGS)
+        self.assertIn('Gastric bypass',sg.DIET_TAGS)
+        self.assertIn('High protein',sg.DIET_TAGS)
+        # a plain tag with no special guidance still gets listed, just without the extra note
+        sg.save_preferences(sg.PreferencesIn(diet=['Vegan'],dislikes=[],other=''),self.db,self.user)
+        self.assertNotIn('small portion',sg._preferences_text(self.db))
+
     def test_saved_search_without_provider_and_bad_payloads(self):
         self.meal([{'name':'Bread','amount':2,'unit_id':1}])
         with patch.object(sg,'_run',side_effect=AssertionError('no generation')):
