@@ -105,7 +105,7 @@ class Planning(unittest.TestCase):
         self.assertEqual(missing_to_shopping(r['id'], None, self.db, self.user)['added'], 1)
         self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 1)
         self.assertEqual(missing_to_shopping(r['id'], None, self.db, self.user)['added'], 0)
-        cook(r['id'], None, self.db, self.user)
+        cook(r['id'], None, db=self.db, user=self.user)
         self.assertEqual(check(self.db, r['id'])['missing_count'], 2)
         missing_to_shopping(r['id'], None, self.db, self.user)
         self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 4)
@@ -173,3 +173,53 @@ class Planning(unittest.TestCase):
             RatingIn(rating=-1)
         with self.assertRaises(HTTPException):
             rate_recipe(99999, RatingIn(rating=3), self.db, self.user)
+
+    def test_cooked_batches_stored_used_and_pulled_into_the_plan(self):
+        from app.routes.recipes import cook
+        from app.routes.batches import list_batches, use_batch, remove_batch, UseIn
+        from app.routes.mealplan import FromBatchIn, meal_from_batch
+        self.db.execute("INSERT INTO locations(id,name,is_freezer) VALUES(1,'Freezer',1),(2,'Fridge',0)")
+        self.db.commit()
+        pid = self.db.execute("INSERT INTO products(name,unit_id) VALUES('Beef Mince',2)").lastrowid
+        purchase(self.db, pid, 4, 2, user_id=1)
+        r = add_recipe(RecipeIn(name='Chilli con carne', servings=4,
+            ingredients=[{'product_id': pid, 'amount': 4, 'unit_id': 2}]), self.db, self.user)
+        # cooking it with no leftovers specified: no batch, same as before
+        plain = cook(r['id'], None, db=self.db, user=self.user)
+        self.assertIsNone(plain['batch'])
+        self.assertEqual(self.count('cooked_batches'), 0)
+        # must say where the leftovers are going
+        purchase(self.db, pid, 4, 2, user_id=1)
+        with self.assertRaises(HTTPException):
+            cook(r['id'], None, leftover_portions=3, db=self.db, user=self.user)
+        result = cook(r['id'], None, leftover_portions=3, location_id=1, db=self.db, user=self.user)
+        batch = result['batch']
+        self.assertEqual(batch['portions_left'], 3)
+        self.assertEqual(batch['name'], 'Chilli con carne')
+        self.assertEqual(batch['location'], 'Freezer')
+        self.assertTrue(batch['is_freezer'])
+        self.assertTrue(batch['code'].startswith('B'))
+        self.assertEqual(len(list_batches(self.db, self.user)), 1)
+        # use it in the meal plan - no stock gets touched, it was already taken when cooked
+        before = self.db.execute('SELECT amount FROM stock').fetchall()
+        used = meal_from_batch(FromBatchIn(day='2026-10-12', slot='dinner', batch_id=batch['id']), self.db, self.user)
+        self.assertEqual(used['portions_left'], 2)
+        self.assertEqual(used['meal']['note'], 'Chilli con carne')
+        self.assertEqual(used['meal']['batch_id'], batch['id'])
+        self.assertEqual(self.db.execute('SELECT amount FROM stock').fetchall(), before)
+        # using it down to zero clears the batch entirely, and un-links the meal that used the last of it
+        use_batch(batch['id'], UseIn(amount=1), self.db, self.user)
+        last = meal_from_batch(FromBatchIn(day='2026-10-13', slot='dinner', batch_id=batch['id']), self.db, self.user)
+        self.assertEqual(last['portions_left'], 0)
+        self.assertEqual(self.count('cooked_batches'), 0)
+        self.assertEqual(len(list_batches(self.db, self.user)), 0)
+        self.assertIsNone(self.db.execute('SELECT batch_id FROM meal_plan WHERE id=?', (last['meal']['id'],)).fetchone()[0])
+        # gone batches can't be used again
+        with self.assertRaises(HTTPException):
+            meal_from_batch(FromBatchIn(day='2026-10-14', slot='dinner', batch_id=batch['id']), self.db, self.user)
+        with self.assertRaises(HTTPException):
+            use_batch(batch['id'], UseIn(amount=1), self.db, self.user)
+        # a leftover batch can be thrown out manually too
+        another = cook(r['id'], None, leftover_portions=2, location_id=2, db=self.db, user=self.user)['batch']
+        remove_batch(another['id'], self.db, self.user)
+        self.assertEqual(self.count('cooked_batches'), 0)

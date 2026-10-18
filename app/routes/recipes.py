@@ -179,8 +179,12 @@ def missing_to_shopping(recipe_id: int, servings: Optional[float] = None, db=Dep
 
 
 @router.post("/{recipe_id}/cook")
-def cook(recipe_id: int, servings: Optional[float] = None, db=Depends(get_db), user=Depends(current_user)):
-    """Take the ingredients out of stock. Uses what's there if something's short."""
+def cook(recipe_id: int, servings: Optional[float] = None, leftover_portions: Optional[float] = None,
+         location_id: Optional[int] = None, db=Depends(get_db), user=Depends(current_user)):
+    """Take the ingredients out of stock. Uses what's there if something's short.
+    Any portions left over get stored as a batch you can pull back into the meal plan later."""
+    if leftover_portions is not None and leftover_portions > 0 and not location_id:
+        raise HTTPException(400, "Pick where the leftovers are going")
     # all or nothing, and a double click can't take everything out twice
     begin(db)
     r = check(db, recipe_id, servings)
@@ -192,8 +196,21 @@ def cook(recipe_id: int, servings: Optional[float] = None, db=Depends(get_db), u
                 continue
             st.consume(db, i["product_id"], i["need"], None, user_id=user["id"], allow_partial=True, commit=False)
             used.append(i["name"])
+        batch = None
+        if leftover_portions and leftover_portions > 0:
+            if not row(db.execute("SELECT 1 FROM locations WHERE id = ?", (location_id,))):
+                raise HTTPException(400, "That location doesn't exist")
+            cur = db.execute(
+                "INSERT INTO cooked_batches(code,recipe_id,name,location_id,portions_total,portions_left,created_by) "
+                "VALUES('',?,?,?,?,?,?)",
+                (recipe_id, r["name"], location_id, leftover_portions, leftover_portions, user["id"]))
+            db.execute("UPDATE cooked_batches SET code = ? WHERE id = ?", ("B" + str(cur.lastrowid), cur.lastrowid))
+            batch = row(db.execute("""
+                SELECT c.*, l.name AS location, l.is_freezer FROM cooked_batches c
+                JOIN locations l ON l.id = c.location_id WHERE c.id = ?""", (cur.lastrowid,)))
+            batch = dict(batch, is_freezer=bool(batch["is_freezer"]))
     except st.StockError as e:
         db.rollback()
         raise HTTPException(400, str(e))
     db.commit()
-    return {"used": used, "skipped": skipped}
+    return {"used": used, "skipped": skipped, "batch": batch}

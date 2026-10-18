@@ -23,6 +23,21 @@
     <div class="small muted" x-text="missing.map(m => m.name + ' (' + qty(m.amount, m.unit) + ' / ' + qty(m.min_stock, m.unit) + ')').join(', ')"></div>
   </div>
 
+  <div class="card" x-show="batches.length" x-cloak>
+    <b>Stored meals</b>
+    <div class="small muted" style="margin-bottom: .4rem">Cooked meals sitting in the fridge or freezer. Write the code on the container when you put it away.</div>
+    <template x-for="b in batches" :key="b.id">
+      <div class="list-item">
+        <div class="grow">
+          <b x-text="b.code"></b> <span x-text="b.name"></span>
+          <div class="small muted" x-text="num(b.portions_left) + (b.portions_left == 1 ? ' portion' : ' portions') + ' left, ' + b.location + ' since ' + formatDate(b.cooked_at)"></div>
+        </div>
+        <button class="small" @click="useBatch(b)">Use 1</button>
+        <button class="small danger" @click="removeBatch(b)" aria-label="Remove">Remove</button>
+      </div>
+    </template>
+  </div>
+
   <div class="filter-row toolbar">
     <label class="grow" for="stock-search">Find food<input id="stock-search" type="search" placeholder="Name of an item" x-model="q"></label>
     <label for="stock-location">Location<select id="stock-location" x-model="loc" @change="load()">
@@ -111,16 +126,16 @@
 <script>
 function stockPage() {
   return {
-    items: [], missing: [], history: [], locations: [], entries: [],
+    items: [], missing: [], history: [], locations: [], entries: [], batches: [],
     q: '', loc: '', open: null, loaded: false, adding: false, pq: '', found: [],
     prices: !!preferences().show_prices,
     init() { this.q = new URLSearchParams(location.search).get('q') || ''; },
     async load() {
       try {
         const loc = this.loc ? '?location_id=' + this.loc : '';
-        [this.items, this.missing, this.history, this.locations] = await Promise.all([
+        [this.items, this.missing, this.history, this.locations, this.batches] = await Promise.all([
           api('/api/stock' + loc), api('/api/stock/missing'),
-          api('/api/stock/log?limit=15'), api('/api/locations')]);
+          api('/api/stock/log?limit=15'), api('/api/locations'), api('/api/cooked-batches')]);
         this.loaded = true;
         if (this.open) this.loadEntries(this.open);
       } catch (e) { oops(e); }
@@ -164,6 +179,17 @@ function stockPage() {
     },
     async searchProducts() {
       this.found = this.pq ? (await api('/api/products?q=' + encodeURIComponent(this.pq))).slice(0, 15) : [];
+    },
+    async useBatch(b) {
+      try {
+        const r = await api('/api/cooked-batches/' + b.id + '/use', { method: 'PUT', body: { amount: 1 } });
+        toast(r.used_up ? b.name + ' is all gone now' : num(r.portions_left) + ' left of ' + b.name);
+        this.load();
+      } catch (e) { oops(e); }
+    },
+    async removeBatch(b) {
+      if (!confirm('Take ' + b.name + ' (' + b.code + ') off the list?')) return;
+      try { await api('/api/cooked-batches/' + b.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
     },
   };
 }

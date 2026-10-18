@@ -80,7 +80,7 @@
         </table>
         <div class="row" style="margin-top: .8rem">
           <button x-show="!current.can_make" @click="toShopping()">Put missing on shopping list</button>
-          <button @click="cook()">Cooked it (take from stock)</button>
+          <button @click="cookOpen = true; cook.leftover = ''; cook.location_id = ''">Cooked it (take from stock)</button>
           <button @click="planOpen = true">Add to meal plan</button>
           <span class="spacer grow"></span>
           <button @click="edit(current)">Edit</button>
@@ -90,6 +90,27 @@
       <div class="card" x-show="current.instructions">
         <pre class="suggestion" x-text="current.instructions"></pre>
       </div>
+
+      <!-- cook it -->
+      <template x-if="cookOpen">
+        <div class="modal-bg" @click.self="cookOpen = false">
+          <form class="modal" @submit.prevent="doCook()">
+            <b>Cooked it</b>
+            <p class="small muted">Takes the ingredients for {{ '' }}<span x-text="num(servings)"></span> servings out of stock.</p>
+            <label class="field">Any portions left over?<input type="number" step="any" min="0" x-model.number="cook.leftover" placeholder="0"></label>
+            <label class="field" x-show="cook.leftover > 0" x-cloak>Where are they going?
+              <select x-model.number="cook.location_id" :required="cook.leftover > 0">
+                <option value="">Choose a location</option>
+                <template x-for="l in locations" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
+              </select>
+            </label>
+            <div class="row" style="margin-top: 1rem">
+              <button class="primary">Cook it</button>
+              <button type="button" @click="cookOpen = false">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </template>
 
       <template x-if="planOpen">
         <div class="modal-bg" @click.self="planOpen = false">
@@ -206,14 +227,15 @@
 <script>
 function recipesPage() {
   return {
-    recipes: [], products: [], units: [], loaded: false, filter: 'all',
+    recipes: [], products: [], units: [], locations: [], loaded: false, filter: 'all',
     current: null, servings: null, form: null, busy: false, suggest: false,
     slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     planOpen: false, plan: { day: today(), slot: 'dinner', servings: null },
+    cookOpen: false, cook: { leftover: '', location_id: '' },
     ideaOpen: false, idea: { text: '', expiring: true, busy: false, result: null },
 
     async init() {
-      [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
+      [this.products, this.units, this.locations] = await Promise.all([api('/api/products'), api('/api/units'), api('/api/locations')]);
       api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
       await this.load();
       const id = new URLSearchParams(location.search).get('id');
@@ -291,11 +313,15 @@ function recipesPage() {
         toast('Added ' + r.added + ' to the shopping list' + (r.problems?.length ? '. Check unit conversions: ' + r.problems.join('; ') : ''), !!r.problems?.length);
       } catch (e) { oops(e); }
     },
-    async cook() {
-      if (!confirm('Take the ingredients for ' + num(this.servings) + ' servings out of stock?')) return;
+    async doCook() {
       try {
-        const r = await api('/api/recipes/' + this.current.id + '/cook?servings=' + this.servings, { method: 'POST' });
-        toast('Used ' + r.used.length + ' ingredients' + (r.skipped.length ? ', skipped ' + r.skipped.join(', ') : ''));
+        const leftover = this.cook.leftover === '' ? 0 : Number(this.cook.leftover);
+        let url = '/api/recipes/' + this.current.id + '/cook?servings=' + this.servings;
+        if (leftover > 0) url += '&leftover_portions=' + leftover + '&location_id=' + this.cook.location_id;
+        const r = await api(url, { method: 'POST' });
+        toast('Used ' + r.used.length + ' ingredients' + (r.skipped.length ? ', skipped ' + r.skipped.join(', ') : '')
+          + (r.batch ? '. Stored ' + num(r.batch.portions_left) + ' portions in the ' + r.batch.location + ' as ' + r.batch.code + ' - write that on the container.' : ''));
+        this.cookOpen = false;
         this.open(this.current.id);
       } catch (e) { oops(e); }
     },

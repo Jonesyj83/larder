@@ -428,14 +428,14 @@ class PlanMaths(MemoryDB):
         pid = product(self.db, 'Bread', 'piece')
         st.purchase(self.db, pid, 3)
         r = add_recipe(RecipeIn(name='Toast', servings=1, ingredients=[{'product_id': pid, 'amount': 2, 'unit_id': self.ids['piece']}]), self.db, USER)
-        self.assertEqual(cook(r['id'], None, self.db, USER)['used'], ['Bread'])
+        self.assertEqual(cook(r['id'], None, db=self.db, user=USER)['used'], ['Bread'])
         self.assertEqual(st.in_stock(self.db, pid), 1)
-        cook(r['id'], None, self.db, USER)  # uses what's left
-        self.assertEqual(cook(r['id'], None, self.db, USER)['skipped'], ['Bread'])
+        cook(r['id'], None, db=self.db, user=USER)  # uses what's left
+        self.assertEqual(cook(r['id'], None, db=self.db, user=USER)['skipped'], ['Bread'])
         self.assertEqual(st.in_stock(self.db, pid), 0)
         for bad in (0, -2, float('nan'), 10 ** 7):
             with self.assertRaises(HTTPException):
-                cook(r['id'], bad, self.db, USER)
+                cook(r['id'], bad, db=self.db, user=USER)
 
 
 def resolver(table):

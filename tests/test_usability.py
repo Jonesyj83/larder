@@ -260,8 +260,20 @@ assert.equal(expiry(p.items[3].next_expiry).cls, '');  // no date - no colour
 // the main list is plain and flat now, no grouping/collapsing
 assert.equal(typeof p.groups, 'undefined');
 assert.equal(p.filtered().length, 4);
+
+// stored meals - using one calls the right endpoint with the right body
+const calls = [];
+globalThis.api = async (path, opts={}) => { calls.push({path,...opts});
+  if (path.includes('/use')) return {portions_left: 2};
+  return {}; };
+globalThis.toast = () => {};
+p.load = () => {};
+await p.useBatch({id: 7, name: 'Chilli con carne', code: 'B7'});
+assert.equal(calls[0].path, '/api/cooked-batches/7/use');
+assert.equal(calls[0].method, 'PUT');
+assert.deepEqual(calls[0].body, {amount: 1});
 """
-        r = subprocess.run(['node'], input=pre+script+'\n'+stock+'\n'+body,text=True,capture_output=True)
+        r = subprocess.run(['node'], input=pre+script+'\n'+stock+'\n'+'(async()=>{\n'+body+'\n})().catch(e=>{console.error(e);process.exit(1)});',text=True,capture_output=True)
         self.assertEqual(r.returncode,0,r.stderr)
 
     def test_meal_idea_cards_save_shop_retry_and_reset_javascript(self):

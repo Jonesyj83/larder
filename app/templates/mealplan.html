@@ -63,6 +63,17 @@
             <label class="inline small"><input type="radio" :value="s" x-model="adding.slot"> <span x-text="s"></span></label>
           </template>
         </div>
+        <div class="card small" x-show="batches.length && !adding.id" x-cloak>
+          <label class="field">Or use something already made
+            <select x-model.number="useBatchId">
+              <option value="">Choose a stored meal</option>
+              <template x-for="b in batches" :key="b.id">
+                <option :value="b.id" x-text="b.code + ' ' + b.name + ' - ' + num(b.portions_left) + ' left (' + b.location + ')'"></option>
+              </template>
+            </select>
+          </label>
+          <button type="button" :disabled="!useBatchId" @click="useStoredMeal()">Use it</button>
+        </div>
         <label class="field">Recipe<select x-model="adding.recipe_id" @change="calcServings()">
           <option value="">Simple meal or note (choose ingredients below)</option>
           <template x-for="r in recipes" :key="r.id">
@@ -253,14 +264,14 @@ function monday(iso) {
 function planPage() {
   return {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
-    busy: false, recipes: [], household: [], products: [], units: [], adding: null, needs: null, suggest: false,
+    busy: false, recipes: [], household: [], products: [], units: [], batches: [], useBatchId: '', adding: null, needs: null, suggest: false,
     ideasOpen: false,
     ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', busy: false, meals: [], missingCells: [], provenance: '' },
     discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
     meId: {{ user.id }},
 
     async init() {
-      [this.recipes, this.household, this.products, this.units] = await Promise.all([api('/api/recipes/makeable'), api('/api/household'), api('/api/products'), api('/api/units')]);
+      [this.recipes, this.household, this.products, this.units, this.batches] = await Promise.all([api('/api/recipes/makeable'), api('/api/household'), api('/api/products'), api('/api/units'), api('/api/cooked-batches')]);
       api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
       this.load();
       this.$watch('ideas.length', () => this.buildIdeasGrid());
@@ -284,6 +295,7 @@ function planPage() {
 
     openAdd(day) {
       this.adding = { request_id: saveRequestId(), day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null, ingredients: [] };
+      this.useBatchId = '';
       this.resetDiscovery();
       this.calcServings();
     },
@@ -359,6 +371,18 @@ function planPage() {
     },
     async remove(m) {
       try { await api('/api/mealplan/' + m.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
+    },
+    async useStoredMeal() {
+      if (!this.useBatchId || this.busy) return;
+      this.busy = true;
+      try {
+        await api('/api/mealplan/from-batch', { method: 'POST', body:
+          { day: this.adding.day, slot: this.adding.slot, batch_id: this.useBatchId } });
+        this.adding = null;
+        this.batches = await api('/api/cooked-batches');
+        this.load();
+      } catch (e) { oops(e); }
+      this.busy = false;
     },
     async showNeeds() {
       try { this.needs = await api('/api/mealplan/needs?start=' + this.start + '&end=' + addDays(this.start, 6)); } catch (e) { oops(e); }

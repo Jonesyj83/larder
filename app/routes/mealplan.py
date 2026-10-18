@@ -219,6 +219,33 @@ def delete_meal(meal_id: int, db=Depends(get_db), user=Depends(current_user)):
     return {"ok": True}
 
 
+class FromBatchIn(BaseModel):
+    day: str
+    slot: Slot
+    batch_id: int
+
+
+@router.post("/mealplan/from-batch", status_code=201)
+@atomic_save
+def meal_from_batch(data: FromBatchIn, db=Depends(get_db), user=Depends(current_user)):
+    """Pull a stored cooked meal straight into a slot - no stock to take out, that
+    already happened when it was cooked. Uses up one portion of the batch."""
+    _day(data.day)
+    b = row(db.execute("SELECT * FROM cooked_batches WHERE id = ?", (data.batch_id,)))
+    if not b or b["portions_left"] <= 0:
+        raise HTTPException(404, "That stored meal isn't there anymore")
+    cur = db.execute("INSERT INTO meal_plan (day, slot, note, servings, user_id, batch_id) VALUES (?, ?, ?, ?, ?, ?)",
+                     (data.day, data.slot, b["name"], 1, user["id"], b["id"]))
+    left = round(b["portions_left"] - 1, 6)
+    if left <= 0:
+        db.execute("UPDATE meal_plan SET batch_id = NULL WHERE batch_id = ?", (b["id"],))
+        db.execute("DELETE FROM cooked_batches WHERE id = ?", (b["id"],))
+    else:
+        db.execute("UPDATE cooked_batches SET portions_left = ? WHERE id = ?", (left, b["id"]))
+    meal = row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (cur.lastrowid,)))
+    return {"meal": meal, "portions_left": max(0.0, left)}
+
+
 @router.get("/mealplan/needs")
 def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
     """Add up every ingredient for the planned meals between two dates and compare with stock."""

@@ -14,7 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .auth import secret_key, user_from_request
 from .db import UPLOAD_DIR, get_db, init_db, rows
 from .icons import make_png
-from .routes import account, core, mealplan, products, recipes, scan, shopping, stock, suggestions
+from .routes import account, batches, core, mealplan, products, recipes, scan, shopping, stock, suggestions
 
 HERE = Path(__file__).resolve().parent
 log = logging.getLogger("larder")
@@ -82,7 +82,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.globals["base_path"] = BASE_PATH
 
-for r in (account, core, products, stock, shopping, scan, recipes, mealplan, suggestions):
+for r in (account, batches, core, products, stock, shopping, scan, recipes, mealplan, suggestions):
     app.include_router(r.router)
 
 
