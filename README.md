@@ -35,6 +35,25 @@ If you'd rather do it by hand:
     .venv/bin/pip install -r requirements.txt
     .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 
+## Updating
+
+    ./update.sh
+
+Backs up the database first (keeps the last 20 backups in `data/backups/`), pulls the
+latest code with `git pull --ff-only` so it never overwrites a local change without
+telling you, then restarts the server - `run.sh` picks up any new Python packages and
+the app applies any new database columns/tables on its own when it starts. Nothing in
+your data gets touched; schema changes are additive, never destructive.
+
+If you run it under systemd instead of calling `run.sh` directly, set `LARDER_SERVICE`
+to your unit's name and `update.sh` will restart that instead:
+
+    LARDER_SERVICE=larder ./update.sh
+
+If you changed something locally and `git pull --ff-only` refuses because of that,
+either commit/stash your change first or just pull manually and sort it out - the
+script won't guess for you.
+
 ### Phones and the camera
 
 Browsers only allow the camera on https (localhost is the exception). On the LAN over
