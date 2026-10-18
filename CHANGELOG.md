@@ -2,6 +2,11 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-19
+
+- Added `update.sh` - backs up the database, pulls the latest code, restarts.
+  One command to update instead of doing it by hand.
+
 ## 2026-10-18
 
 - Cooking a recipe can now ask how many portions are left over and where
