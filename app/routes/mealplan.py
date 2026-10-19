@@ -154,11 +154,18 @@ def meal_from_suggestion(data: SuggestedMealIn, db=Depends(get_db), user=Depends
         else:
             ingredients.append(IngredientIn(product_id=item["suggested_product_id"],
                                             amount=item["amount"], unit_id=item["unit_id"]))
-    meal = _create_meal(MealIn(day=data.day, slot=data.slot, note=data.name,
-                                     servings=data.servings, ingredients=ingredients), db, user)
-    if meal["recipe_id"]:
-        db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, meal["recipe_id"]))
-    return {"meal": meal, "not_added": not_added}
+    # a suggested dish with the same name as one we've already saved is the same dish -
+    # link to it instead of spinning up a near-duplicate recipe every time it comes up
+    existing = row(db.execute("SELECT id FROM recipes WHERE name = ? COLLATE NOCASE", (data.name.strip(),)))
+    if existing:
+        meal = _create_meal(MealIn(day=data.day, slot=data.slot, note=data.name,
+                                         servings=data.servings, recipe_id=existing["id"]), db, user)
+    else:
+        meal = _create_meal(MealIn(day=data.day, slot=data.slot, note=data.name,
+                                         servings=data.servings, ingredients=ingredients), db, user)
+        if meal["recipe_id"]:
+            db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, meal["recipe_id"]))
+    return {"meal": meal, "not_added": not_added, "reused_recipe": bool(existing)}
 
 
 @router.put("/mealplan/{meal_id}")

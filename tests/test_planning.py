@@ -135,6 +135,32 @@ class Planning(unittest.TestCase):
         self.assertEqual(self.count('products'),1)
         self.assertIsNone(self.db.execute('SELECT product_id FROM shopping_list').fetchone()[0])
 
+    def test_suggestion_reuses_an_existing_recipe_by_name_instead_of_duplicating(self):
+        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        from app.routes.recipes import RecipeIn, add_recipe
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Beef Mince',2)")
+        self.db.commit()
+        saved = add_recipe(RecipeIn(name='Chilli con carne', servings=4,
+            ingredients=[{'product_id': 1, 'amount': 500, 'unit_id': 2}]), self.db, self.user)
+        self.assertEqual(self.count('recipes'), 1)
+        data = SuggestedMealIn(day='2026-10-20', slot='dinner', name='Chilli con carne',
+            servings=2, instructions='Brown the mince.',
+            ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}])
+        result = meal_from_suggestion(data, self.db, self.user)
+        self.assertTrue(result['reused_recipe'])
+        self.assertEqual(result['meal']['recipe_id'], saved['id'])
+        self.assertEqual(self.count('recipes'), 1)  # no duplicate created
+        # the existing recipe's own ingredients are untouched, not overwritten by the suggestion
+        self.assertEqual(self.db.execute('SELECT amount FROM recipe_ingredients WHERE recipe_id=?',
+                                          (saved['id'],)).fetchone()[0], 500)
+        # a name that doesn't match anything saved still creates a new recipe as before
+        data2 = SuggestedMealIn(day='2026-10-21', slot='dinner', name='Spaghetti bolognese',
+            servings=2, instructions='', ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}])
+        result2 = meal_from_suggestion(data2, self.db, self.user)
+        self.assertFalse(result2['reused_recipe'])
+        self.assertEqual(self.count('recipes'), 2)
+
+
     def test_from_suggestion_unknown_and_invalid_units_are_reported(self):
         from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")

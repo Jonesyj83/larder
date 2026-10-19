@@ -319,6 +319,7 @@ def meal_ideas(data: MealIdeasIn, db=Depends(get_db), user=Depends(current_user)
             raise HTTPException(400, f"'{c.slot}' isn't a meal slot")
     recipes = list_recipes(db, user)
     known = "\n".join(f"- {r['name']}" + (" (everything in stock)" if r["can_make"] else f" ({r['missing_count']} things missing)")
+                      + (f" - rated {r['rating']}/5" if r["rating"] else "")
                       for r in recipes) or "(none saved yet)"
     me = f"{user['username']}, who likes {user['portion_size']} portions (about {PORTION_FACTOR[user['portion_size']]}x normal)"
     prompt = f"""Suggest meals for exactly these days and meals:
@@ -339,10 +340,11 @@ Recipes we already have saved:
 
 {('Extra wishes: ' + data.note) if data.note.strip() else ''}
 
-Use saved recipes where they genuinely fit. For each meal give the name, roughly what goes in it and
-how much to make for the portion sizes above. Pick good, properly varied dinners first - don't just
-reshuffle what's already in stock into odd combinations. Buying extra ingredients is completely
-normal; point out anything we'd need to buy, don't avoid suggesting it.
+Use saved recipes where they genuinely fit, especially highly-rated ones - lean away from
+anything rated 1-2 unless nothing else works. For each meal give the name, roughly what goes
+in it and how much to make for the portion sizes above. Pick good, properly varied dinners
+first - don't just reshuffle what's already in stock into odd combinations. Buying extra
+ingredients is completely normal; point out anything we'd need to buy, don't avoid suggesting it.
 {_mode_text(data.mode)}
 Reply with only JSON, nothing before or after:
 {{"meals": [{{"day": "2026-10-20", "slot": "dinner", "name": "...", "servings": 2,

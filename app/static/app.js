@@ -109,7 +109,13 @@ if ('serviceWorker' in navigator) {
 }
 
 function preferences() {
-  return window.USER_PREFS || {date_format: 'DD/MM/YYYY', measurement_system: 'metric', show_prices: false};
+  return window.USER_PREFS || {date_format: 'DD/MM/YYYY', measurement_system: 'metric', show_prices: false, portion_size: 'regular'};
+}
+
+const PORTION_FACTOR = {small: 0.5, regular: 1.0, large: 1.5};
+
+function portionFactor() {
+  return PORTION_FACTOR[preferences().portion_size] || 1.0;
 }
 
 function formatDate(iso, format = preferences().date_format) {

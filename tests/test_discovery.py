@@ -74,6 +74,7 @@ class Discovery(unittest.TestCase):
         from app.stock import purchase
         purchase(self.db, 1, 500, 2, location_id=1, user_id=1)
         self.db.execute("INSERT INTO recipes(name,servings) VALUES('Saved toast',2)")
+        self.db.execute("INSERT INTO recipes(name,servings,rating) VALUES('Great chilli',4,5)")
         self.db.commit()
         captured = {}
         def fake_run(db, user, prompt, system):
@@ -99,6 +100,8 @@ class Discovery(unittest.TestCase):
         self.assertIn('People in the house', prompt)
         self.assertIn('Recipes we already have saved', prompt)
         self.assertIn('Saved toast', prompt)
+        self.assertIn('Great chilli', prompt)
+        self.assertIn('rated 5/5', prompt)
         self.assertIn('"meals"', prompt)
         self.assertIn('2026-10-20', prompt)
         self.assertIn('never boiled', captured['system'])

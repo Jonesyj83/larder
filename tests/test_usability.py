@@ -232,6 +232,23 @@ field.text='04/11/2026'; field.accept(); assert.equal(field.iso,'2026-11-04');
         r = subprocess.run(['node'], input=pre+script+'\n'+body,text=True,capture_output=True)
         self.assertEqual(r.returncode,0,r.stderr)
 
+    def test_portion_factor_drives_the_default_leftover_amount(self):
+        script = (ROOT/'app/static/app.js').read_text()
+        body = """
+const assert = require('node:assert/strict');
+window.USER_PREFS = {date_format: 'DD/MM/YYYY', measurement_system: 'metric', portion_size: 'small'};
+assert.equal(portionFactor(), 0.5);
+const servings = 4;
+assert.equal(Math.max(0, Math.round((servings - portionFactor()) * 100) / 100), 3.5);
+window.USER_PREFS.portion_size = 'large';
+assert.equal(portionFactor(), 1.5);
+window.USER_PREFS.portion_size = 'unknown-value';
+assert.equal(portionFactor(), 1.0);
+"""
+        pre = "const window={}; const document={addEventListener(){}}; const navigator={};\n"
+        r = subprocess.run(['node'], input=pre+script+'\n'+body, text=True, capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_stock_page_counts_and_colour_coding_javascript(self):
         script = (ROOT/'app/static/app.js').read_text()
         stock = (ROOT/'app/templates/stock.html').read_text().split('<script>')[1].split('</script>')[0]

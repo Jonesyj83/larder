@@ -182,6 +182,14 @@
       <div class="modal">
         <b>Meal ideas</b>
         <p class="muted small">Based on what's in stock, your saved recipes and everyone's portion sizes.</p>
+        <div class="card small" x-show="batches.length" x-cloak>
+          <b>Use these up first?</b>
+          <p class="muted small" style="margin: .2rem 0">Already cooked and sitting in the fridge or freezer - no point generating a new idea if one of these fits a day you're planning.</p>
+          <template x-for="b in batches" :key="b.id">
+            <div x-text="b.code + ' ' + b.name + ' - ' + num(b.portions_left) + ' left (' + b.location + ')'"></div>
+          </template>
+          <p class="muted small" style="margin-top: .3rem">Close this and use "Or use something already made" on the day you want it for.</p>
+        </div>
         <form @submit.prevent="getIdeas()">
           <label class="field">How long<select x-model="ideas.length">
             <option value="week">1 week</option>

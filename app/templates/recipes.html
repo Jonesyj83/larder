@@ -80,7 +80,7 @@
         </table>
         <div class="row" style="margin-top: .8rem">
           <button x-show="!current.can_make" @click="toShopping()">Put missing on shopping list</button>
-          <button @click="cookOpen = true; cook.leftover = ''; cook.location_id = ''">Cooked it (take from stock)</button>
+          <button @click="cookOpen = true; cook.leftover = Math.max(0, Math.round((servings - portionFactor()) * 100) / 100) || ''; cook.location_id = ''">Cooked it (take from stock)</button>
           <button @click="planOpen = true">Add to meal plan</button>
           <span class="spacer grow"></span>
           <button @click="edit(current)">Edit</button>
@@ -98,6 +98,7 @@
             <b>Cooked it</b>
             <p class="small muted">Takes the ingredients for {{ '' }}<span x-text="num(servings)"></span> servings out of stock.</p>
             <label class="field">Any portions left over?<input type="number" step="any" min="0" x-model.number="cook.leftover" placeholder="0"></label>
+            <p class="small muted" x-show="cook.leftover > 0" x-cloak>Worked out from the servings above against your portion size - change it if that's not right tonight.</p>
             <label class="field" x-show="cook.leftover > 0" x-cloak>Where are they going?
               <select x-model.number="cook.location_id" :required="cook.leftover > 0">
                 <option value="">Choose a location</option>

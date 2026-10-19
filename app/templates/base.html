@@ -6,7 +6,7 @@
 <title>{{ title }} - Larder</title>
 <script>window.BASE_PATH = {{ base_path | tojson }};
 window.UNIT_RULES = {{ (unit_rules | default(none)) | tojson }};
-window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) | tojson }}, measurement_system: {{ (user.measurement_system | default('metric')) | tojson }}, show_prices: {{ (user.show_prices | default(false)) | tojson }}};</script>
+window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) | tojson }}, measurement_system: {{ (user.measurement_system | default('metric')) | tojson }}, show_prices: {{ (user.show_prices | default(false)) | tojson }}, portion_size: {{ (user.portion_size | default('regular')) | tojson }}};</script>
 <link rel="manifest" href="{{ base_path }}/manifest.webmanifest">
 <meta name="theme-color" content="#171d25">
 <link rel="icon" href="{{ base_path }}/static/icon.svg" type="image/svg+xml">
