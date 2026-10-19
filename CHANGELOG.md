@@ -4,6 +4,20 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
 
 ## 2026-10-19
 
+- Suggested meals that match a recipe you already have now link to it instead of
+  creating a near-duplicate every time - ratings and edits actually build up on
+  one recipe over time now.
+- Ratings feed back into meal ideas - well-rated saved recipes get preferred,
+  poorly-rated ones get avoided.
+- Cooking a recipe now works out how many portions are left over for you
+  automatically, based on your portion size in Settings, instead of asking you
+  to do the maths.
+- Stored meals (fridge/freezer leftovers) show up front and centre when
+  planning meals, before generating new ideas - use what's already cooked
+  first.
+- Suggest a recipe and Meal ideas both got a "how much should it stick to what
+  we've got" choice (all / missing a few / can make), same as the recipes
+  filter.
 - Added `update.sh` - backs up the database, pulls the latest code, restarts.
   One command to update instead of doing it by hand.
 
