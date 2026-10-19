@@ -80,7 +80,11 @@ class Discovery(unittest.TestCase):
         def fake_run(db, user, prompt, system):
             captured['prompt'] = prompt
             captured['system'] = system
-            return sg.GeneratedText(json.dumps({'meals': []}))
+            return sg.GeneratedText(json.dumps({'cook_events': [{'name': 'x', 'servings': 1,
+                'ingredients': [{'name': 'x', 'amount': 1, 'unit': 'piece'}], 'instructions': '',
+                'uses': [{'day': '2026-10-21', 'slot': 'dinner', 'portions': 1, 'twist': ''},
+                         {'day': '2026-10-20', 'slot': 'lunch', 'portions': 1, 'twist': ''},
+                         {'day': '2026-10-20', 'slot': 'dinner', 'portions': 1, 'twist': ''}]}]}))
         with patch.object(sg, '_run', side_effect=fake_run):
             sg.meal_ideas(sg.MealIdeasIn(cells=[
                 {'day': '2026-10-21', 'slot': 'dinner'},
@@ -102,7 +106,8 @@ class Discovery(unittest.TestCase):
         self.assertIn('Saved toast', prompt)
         self.assertIn('Great chilli', prompt)
         self.assertIn('rated 5/5', prompt)
-        self.assertIn('"meals"', prompt)
+        self.assertIn('"cook_events"', prompt)
+        self.assertIn('cook events', prompt)
         self.assertIn('2026-10-20', prompt)
         self.assertIn('never boiled', captured['system'])
         self.assertIn('chilli con carne', captured['system'])
@@ -113,10 +118,11 @@ class Discovery(unittest.TestCase):
         self.db.execute("INSERT INTO products(id,name,unit_id,purchase_unit_id,purchase_factor) VALUES(1,'Bread',1,3,6)")
         self.db.execute("INSERT INTO stock(product_id,amount) VALUES(1,3)")
         self.db.commit()
-        meal = {'day':'2026-10-20','slot':'dinner','name':'Toast','servings':2,
+        event = {'name':'Toast','servings':2,
                 'ingredients':[{'name':'bread','amount':1,'unit':'pack'},
-                               {'name':'Butter','amount':1,'unit':'piece'}], 'instructions':'Toast it.'}
-        text = sg.GeneratedText('Here you go:\n```json\n' + json.dumps({'meals':[meal]}) + '\n```')
+                               {'name':'Butter','amount':1,'unit':'piece'}], 'instructions':'Toast it.',
+                'uses':[{'day':'2026-10-20','slot':'dinner','portions':2,'twist':''}]}
+        text = sg.GeneratedText('Here you go:\n```json\n' + json.dumps({'cook_events':[event]}) + '\n```')
         text.provenance = {'served_provider':'test'}
         before = self.db.total_changes
         with patch.object(sg, '_run', return_value=text), patch.object(sg, 'review_recipe', wraps=sg.review_recipe) as review:
@@ -126,7 +132,7 @@ class Discovery(unittest.TestCase):
         review.assert_called_once()
         self.assertEqual(result['missing_cells'],[{'day':'2026-10-20','slot':'lunch'}])
         self.assertEqual(result['provenance'], text.provenance)
-        bread, butter = result['meals'][0]['ingredients']
+        bread, butter = result['cook_events'][0]['ingredients']
         self.assertEqual((bread['have'],bread['short'],bread['short_unit']), (3,3,'slice'))
         self.assertIsNone(butter['suggested_product_id'])
         self.assertEqual(butter['short'],1)
@@ -135,12 +141,12 @@ class Discovery(unittest.TestCase):
     def test_structured_meals_are_ordered_by_day_and_slot(self):
         cells = [{'day':'2026-10-21','slot':'breakfast'}, {'day':'2026-10-20','slot':'dinner'},
                  {'day':'2026-10-20','slot':'lunch'}]
-        meals = [dict(c,name='Toast',servings=1,ingredients=[{'name':'Bread','amount':1,'unit':'slice'}],
-                      instructions='Toast.') for c in cells]
-        with patch.object(sg,'_run',return_value=json.dumps({'meals':meals})):
+        events = [dict(name='Toast',servings=1,ingredients=[{'name':'Bread','amount':1,'unit':'slice'}],
+                      instructions='Toast.', uses=[dict(c,portions=1,twist='')]) for c in cells]
+        with patch.object(sg,'_run',return_value=json.dumps({'cook_events':events})):
             result = sg.meal_ideas(sg.MealIdeasIn(cells=cells),self.db,
                                   {'id':1,'username':'test','portion_size':'regular'})
-        self.assertEqual([(m['day'],m['slot']) for m in result['meals']],
+        self.assertEqual([(e['uses'][0]['day'],e['uses'][0]['slot']) for e in result['cook_events']],
                          [('2026-10-20','lunch'),('2026-10-20','dinner'),('2026-10-21','breakfast')])
         self.assertEqual(result['missing_cells'],[])
 

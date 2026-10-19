@@ -302,13 +302,14 @@ const window={}, document={addEventListener(){}}, navigator={};
 const calls=[]; let failSave=true, pendingResolve=null, deferIdeas=false;
 const ingredients=[{name:'Bread',amount:1,unit:'pack',unit_id:3,product:'Bread',short:3,have:3,short_unit:'slice',short_unit_id:1,suggested_product_id:1},
  {name:'Butter',amount:1,unit:'piece',unit_id:2,product:null,short:1,suggested_product_id:null}];
-const response={meals:[{day:'2026-10-12',slot:'dinner',name:'Toast',servings:2,ingredients,instructions:'Toast.'}],missing_cells:[]};
+const response={cook_events:[{name:'Toast',servings:2,ingredients,instructions:'Toast.',
+  uses:[{day:'2026-10-12',slot:'dinner',portions:2,twist:''}]}],missing_cells:[]};
 async function api(path,opts={}) {
  calls.push({path,...opts});
  if(path==='/api/suggestions/meals') return deferIdeas ? new Promise(resolve=>pendingResolve=resolve) : response;
- if(path==='/api/mealplan/from-suggestion') {
+ if(path==='/api/mealplan/from-cook-event') {
    if(failSave) {failSave=false; throw Error('temporary failure');}
-   return {meal:{id:7},not_added:[{...ingredients[1],reason:'not added - no matching product'}]};
+   return {meals:[{id:7}],not_added:[{...ingredients[1],reason:'not added - no matching product'}]};
  }
  return {added:1};
 }
@@ -317,28 +318,28 @@ async function api(path,opts={}) {
         body = """
 (async()=>{
  const p=planPage(); p.load=()=>{}; p.openIdeas(); await p.getIdeas();
- const m=p.ideas.meals[0]; assert.equal(m.added,false);
- await p.addIdeaMissing(m);
+ const e=p.ideas.cookEvents[0]; assert.equal(e.added,false);
+ await p.addIdeaMissing(e);
  let shop=calls.find(c=>c.path==='/api/suggestions/add-missing');
  assert.equal(shop.body.ingredients[0].amount,3); assert.equal(shop.body.ingredients[0].unit,'slice');
- await p.addIdeaToPlan(m); assert.equal(m.added,false); assert.equal(m.adding,false);
- await p.addIdeaToPlan(m); assert.equal(m.added,true); assert.equal(m.notAdded[0].name,'Butter');
- const saves=calls.filter(c=>c.path==='/api/mealplan/from-suggestion');
+ await p.addIdeaToPlan(e); assert.equal(e.added,false); assert.equal(e.adding,false);
+ await p.addIdeaToPlan(e); assert.equal(e.added,true); assert.equal(e.notAdded[0].name,'Butter');
+ const saves=calls.filter(c=>c.path==='/api/mealplan/from-cook-event');
  assert.equal(saves[0].body.request_id,saves[1].body.request_id);
- assert.equal(saves[1].body.day,'2026-10-12'); assert.equal(saves[1].body.name,'Toast');
- await p.addIdeaToPlan(m); assert.equal(calls.filter(c=>c.path==='/api/mealplan/from-suggestion').length,2);
- assert.equal(p.ideas.meals.length,1);
- await p.addIdeaMissing(m); shop=calls.filter(c=>c.path==='/api/suggestions/add-missing').at(-1);
+ assert.equal(saves[1].body.uses[0].day,'2026-10-12'); assert.equal(saves[1].body.name,'Toast');
+ await p.addIdeaToPlan(e); assert.equal(calls.filter(c=>c.path==='/api/mealplan/from-cook-event').length,2);
+ assert.equal(p.ideas.cookEvents.length,1);
+ await p.addIdeaMissing(e); shop=calls.filter(c=>c.path==='/api/suggestions/add-missing').at(-1);
  assert.deepEqual(shop.body.ingredients.map(i=>i.name),['Butter']);
- p.ideasOpen=false; p.openIdeas(); assert.deepEqual(p.ideas.meals,[]);
+ p.ideasOpen=false; p.openIdeas(); assert.deepEqual(p.ideas.cookEvents,[]);
  deferIdeas=true; const old=p.ideas; const pending=p.getIdeas();
  p.ideasOpen=false; p.openIdeas(); pendingResolve(response); await pending;
- assert.deepEqual(p.ideas.meals,[]); assert.equal(old.busy,false);
+ assert.deepEqual(p.ideas.cookEvents,[]); assert.equal(old.busy,false);
 })().catch(e=>{console.error(e);process.exit(1)});
 """
         run=subprocess.run(['node'],input=pre+helpers+plan+body,text=True,capture_output=True,timeout=15)
         self.assertEqual(run.returncode,0,run.stderr)
         html=(ROOT/'app/templates/mealplan.html').read_text()
-        self.assertIn('m.added ? \'Added\'',html)
+        self.assertIn('e.added ? \'Added\'',html)
         self.assertIn("- don't have this yet",html)
         self.assertIn("qty(i.have, i.short_unit)",html)

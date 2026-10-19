@@ -344,7 +344,7 @@ def meal_ideas(data: MealIdeasIn, db=Depends(get_db), user=Depends(current_user)
                       + (f" - rated {r['rating']}/5" if r["rating"] else "")
                       for r in recipes) or "(none saved yet)"
     me = f"{user['username']}, who likes {user['portion_size']} portions (about {PORTION_FACTOR[user['portion_size']]}x normal)"
-    prompt = f"""Suggest meals for exactly these days and meals:
+    prompt = f"""Plan cook events to cover exactly these days and meals:
 {_grouped_cells(data.cells)}
 
 Asked by {me}.
@@ -363,41 +363,70 @@ Recipes we already have saved:
 {('Extra wishes: ' + data.note) if data.note.strip() else ''}
 
 Use saved recipes where they genuinely fit, especially highly-rated ones - lean away from
-anything rated 1-2 unless nothing else works. For each meal give the name, roughly what goes
-in it and how much to make for the portion sizes above. Pick good, properly varied dinners
-first - don't just reshuffle what's already in stock into odd combinations. Buying extra
-ingredients is completely normal; point out anything we'd need to buy, don't avoid suggesting it.
+anything rated 1-2 unless nothing else works. Think in terms of cook events, not one meal per
+slot: cook a proper batch once, eat some fresh, and spread the rest across other requested
+slots later in the week - same dish again, or given a twist (e.g. chilli con carne one night,
+then chilli con carne jaffles for lunch a couple of days later) - rather than inventing a
+brand new dish from scratch for every single slot. This is the actual point of the plan: buy
+and cook efficiently, not throw out half of everything. A cook event doesn't have to cover
+every remaining slot by itself; it's fine to have several smaller cook events across the week
+as well as a few big ones. Pick good, properly varied meals first - don't just reshuffle what's
+already in stock into odd combinations. Buying extra ingredients is completely normal; point
+out anything we'd need to buy, don't avoid suggesting it.
 {_mode_text(data.mode)}
 Reply with only JSON, nothing before or after:
-{{"meals": [{{"day": "2026-10-20", "slot": "dinner", "name": "...", "servings": 2,
-"ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ..."}}]}}
-Return one meal per requested cell, using these exact day/slot pairs:
+{{"cook_events": [{{"name": "...", "servings": 4,
+"ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ...",
+"uses": [{{"day": "2026-10-20", "slot": "dinner", "portions": 2, "twist": ""}},
+{{"day": "2026-10-22", "slot": "lunch", "portions": 1, "twist": "as jaffles"}}]}}]}}
+"servings" is the whole batch you cook in one go. Each entry in "uses" is one requested
+day/slot eating some of that batch - "portions" is how much of the batch that slot eats
+(roughly in the same servings unit as "servings", not grams), "twist" is a short note like
+"as jaffles" or "" if it's just eaten as-is. Every day/slot below must appear in exactly one
+use, across however many cook events you plan, with no repeats and nothing extra:
 {json.dumps([c.model_dump() for c in data.cells])}
 Use the stock ingredient names where possible. Units: piece, g, kg, ml, l, tin, pack.
-Give 1–50 ingredients per meal."""
+Give 1–50 ingredients per cook event, 1–10 uses per cook event."""
     text = _run(db, user, prompt, SYSTEM)
     parsed = _parse_json(text)
-    if not isinstance(parsed, dict) or not isinstance(parsed.get("meals"), list) or len(parsed["meals"]) > MAX_IDEA_CELLS:
-        raise HTTPException(502, "Malformed provider meals; nothing was saved")
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("cook_events"), list) or not parsed["cook_events"] \
+            or len(parsed["cook_events"]) > MAX_IDEA_CELLS:
+        raise HTTPException(502, "Malformed provider reply; nothing was saved")
     requested = {(c.day, c.slot) for c in data.cells}
-    seen, meals = set(), []
-    for item in parsed["meals"]:
-        if not isinstance(item, dict) or not isinstance(item.get("day"), str) or not isinstance(item.get("slot"), str):
-            raise HTTPException(502, "Invalid suggested day or meal slot; nothing was saved")
-        cell = (item["day"], item["slot"])
-        if cell not in requested or cell in seen:
-            raise HTTPException(502, "Suggested meals must use each requested day and slot at most once; nothing was saved")
-        if not isinstance(item.get("name"), str) or not 1 <= len(item["name"].strip()) <= 200 or not isinstance(item.get("instructions"), str):
-            raise HTTPException(502, "Invalid suggested meal name or instructions; nothing was saved")
-        meal = review_recipe(db, item)
+    seen, events = set(), []
+    for event in parsed["cook_events"]:
+        if not isinstance(event, dict):
+            raise HTTPException(502, "Invalid cook event; nothing was saved")
+        uses = event.get("uses")
+        if not isinstance(uses, list) or not 1 <= len(uses) <= 10:
+            raise HTTPException(502, "Each cook event needs 1-10 uses; nothing was saved")
+        checked_uses = []
+        for use in uses:
+            if not isinstance(use, dict) or not isinstance(use.get("day"), str) or not isinstance(use.get("slot"), str):
+                raise HTTPException(502, "Invalid suggested day or meal slot; nothing was saved")
+            cell = (use["day"], use["slot"])
+            if cell not in requested or cell in seen:
+                raise HTTPException(502, "Suggested uses must cover each requested day and slot exactly once; nothing was saved")
+            portions = use.get("portions")
+            if isinstance(portions, bool) or not isinstance(portions, (int, float)) or not math.isfinite(portions) \
+                    or not 0 < portions <= MAX_SERVINGS:
+                raise HTTPException(502, "Invalid use portions; nothing was saved")
+            twist = use.get("twist") or ""
+            if not isinstance(twist, str) or len(twist) > 200:
+                raise HTTPException(502, "Invalid use note; nothing was saved")
+            checked_uses.append(dict(day=cell[0], slot=cell[1], portions=portions, twist=twist.strip()))
+            seen.add(cell)
+        meal = review_recipe(db, event)
         if meal["servings"] > MAX_SERVINGS:
-            raise HTTPException(502, "Suggested meal has too many servings; nothing was saved")
-        meals.append(dict(meal, day=cell[0], slot=cell[1]))
-        seen.add(cell)
+            raise HTTPException(502, "Suggested cook event has too many servings; nothing was saved")
+        order = lambda u: (u["day"], SLOTS.index(u["slot"]))
+        checked_uses.sort(key=order)
+        events.append(dict(meal, uses=checked_uses))
     order = lambda cell: (cell[0], SLOTS.index(cell[1]))
-    meals.sort(key=lambda meal: order((meal["day"], meal["slot"])))
+    events.sort(key=lambda e: order((e["uses"][0]["day"], e["uses"][0]["slot"])))
     missing = [dict(day=d, slot=s) for d, s in sorted(requested - seen, key=order)]
-    return {"meals": meals, "missing_cells": missing, "provenance": getattr(text, "provenance", None)}
+    return {"cook_events": events, "missing_cells": missing, "provenance": getattr(text, "provenance", None)}
+
 
 
 def _parse_json(text):

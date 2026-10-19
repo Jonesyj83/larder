@@ -111,17 +111,18 @@ class Planning(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 4)
 
     def test_from_suggestion_only_existing_products_and_retry(self):
-        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
         self.db.commit()
-        data = SuggestedMealIn(request_id='suggestion-retry', day='2026-10-12',slot='breakfast',
+        data = CookEventIn(request_id='suggestion-retry',
             name='Toast',servings=2,instructions='Toast the bread.',ingredients=[
                 {'name':'BREAD','amount':4,'unit':'slice'},
-                {'name':'Butter','amount':1,'unit':'piece'}])
-        result = meal_from_suggestion(data,self.db,self.user)
-        self.assertEqual(meal_from_suggestion(data,self.db,self.user),result)
+                {'name':'Butter','amount':1,'unit':'piece'}],
+            uses=[{'day':'2026-10-12','slot':'breakfast','portions':2,'twist':''}])
+        result = meal_from_cook_event(data,self.db,self.user)
+        self.assertEqual(meal_from_cook_event(data,self.db,self.user),result)
         self.assertEqual((self.count('products'),self.count('meal_plan'),self.count('recipes')),(1,1,1))
-        m = result['meal']
+        m = result['meals'][0]
         self.assertEqual((m['day'],m['slot'],m['note'],m['servings'],m['simple_meal']),
                          ('2026-10-12','breakfast','Toast',2,1))
         self.assertEqual(self.db.execute('SELECT product_id,amount,unit_id FROM recipe_ingredients').fetchone()[:],(1,4,1))
@@ -136,52 +137,73 @@ class Planning(unittest.TestCase):
         self.assertIsNone(self.db.execute('SELECT product_id FROM shopping_list').fetchone()[0])
 
     def test_suggestion_reuses_an_existing_recipe_by_name_instead_of_duplicating(self):
-        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        from app.routes.mealplan import CookEventIn, meal_from_cook_event
         from app.routes.recipes import RecipeIn, add_recipe
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Beef Mince',2)")
         self.db.commit()
         saved = add_recipe(RecipeIn(name='Chilli con carne', servings=4,
             ingredients=[{'product_id': 1, 'amount': 500, 'unit_id': 2}]), self.db, self.user)
         self.assertEqual(self.count('recipes'), 1)
-        data = SuggestedMealIn(day='2026-10-20', slot='dinner', name='Chilli con carne',
+        data = CookEventIn(name='Chilli con carne',
             servings=2, instructions='Brown the mince.',
-            ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}])
-        result = meal_from_suggestion(data, self.db, self.user)
+            ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}],
+            uses=[{'day': '2026-10-20', 'slot': 'dinner', 'portions': 2, 'twist': ''}])
+        result = meal_from_cook_event(data, self.db, self.user)
         self.assertTrue(result['reused_recipe'])
-        self.assertEqual(result['meal']['recipe_id'], saved['id'])
+        self.assertEqual(result['meals'][0]['recipe_id'], saved['id'])
         self.assertEqual(self.count('recipes'), 1)  # no duplicate created
         # the existing recipe's own ingredients are untouched, not overwritten by the suggestion
         self.assertEqual(self.db.execute('SELECT amount FROM recipe_ingredients WHERE recipe_id=?',
                                           (saved['id'],)).fetchone()[0], 500)
         # a name that doesn't match anything saved still creates a new recipe as before
-        data2 = SuggestedMealIn(day='2026-10-21', slot='dinner', name='Spaghetti bolognese',
-            servings=2, instructions='', ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}])
-        result2 = meal_from_suggestion(data2, self.db, self.user)
+        data2 = CookEventIn(name='Spaghetti bolognese',
+            servings=2, instructions='', ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}],
+            uses=[{'day': '2026-10-21', 'slot': 'dinner', 'portions': 2, 'twist': ''}])
+        result2 = meal_from_cook_event(data2, self.db, self.user)
         self.assertFalse(result2['reused_recipe'])
         self.assertEqual(self.count('recipes'), 2)
 
+    def test_cook_event_covers_several_uses_from_one_recipe(self):
+        from app.routes.mealplan import CookEventIn, meal_from_cook_event
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Beef Mince',2)")
+        self.db.commit()
+        data = CookEventIn(name='Chilli con carne', servings=4, instructions='Brown it.',
+            ingredients=[{'name': 'Beef Mince', 'amount': 4, 'unit': 'piece'}],
+            uses=[{'day': '2026-10-20', 'slot': 'dinner', 'portions': 2, 'twist': ''},
+                  {'day': '2026-10-22', 'slot': 'lunch', 'portions': 1, 'twist': 'as jaffles'}])
+        result = meal_from_cook_event(data, self.db, self.user)
+        self.assertEqual(self.count('recipes'), 1)  # one batch, not two separate dishes
+        self.assertEqual(len(result['meals']), 2)
+        fresh, twist = result['meals']
+        self.assertEqual((fresh['day'], fresh['slot'], fresh['note'], fresh['servings']),
+                         ('2026-10-20', 'dinner', 'Chilli con carne', 2))
+        self.assertEqual((twist['day'], twist['slot'], twist['note'], twist['servings']),
+                         ('2026-10-22', 'lunch', 'as jaffles (Chilli con carne)', 1))
+        self.assertEqual(fresh['recipe_id'], twist['recipe_id'])  # same dish, same batch
 
     def test_from_suggestion_unknown_and_invalid_units_are_reported(self):
-        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
         self.db.commit()
-        result = meal_from_suggestion(SuggestedMealIn(day='2026-10-12',slot='lunch',name='Toast',servings=1,
+        result = meal_from_cook_event(CookEventIn(name='Toast',servings=1,
             ingredients=[{'name':'Bread','amount':1,'unit':'handful'},
                          {'name':'Bread','amount':1,'unit':'piece'},
-                         {'name':'Butter','amount':1,'unit':'piece'}]),self.db,self.user)
+                         {'name':'Butter','amount':1,'unit':'piece'}],
+            uses=[{'day':'2026-10-12','slot':'lunch','portions':1,'twist':''}]),self.db,self.user)
         self.assertEqual(len(result['not_added']),3)
         self.assertIn('valid unit',result['not_added'][0]['reason'])
-        self.assertIsNone(result['meal']['recipe_id'])
+        self.assertIsNone(result['meals'][0]['recipe_id'])
         self.assertEqual((self.count('products'),self.count('recipe_ingredients')),(1,0))
 
     def test_from_suggestion_failure_rolls_back(self):
-        from app.routes.mealplan import SuggestedMealIn, meal_from_suggestion
+        from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
         self.db.commit()
         self.db.execute("CREATE TRIGGER fail_suggestion BEFORE INSERT ON meal_plan BEGIN SELECT RAISE(ABORT,'failed'); END")
         with self.assertRaises(sqlite3.IntegrityError):
-            meal_from_suggestion(SuggestedMealIn(day='2026-10-12',slot='lunch',name='Toast',servings=1,
-                ingredients=[{'name':'Bread','amount':1,'unit':'slice'}]),self.db,self.user)
+            meal_from_cook_event(CookEventIn(name='Toast',servings=1,
+                ingredients=[{'name':'Bread','amount':1,'unit':'slice'}],
+                uses=[{'day':'2026-10-12','slot':'lunch','portions':1,'twist':''}]),self.db,self.user)
         self.assertEqual((self.count('products'),self.count('recipes'),self.count('meal_plan')),(1,0,0))
 
     def test_recipe_rating(self):

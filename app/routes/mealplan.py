@@ -126,22 +126,33 @@ class SuggestedIngredientIn(BaseModel):
     unit: str = Field(max_length=80)
 
 
-class SuggestedMealIn(BaseModel):
-    request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+class SuggestedUseIn(BaseModel):
     day: str
     slot: Slot
+    portions: float = Field(gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
+    twist: str = Field(default="", max_length=200)
+
+
+class CookEventIn(BaseModel):
+    request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=200)
     servings: float = Field(gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
     ingredients: list[SuggestedIngredientIn] = Field(min_length=1, max_length=50)
     instructions: str = Field(default="", max_length=20000)
+    uses: list[SuggestedUseIn] = Field(min_length=1, max_length=10)
 
 
-@router.post("/mealplan/from-suggestion", status_code=201)
+@router.post("/mealplan/from-cook-event", status_code=201)
 @atomic_save
-def meal_from_suggestion(data: SuggestedMealIn, db=Depends(get_db), user=Depends(current_user)):
+def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(current_user)):
+    """Save one cook event - a whole batch - across every slot it covers: one recipe,
+    several meal plan entries, each eating a share of the same batch."""
     from .suggestions import review_recipe
-    _day(data.day)
-    reviewed = review_recipe(db, data.model_dump())
+    for u in data.uses:
+        _day(u.day)
+    reviewed = review_recipe(db, dict(name=data.name, servings=data.servings,
+                                       ingredients=[i.model_dump() for i in data.ingredients],
+                                       instructions=data.instructions))
     ingredients, not_added = [], []
     for item in reviewed["ingredients"]:
         reason = None
@@ -154,18 +165,35 @@ def meal_from_suggestion(data: SuggestedMealIn, db=Depends(get_db), user=Depends
         else:
             ingredients.append(IngredientIn(product_id=item["suggested_product_id"],
                                             amount=item["amount"], unit_id=item["unit_id"]))
-    # a suggested dish with the same name as one we've already saved is the same dish -
-    # link to it instead of spinning up a near-duplicate recipe every time it comes up
+    # same dish already saved - reuse it so ratings/edits build up on one recipe, not several
     existing = row(db.execute("SELECT id FROM recipes WHERE name = ? COLLATE NOCASE", (data.name.strip(),)))
-    if existing:
-        meal = _create_meal(MealIn(day=data.day, slot=data.slot, note=data.name,
-                                         servings=data.servings, recipe_id=existing["id"]), db, user)
-    else:
-        meal = _create_meal(MealIn(day=data.day, slot=data.slot, note=data.name,
-                                         servings=data.servings, ingredients=ingredients), db, user)
+    if not existing and len(data.uses) == 1 and ingredients:
+        # exactly one slot eating this batch - same as a single suggested meal, the recipe
+        # belongs to that slot and its ingredients can be edited in place
+        u = data.uses[0]
+        label = f"{u.twist.strip()} ({data.name.strip()})" if u.twist.strip() else data.name.strip()
+        meal = _create_meal(MealIn(day=u.day, slot=u.slot, note=label, servings=u.portions,
+                                   ingredients=ingredients), db, user)
         if meal["recipe_id"]:
             db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, meal["recipe_id"]))
-    return {"meal": meal, "not_added": not_added, "reused_recipe": bool(existing)}
+        return {"meals": [meal], "not_added": not_added, "reused_recipe": False}
+    if existing:
+        recipe_id = existing["id"]
+    elif ingredients:
+        recipe_id = simple_recipe(db, data.name, data.servings, ingredients, user)
+        db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, recipe_id))
+    else:
+        recipe_id = None  # nothing we could actually match - just a named placeholder, no recipe yet
+    meals = []
+    for u in data.uses:
+        label = f"{u.twist.strip()} ({data.name.strip()})" if u.twist.strip() else data.name.strip()
+        if recipe_id:
+            meal = _create_meal(MealIn(day=u.day, slot=u.slot, note=label, servings=u.portions,
+                                       recipe_id=recipe_id), db, user)
+        else:
+            meal = _create_meal(MealIn(day=u.day, slot=u.slot, note=label, servings=u.portions), db, user)
+        meals.append(meal)
+    return {"meals": meals, "not_added": not_added, "reused_recipe": bool(existing)}
 
 
 @router.put("/mealplan/{meal_id}")
