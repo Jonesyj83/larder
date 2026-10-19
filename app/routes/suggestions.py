@@ -188,8 +188,26 @@ SYSTEM = ("You help a household plan good meals they'll actually enjoy cooking a
           "(chilli powder, paprika, garlic powder, cumin and so on) on top of it; that mix "
           "already contains them. Only add raw spices to a dish that has no ready-made mix "
           "for it, or when the mix needs a single genuine thing a packet always calls for "
-          "(like extra garlic or onion). If two different complete mixes could both make "
-          "the same dish, pick the one whose name matches the dish, not both.")
+          "(like extra garlic or onion). A mix's name has to genuinely match the dish - a "
+          "taco seasoning mix is for tacos, not chilli con carne, even though the flavours "
+          "are similar. Don't reach for a wrongly-named mix just because it's the only "
+          "ready-made one in stock; build the dish from its real spices instead, or flag "
+          "that the right mix is missing. A product that only comes as one whole packet, "
+          "sachet or tin - a spice mix, stock cube, tin of something - gets used as 1 whole "
+          "unit, never a fraction like 0.5 pack or 0.5 tin; scale the rest of the dish to "
+          "suit a whole packet, don't shrink the packet to suit a small serving. Cook proper "
+          "batch sizes, not shrunk-down single servings - if a dish is normally a 4-serving "
+          "batch, write it at that size even when only one person's eating tonight, and say "
+          "the servings honestly; the extra gets frozen or fridged for another night, rather "
+          "than halving a tin, a spice packet or an onion into something nobody can actually "
+          "measure or buy. Only write a genuinely small recipe when the dish is naturally "
+          "cooked that small (a single sandwich, one portion of toast). Frozen crumbed, "
+          "battered tenders, nuggets, dim sims and similar bagged snack-style items are lunch "
+          "or snack food, not a dinner on their own - suggest them as part of a wrap, roll or "
+          "sandwich with salad and sauce for lunch, not as a plate of '3 tenders and some veg' "
+          "for dinner. A plain, uncoated cut of meat or chicken from the freezer is proper "
+          "dinner food and fine to build a real meal around. If two different complete mixes "
+          "could both make the same dish, pick the one whose name matches the dish, not both.")
 
 
 @router.get("/suggestions/status")

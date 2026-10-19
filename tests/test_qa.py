@@ -75,13 +75,17 @@ modal.setMode('purchase'); assert.equal(modal.expires_on, today());
 
     def test_suggestion_preview_uses_stock_units_and_unknown_is_not_green(self):
         attrs = expressions('recipes')
-        label = next(a['x-text'] for a in attrs if a.get('x-show') == 'i.product && i.short > 0')
+        label = next(a['x-text'] for a in attrs if a.get('x-show') == 'i.product && i.short > 0 && i.have > 0')
         green = next(a['x-show'] for a in attrs if a.get('class') == 'ok' and 'i.product' in a.get('x-show', ''))
-        self.run_js("const label = i => (" + label + "); const green = i => (" + green + ");" + """
+        missing = next(a.get('x-show') for a in attrs if a.get('class') == 'bad' and '!i.product' in a.get('x-show', ''))
+        self.run_js("const label = i => (" + label + "); const green = i => (" + green + "); const missing = i => (" + missing + ");" + """
 const i = {product: 'Bread', unit: 'pack', short_unit: 'slice', have: 3, short: 3};
 assert.equal(label(i), '- have 3 slice, short 3 slice');
 assert.equal(green({...i, short: null}), false);
 assert.equal(green({...i, short: 0}), true);
+// zero in stock reads "don't have this yet", not "have 0, short X"
+assert.equal(missing({...i, have: 0}), true);
+assert.equal(missing({...i, have: 3}), false);
 """)
 
     def test_shopping_suggestion_origin_has_a_label(self):
