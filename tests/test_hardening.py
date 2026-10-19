@@ -550,7 +550,7 @@ class ProviderSafety(unittest.TestCase):
                 providers.openai('hi', 'key', '', None)
         self.assertIn('too large', str(e.exception))
         self.assertEqual(providers.TIMEOUT.connect, 10)
-        self.assertLessEqual(providers.TIMEOUT.read, 120)
+        self.assertLessEqual(providers.TIMEOUT.read, 200)
 
     def test_redirects_are_not_followed(self):
         transport = httpx.MockTransport(lambda r: httpx.Response(307, headers={'location': 'http://169.254.169.254/'}))

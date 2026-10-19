@@ -14,10 +14,11 @@ import httpx
 
 from .netcheck import check_host, is_local
 
-# connect quickly or not at all; generating a reply can take a while
-TIMEOUT = httpx.Timeout(90, connect=10)
+# connect quickly or not at all; a bigger model generating a full week of ideas
+# in one go can genuinely take a couple of minutes, so give it real room
+TIMEOUT = httpx.Timeout(170, connect=10)
 # read timeouts reset on every chunk, so a reply that trickles in also needs an overall cap
-DEADLINE = 120
+DEADLINE = 200
 MAX_REPLY = 2 * 1024 * 1024
 
 # tests swap this for an httpx.MockTransport
