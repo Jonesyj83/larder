@@ -2,6 +2,22 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-20
+
+- Meal ideas now plans cook events, not one meal per slot - cook a proper batch once,
+  eat some fresh, and the rest gets spread across other days in the week (same dish again,
+  or with a twist, like chilli con carne turning into chilli jaffles a few nights later).
+  One "Add to plan" per cook event fills in every slot it covers at once.
+- Water and ice don't get flagged as missing or "can't compare" any more - obviously always
+  on hand.
+- Fixed a chunk of sauces, spices, oil and milk that were still stocked as generic bottles/
+  pieces from the original import - "can't compare that amount" should show up a lot less.
+- Products moved off the main menu - it's reachable from a link on the Stock page now, Stock
+  stays focused on what's actually in the kitchen.
+- Suggestions got a timeout bump and a visible warning that a reply can take a couple of
+  minutes - and if one fails, the actual reason now shows on the page instead of nothing
+  happening.
+
 ## 2026-10-19
 
 - Suggested meals that match a recipe you already have now link to it instead of
