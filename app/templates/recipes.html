@@ -200,6 +200,8 @@
             <button class="primary" :disabled="idea.busy" x-text="idea.busy ? 'Thinking...' : 'Suggest'"></button>
             <button type="button" @click="ideaOpen = false">Close</button>
           </div>
+          <p class="muted small" x-show="idea.busy" x-cloak>Can take a minute or two - sometimes up to 3, depending on the provider. Leave this open and wait, don't close it.</p>
+          <p class="bad small" x-show="idea.error" x-cloak x-text="idea.error"></p>
         </form>
         <template x-if="idea.result && idea.result.recipe">
           <div style="margin-top: 1rem">
@@ -240,7 +242,7 @@ function recipesPage() {
     slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     planOpen: false, plan: { day: today(), slot: 'dinner', servings: null },
     cookOpen: false, cook: { leftover: '', location_id: '' },
-    ideaOpen: false, idea: { text: '', expiring: true, mode: 'all', busy: false, result: null },
+    ideaOpen: false, idea: { text: '', expiring: true, mode: 'all', busy: false, result: null, error: '' },
 
     async init() {
       [this.products, this.units, this.locations] = await Promise.all([api('/api/products'), api('/api/units'), api('/api/locations')]);
@@ -342,12 +344,16 @@ function recipesPage() {
       } catch (e) { oops(e); }
     },
     async getIdea() {
-      this.idea.busy = true; this.idea.result = null;
+      this.idea.busy = true; this.idea.result = null; this.idea.error = '';
       try {
         this.idea.result = await api('/api/suggestions/recipe', { method: 'POST',
           body: { idea: this.idea.text, use_expiring: this.idea.expiring, mode: this.idea.mode } });
-      } catch (e) { oops(e); }
-      this.idea.busy = false;
+      } catch (e) {
+        this.idea.error = (e.message || String(e)) + ' - try again, or try a simpler request.';
+        oops(e);
+      } finally {
+        this.idea.busy = false;
+      }
     },
     async saveIdea() {
       const r = this.idea.result.recipe;

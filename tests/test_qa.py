@@ -116,6 +116,28 @@ p.ideas.rangeFrom = '2026-10-12'; p.ideas.rangeTo = '2026-10-14'; p.buildIdeasGr
 assert.equal(p.ideasCells().length, 3);
 """)
 
+    def test_meal_ideas_shows_an_error_on_the_page_when_the_provider_fails(self):
+        self.run_js(page_script('mealplan') + """
+async function api() { throw new Error('Provider request failed or timed out'); }
+const p = planPage(); p.openIdeas();
+p.toggleDay(p.ideasDays()[0]); p.toggleSlotColumn('dinner');
+p.getIdeas().catch(() => {}).then(() => {
+  assert.match(p.ideas.error, /Provider request failed or timed out/);
+  assert.match(p.ideas.error, /try again/);
+  assert.equal(p.ideas.busy, false);
+});
+""")
+
+    def test_suggest_a_recipe_shows_an_error_on_the_page_when_the_provider_fails(self):
+        self.run_js(page_script('recipes') + """
+async function api() { throw new Error("Couldn't reach the server"); }
+const p = recipesPage();
+p.getIdea().catch(() => {}).then(() => {
+  assert.match(p.idea.error, /Couldn't reach the server/);
+  assert.equal(p.idea.busy, false);
+});
+""")
+
 
 if __name__ == '__main__':
     unittest.main()

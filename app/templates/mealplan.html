@@ -235,6 +235,8 @@
             <button type="button" @click="ideasOpen = false">Close</button>
           </div>
         </form>
+        <p class="muted small" x-show="ideas.busy" x-cloak>Can take a minute or two - sometimes up to 3, depending on the provider. Leave this open and wait, don't close it.</p>
+        <p class="bad small" x-show="ideas.error" x-cloak x-text="ideas.error"></p>
         <p class="muted small" x-text="ideas.provenance"></p>
         <template x-for="c in ideas.missingCells" :key="c.day + c.slot">
           <p class="warn small" x-text="'No suggestion returned for ' + dayName(c.day) + ' ' + c.slot"></p>
@@ -281,7 +283,7 @@ function planPage() {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     busy: false, recipes: [], household: [], products: [], units: [], batches: [], useBatchId: '', adding: null, needs: null, suggest: false,
     ideasOpen: false,
-    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', mode: 'all', busy: false, meals: [], missingCells: [], provenance: '' },
+    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', mode: 'all', busy: false, meals: [], missingCells: [], provenance: '', error: '' },
     discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
     meId: {{ user.id }},
 
@@ -482,14 +484,17 @@ function planPage() {
       const cells = this.ideasCells();
       if (!cells.length) { toast('Tick at least one day and meal'); return; }
       const state = this.ideas;
-      state.busy = true; state.meals = []; state.missingCells = []; state.provenance = '';
+      state.busy = true; state.meals = []; state.missingCells = []; state.provenance = ''; state.error = '';
       try {
         const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note, mode: this.ideas.mode } });
         if (this.ideas !== state || !this.ideasOpen) return;
         state.meals = r.meals.map(m => ({...m, request_id: saveRequestId(), added: false, adding: false, addingMissing: false, notAdded: []}));
         state.missingCells = r.missing_cells;
         this.ideas.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
-      } catch (e) { oops(e); }
+      } catch (e) {
+        state.error = (e.message || String(e)) + ' - try again, or try fewer days/meals at once.';
+        oops(e);
+      }
       finally { state.busy = false; }
     },
   };
