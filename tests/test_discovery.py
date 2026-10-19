@@ -208,6 +208,27 @@ class Discovery(unittest.TestCase):
         sg.save_preferences(sg.PreferencesIn(diet=['Vegan'],dislikes=[],other=''),self.db,self.user)
         self.assertNotIn('small portion',sg._preferences_text(self.db))
 
+    def test_suggestion_mode_controls_how_much_it_relies_on_stock(self):
+        # default is open to buying things; 'stock' is strict; 'few' is a lean, not a rule
+        self.assertEqual(sg._mode_text('all'),'')
+        self.assertIn('fully makeable',sg._mode_text('stock'))
+        self.assertIn('fine to need a few',sg._mode_text('few'))
+        self.meal([{'name':'Bread','amount':2,'unit_id':1}])
+        captured={}
+        def fake_run(db,user,prompt,system):
+            captured['prompt']=prompt
+            return sg.GeneratedText(json.dumps({'name':'X','servings':1,'ingredients':[{'name':'Y','amount':1,'unit':'piece'}]}))
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='',mode='stock'),self.db,self.user)
+        self.assertIn('fully makeable',captured['prompt'])
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='chilli',mode='stock'),self.db,self.user)
+        self.assertIn('fully makeable',captured['prompt'])
+        self.assertIn('The main thing: chilli',captured['prompt'])
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.recipe_idea(sg.RecipeIdeaIn(idea='',mode='all'),self.db,self.user)
+        self.assertNotIn('fully makeable',captured['prompt'])
+
     def test_saved_search_without_provider_and_bad_payloads(self):
         self.meal([{'name':'Bread','amount':2,'unit_id':1}])
         with patch.object(sg,'_run',side_effect=AssertionError('no generation')):

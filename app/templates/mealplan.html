@@ -215,6 +215,13 @@
             </table>
           </div>
           <label class="field">Anything else?<input x-model="ideas.note" placeholder="e.g. no fish, something light"></label>
+          <label class="field" style="margin-top: .3rem">How much should it stick to what we've got?
+            <div class="seg" role="group" aria-label="How much to rely on stock">
+              <button type="button" :class="{on: ideas.mode == 'all'}" @click="ideas.mode = 'all'">All</button>
+              <button type="button" :class="{on: ideas.mode == 'few'}" @click="ideas.mode = 'few'">Missing a few</button>
+              <button type="button" :class="{on: ideas.mode == 'stock'}" @click="ideas.mode = 'stock'">Can make</button>
+            </div>
+          </label>
           <div class="row" style="margin-top: .6rem">
             <button class="primary" :disabled="ideas.busy" x-text="ideas.busy ? 'Thinking...' : 'Get ideas'"></button>
             <button type="button" @click="ideasOpen = false">Close</button>
@@ -266,7 +273,7 @@ function planPage() {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
     busy: false, recipes: [], household: [], products: [], units: [], batches: [], useBatchId: '', adding: null, needs: null, suggest: false,
     ideasOpen: false,
-    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', busy: false, meals: [], missingCells: [], provenance: '' },
+    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', mode: 'all', busy: false, meals: [], missingCells: [], provenance: '' },
     discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
     meId: {{ user.id }},
 
@@ -395,7 +402,7 @@ function planPage() {
       } catch (e) { oops(e); }
     },
     openIdeas() {
-      this.ideas = { length: 'week', rangeFrom: this.start, rangeTo: addDays(this.start, 13), grid: {}, note: '', busy: false, meals: [], missingCells: [], provenance: '' };
+      this.ideas = { length: 'week', rangeFrom: this.start, rangeTo: addDays(this.start, 13), grid: {}, note: '', mode: 'all', busy: false, meals: [], missingCells: [], provenance: '' };
       this.buildIdeasGrid();
       this.ideasOpen = true;
     },
@@ -469,7 +476,7 @@ function planPage() {
       const state = this.ideas;
       state.busy = true; state.meals = []; state.missingCells = []; state.provenance = '';
       try {
-        const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note } });
+        const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note, mode: this.ideas.mode } });
         if (this.ideas !== state || !this.ideasOpen) return;
         state.meals = r.meals.map(m => ({...m, request_id: saveRequestId(), added: false, adding: false, addingMissing: false, notAdded: []}));
         state.missingCells = r.missing_cells;

@@ -37,11 +37,27 @@ class MealIdeaCell(BaseModel):
 class MealIdeasIn(BaseModel):
     cells: list[MealIdeaCell] = Field(default_factory=list, max_length=500)
     note: str = Field(default="", max_length=2000)
+    mode: Literal["all", "stock", "few"] = "all"
 
 
 class RecipeIdeaIn(BaseModel):
     idea: str = Field(default="", max_length=2000)
     use_expiring: bool = True
+    mode: Literal["all", "stock", "few"] = "all"
+
+
+def _mode_text(mode):
+    """How free the suggestion is to need a shopping trip."""
+    if mode == "stock":
+        return ("Only suggest something fully makeable from what's in stock right now - every "
+                "ingredient has to already be on hand. If nothing good is genuinely possible from "
+                "stock alone, say so honestly in the name/instructions rather than forcing a bad "
+                "combination together just to avoid buying anything.")
+    if mode == "few":
+        return ("Lean toward using what's already in stock, but it's fine to need a few extra "
+                "things if that makes for a genuinely better meal - don't force a worse combination "
+                "just to avoid buying one or two items.")
+    return ""
 
 
 def settings_for(db, user):
@@ -327,6 +343,7 @@ Use saved recipes where they genuinely fit. For each meal give the name, roughly
 how much to make for the portion sizes above. Pick good, properly varied dinners first - don't just
 reshuffle what's already in stock into odd combinations. Buying extra ingredients is completely
 normal; point out anything we'd need to buy, don't avoid suggesting it.
+{_mode_text(data.mode)}
 Reply with only JSON, nothing before or after:
 {{"meals": [{{"day": "2026-10-20", "slot": "dinner", "name": "...", "servings": 2,
 "ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ..."}}]}}
@@ -372,14 +389,16 @@ def _parse_json(text):
 @router.post("/suggestions/recipe")
 def recipe_idea(data: RecipeIdeaIn, db=Depends(get_db), user=Depends(current_user)):
     ask = data.idea.strip()
+    mode_line = _mode_text(data.mode)
     recent = [r["name"] for r in rows(db.execute(
         "SELECT name FROM recent_suggestions WHERE user_id = ? ORDER BY id DESC LIMIT 5", (user["id"],)))]
     prompt = f"""Draft a proposed recipe for user review. Amounts are estimates, not authoritative
 nutrition or medical advice.
-{('The main thing: ' + ask + '. This is what they actually want - give them that dish, even if we '
-  "don't have everything for it. Don't substitute a different dish just because of what's in stock.")
- if ask else 'Suggest one genuinely good meal. Using stock is a bonus, not a requirement - '
- "pick whatever's actually a good meal and say what needs buying, don't settle for a worse combination just because the pieces are in stock."}
+{(('The main thing: ' + ask + '. This is what they actually want - give them that dish, even if we '
+   "don't have everything for it. Don't substitute a different dish just because of what's in stock."
+   + (' ' + mode_line if mode_line else ''))
+ if ask else (mode_line or 'Suggest one genuinely good meal. Using stock is a bonus, not a requirement - '
+ "pick whatever's actually a good meal and say what needs buying, don't settle for a worse combination just because the pieces are in stock."))}
 {("Where it fits the dish above, lean towards using things that are going off soonest, "
   "but don't change what dish this is just to use them up.") if data.use_expiring else ''}
 {('Already suggested recently, so pick something different this time unless the request above '
