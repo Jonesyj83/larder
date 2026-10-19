@@ -28,6 +28,10 @@ class SettingsIn(BaseModel):
 
 MAX_IDEA_CELLS = 60
 
+# tap water (and the odd ice cube) is never something anyone needs to buy or
+# has sitting in a stock record - treat it as always on hand, not a shopping item
+FREE_INGREDIENTS = {"water", "tap water", "iced water", "ice", "ice cubes", "ice cube"}
+
 
 class MealIdeaCell(BaseModel):
     day: str
@@ -485,6 +489,11 @@ def review_recipe(db, parsed, wanted=None):
         match = next((p for p in products if p['name'].casefold() == name.casefold()),None)
         unit_id = units.get(unit.strip().casefold())
         have = short = short_unit_id = short_unit = None
+        if name.casefold() in FREE_INGREDIENTS:
+            ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=unit_id,
+                                    product_id=None, product='always on hand', suggested_product_id=None,
+                                    have=None, short=0, short_unit=unit, short_unit_id=unit_id, note=''))
+            continue
         if match and unit_id is not None:
             try:
                 need = st.to_stock_units(db, match, amount, unit_id)

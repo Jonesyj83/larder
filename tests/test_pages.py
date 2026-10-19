@@ -92,7 +92,12 @@ async def check():
                 user={'id': 1, 'username': 'render-test', 'portion_size': 'regular', 'is_admin': True})
             tags = inspect(html)
             selected = [a for t, a in tags if t == 'a' and 'on' in a.get('class', '').split()]
-            assert len(selected) == 1 and selected[0]['href'] == BASE_PATH + route, (route, selected)
+            # Products isn't one of the main tabs any more - reached via a link from Stock -
+            # so visiting it leaves nothing highlighted in the top nav, unlike every other page.
+            if route == '/products':
+                assert selected == [], (route, selected)
+            else:
+                assert len(selected) == 1 and selected[0]['href'] == BASE_PATH + route, (route, selected)
             if template == 'settings.html':
                 regular = templates.env.get_template(template).render(request=request, title=title,
                     user={'id': 2, 'username': 'member', 'portion_size': 'small', 'is_admin': False})

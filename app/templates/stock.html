@@ -4,6 +4,7 @@
 <div x-data="stockPage()" x-init="load()" @stock-changed.window="load()">
   <div class="row page-head">
     <h1 class="grow">What’s in the kitchen</h1>
+    <a class="small" href="{{ base_path }}/products">Manage products</a>
     <a class="btn primary" href="{{ base_path }}/scan">Scan an item</a>
     <button @click="adding = true">Add stock</button>
   </div>

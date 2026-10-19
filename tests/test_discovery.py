@@ -273,6 +273,15 @@ class Discovery(unittest.TestCase):
         self.assertEqual(again['added'],0)
         self.assertEqual({i['label']: i['amount'] for i in list_items(self.db,self.user)}['Bread'],3)
 
+    def test_water_and_ice_are_never_flagged_as_missing(self):
+        draft = sg.review_recipe(self.db, {'servings': 1, 'ingredients': [
+            {'name': 'Water', 'amount': 100, 'unit': 'ml'}, {'name': 'Ice cubes', 'amount': 4, 'unit': 'piece'},
+            {'name': 'Chicken', 'amount': 500, 'unit': 'piece'}]})
+        water, ice, chicken = draft['ingredients']
+        self.assertEqual(water['short'], 0)
+        self.assertEqual(ice['short'], 0)
+        self.assertEqual(chicken['short'], 500)  # a real ingredient we don't have is still flagged
+
     def test_unknown_unit_does_not_guess_stock_and_bad_shopping_is_atomic(self):
         from app.stock import purchase
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
