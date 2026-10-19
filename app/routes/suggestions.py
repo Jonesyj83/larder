@@ -147,10 +147,14 @@ def _preferences_text(db):
     return "\n".join(lines)
 
 
-SYSTEM = ("You help a household plan meals from what they already have at home. "
-          "Prefer using things that go off soonest. Keep it practical and short, "
-          "home cooking, no fancy equipment. Respect portion sizes: 'small' means "
-          "about half a normal portion and the person really can't manage more, "
+SYSTEM = ("You help a household plan good meals they'll actually enjoy cooking and eating. "
+          "That is the goal - a genuinely good meal, not a puzzle of using up whatever's in the "
+          "cupboard. Buying extra ingredients for a good meal is completely normal and expected; "
+          "never force two unrelated things together, or pick a worse meal, just because the "
+          "pieces happen to be in stock. If something in stock is about to go off and it genuinely "
+          "suits a good meal, that's a nice bonus - mention it, but don't let it drive the choice. "
+          "Keep it practical and short, home cooking, no fancy equipment. Respect portion sizes: "
+          "'small' means about half a normal portion and the person really can't manage more, "
           "'large' means a big appetite. Name dishes the way a person actually would "
           "- 'chilli con carne', 'spaghetti bolognese', 'fried rice' - not a made-up "
           "description like 'Beef and Bean Skillet'. Only invent a name when there "
@@ -319,8 +323,10 @@ Recipes we already have saved:
 
 {('Extra wishes: ' + data.note) if data.note.strip() else ''}
 
-Use saved recipes where they fit. For each meal give the name, roughly what goes in it and
-how much to make for the portion sizes above. Point out anything we'd need to buy.
+Use saved recipes where they genuinely fit. For each meal give the name, roughly what goes in it and
+how much to make for the portion sizes above. Pick good, properly varied dinners first - don't just
+reshuffle what's already in stock into odd combinations. Buying extra ingredients is completely
+normal; point out anything we'd need to buy, don't avoid suggesting it.
 Reply with only JSON, nothing before or after:
 {{"meals": [{{"day": "2026-10-20", "slot": "dinner", "name": "...", "servings": 2,
 "ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ..."}}]}}
@@ -372,7 +378,8 @@ def recipe_idea(data: RecipeIdeaIn, db=Depends(get_db), user=Depends(current_use
 nutrition or medical advice.
 {('The main thing: ' + ask + '. This is what they actually want - give them that dish, even if we '
   "don't have everything for it. Don't substitute a different dish just because of what's in stock.")
- if ask else 'Suggest something using what is in stock.'}
+ if ask else 'Suggest one genuinely good meal. Using stock is a bonus, not a requirement - '
+ "pick whatever's actually a good meal and say what needs buying, don't settle for a worse combination just because the pieces are in stock."}
 {("Where it fits the dish above, lean towards using things that are going off soonest, "
   "but don't change what dish this is just to use them up.") if data.use_expiring else ''}
 {('Already suggested recently, so pick something different this time unless the request above '
