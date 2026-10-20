@@ -100,10 +100,15 @@
 <p class="small" role="status" x-text="sg.state || 'Setup required'"></p>
       <p class="muted small" x-text="connectionRoute"></p>
       <label class="field"><span x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></span>
-      <input :aria-label="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'" type="password" x-model="sg.api_key" autocomplete="off"
-             :placeholder="sg.has_key ? 'leave blank to keep the saved one' : ''"></label>
-      <p class="small ok" style="margin-top: -.5rem" x-show="sg.has_key && !sg.api_key"
-         x-text="'A key is saved: ' + (sg.key_hint || '??????') + '...'"></p>
+      <input x-show="!editingKey" type="text" readonly
+             :value="sg.has_key ? (sg.key_hint || '??????') + '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : ''"
+             :placeholder="sg.provider == 'ollama' ? '(usually not needed)' : 'no key saved yet'"
+             @focus="editingKey = true; $nextTick(() => $refs.keyInput.focus())"
+             @click="editingKey = true; $nextTick(() => $refs.keyInput.focus())">
+      <input x-show="editingKey" x-ref="keyInput" type="password" x-model="sg.api_key" autocomplete="off"
+             @blur="if (!sg.api_key && sg.has_key) editingKey = false"
+             placeholder="paste a new key"></label>
+      <p class="muted small" style="margin-top: -.5rem" x-show="editingKey && sg.has_key && !sg.api_key">Leave blank to keep the saved key.</p>
       <label class="field">Base URL (optional)<input x-model="sg.base_url" :placeholder="sg.provider == 'ollama' ? 'http://localhost:11434' : 'leave blank for the default'"></label>
       <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="sg.shared"> Let everyone in the house use this</label>
       <div class="row" style="margin-top: .8rem">
@@ -148,7 +153,7 @@ function settingsPage() {
     dateFormat: preferences().date_format, measurementSystem: preferences().measurement_system,
     portion: '{{ user.portion_size }}', showPrices: !!preferences().show_prices, pw: { old: '', new: '' },
     keys: [], keyName: '', newKey: '',
-    sg: {}, testing: false, connectionRoute: '', modelChoice: '', savedProviderState: null,
+    sg: {}, testing: false, connectionRoute: '', modelChoice: '', savedProviderState: null, editingKey: false,
     prefs: { diet: [], dislikes: [], other: '', diet_tags: [] }, newDislike: '',
     users: [], nu: { username: '', password: '', portion_size: 'regular' },
     isAdmin: {{ 'true' if user.is_admin else 'false' }},
@@ -157,6 +162,7 @@ function settingsPage() {
       [this.keys, this.sg, this.prefs] = await Promise.all([api('/api/me/keys'), api('/api/me/suggestions'), api('/api/household/preferences')]);
       this.sg.api_key = '';
       this.savedProviderState = { ...this.sg };
+      this.editingKey = !this.sg.has_key;
       this.syncModelChoice();
       await this.resyncSelects();
       if (this.isAdmin) this.users = await api('/api/users');
@@ -189,6 +195,7 @@ function settingsPage() {
         this.sg.state = 'Setup required'; this.sg.base_url = ''; this.sg.model = '';
         this.sg.shared = false; this.connectionRoute = '';
       }
+      this.editingKey = !this.sg.has_key;
       this.syncModelChoice();
       this.resyncSelects();
     },
@@ -242,6 +249,7 @@ function settingsPage() {
         model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared } });
       this.sg.api_key = '';
       this.savedProviderState = { ...this.sg };
+      this.editingKey = !this.sg.has_key;
       this.syncModelChoice();
       await this.resyncSelects();
     },
@@ -251,12 +259,11 @@ function settingsPage() {
         const r = await api('/api/me/suggestions/test', { method: 'POST', body: {
           provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
           model: this.sg.model || '', base_url: this.sg.base_url || '' } });
-        this.sg.state = 'Connection responded';
         this.connectionRoute = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
         // a test that actually worked is a connection worth keeping - save it so people
         // don't have to click a second button to make a working key stick
         await this.persistSuggest();
-        this.sg.state = 'Connection responded';
+        this.sg.state = 'Working';
         toast(r.reply + ' - saved');
       } catch (e) { oops(e); }
       this.testing = false;
@@ -268,6 +275,7 @@ function settingsPage() {
         this.sg = await api('/api/me/suggestions');
         this.sg.api_key = '';
         this.savedProviderState = { ...this.sg };
+        this.editingKey = !this.sg.has_key;
         this.syncModelChoice();
         await this.resyncSelects();
       } catch (e) { oops(e); }

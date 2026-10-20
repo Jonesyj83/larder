@@ -629,7 +629,7 @@ class SuggestionSettings(MemoryDB):
         handler = lambda request: httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
         with patch.object(providers, '_transport', httpx.MockTransport(handler)):
             result = sg.test_settings(sg.TestIn(provider='openai', api_key='sk-unsaved'), self.db, USER)
-        self.assertEqual(result['reply'], 'Connection responded')
+        self.assertEqual(result['reply'], 'It really answered: "ok"')
         self.assertIsNone(sg.get_settings(self.db, USER).get('api_key'))  # still never saved
         self.assertFalse(sg.get_settings(self.db, USER)['has_key'])
         # a bad base_url in the test body is rejected the same as on save
@@ -640,7 +640,7 @@ class SuggestionSettings(MemoryDB):
         sg.save_settings(sg.SettingsIn(provider='openai', api_key='sk-saved'), self.db, USER)
         with patch.object(providers, '_transport', httpx.MockTransport(handler)):
             result = sg.test_settings(sg.TestIn(provider='openai'), self.db, USER)
-        self.assertEqual(result['reply'], 'Connection responded')
+        self.assertEqual(result['reply'], 'It really answered: "ok"')
 
 
 class Pictures(unittest.TestCase):

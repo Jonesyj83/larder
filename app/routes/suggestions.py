@@ -315,9 +315,10 @@ def test_settings(data: TestIn = TestIn(), db=Depends(get_db), user=Depends(curr
             result = providers.ask_with_provenance(settings, "Reply with just the word: ok", None)
         except providers.ProviderError as e:
             raise HTTPException(502, str(e))
-        return {"reply": "Connection responded", "provenance": {k: v for k, v in result.items() if k != "text"}}
+        return {"reply": f"It really answered: \"{result['text'].strip()[:80]}\"",
+                "provenance": {k: v for k, v in result.items() if k != "text"}}
     text = _run(db, user, "Reply with just the word: ok", None)
-    return {"reply": "Connection responded", "provenance": getattr(text,"provenance",None)}
+    return {"reply": f"It really answered: \"{str(text).strip()[:80]}\"", "provenance": getattr(text, "provenance", None)}
 
 
 def _grouped_cells(cells):
