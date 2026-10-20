@@ -244,10 +244,10 @@
         <template x-for="e in ideas.cookEvents" :key="e.uses[0].day + e.uses[0].slot">
           <div class="card" style="margin-top: 1rem">
             <b x-text="e.name"></b>
-            <span class="muted small" x-text="'(makes ' + num(e.servings) + ')'"></span>
+            <span class="muted small" x-text="'(makes ' + num(e.servings) + (e.servings == 1 ? ' serving)' : ' servings)')"></span>
             <ul class="small">
               <template x-for="u in e.uses" :key="u.day + u.slot">
-                <li x-text="dayName(u.day) + ' ' + u.slot + ': ' + num(u.portions) + (u.twist ? ' - ' + u.twist : '')"></li>
+                <li x-text="dayName(u.day) + ' ' + u.slot + ': ' + num(u.portions) + (u.portions == 1 ? ' serving' : ' servings') + (u.twist ? ' - ' + u.twist : '')"></li>
               </template>
             </ul>
             <ul class="small">
@@ -268,6 +268,7 @@
             <div class="row" style="margin-top: .6rem">
               <button class="primary" @click="addIdeaToPlan(e)" :disabled="e.added || e.adding" x-text="e.added ? 'Added' : (e.adding ? 'Adding...' : 'Add to plan')"></button>
               <button type="button" x-show="ideaMissing(e).length" :disabled="e.addingMissing" @click="addIdeaMissing(e)" x-text="e.addingMissing ? 'Adding...' : 'Add what we need to shopping'"></button>
+              <button type="button" x-show="!e.added" :disabled="e.retrying" @click="retryIdea(e)" x-text="e.retrying ? 'Trying again...' : 'Try something different'"></button>
             </div>
           </div>
         </template>
@@ -484,6 +485,24 @@ function planPage() {
       } catch (ex) { oops(ex); }
       finally { e.addingMissing = false; }
     },
+    wrapCookEvent(e) {
+      return {...e, request_id: saveRequestId(), added: false, adding: false, addingMissing: false, retrying: false, notAdded: []};
+    },
+    async retryIdea(e) {
+      if (e.retrying || e.adding) return;
+      e.retrying = true;
+      try {
+        const cells = e.uses.map(u => ({day: u.day, slot: u.slot}));
+        const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note, mode: this.ideas.mode } });
+        const idx = this.ideas.cookEvents.indexOf(e);
+        if (idx === -1) return;
+        const fresh = r.cook_events.map(ev => this.wrapCookEvent(ev));
+        this.ideas.cookEvents.splice(idx, 1, ...fresh);
+        const covered = new Set(cells.map(c => c.day + c.slot));
+        this.ideas.missingCells = this.ideas.missingCells.filter(c => !covered.has(c.day + c.slot)).concat(r.missing_cells);
+      } catch (ex) { oops(ex); }
+      finally { e.retrying = false; }
+    },
     async getIdeas() {
       if (!this.ideasDays().length) { toast('Choose a valid date range, with the end on or after the start'); return; }
       const cells = this.ideasCells();
@@ -493,7 +512,7 @@ function planPage() {
       try {
         const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note, mode: this.ideas.mode } });
         if (this.ideas !== state || !this.ideasOpen) return;
-        state.cookEvents = r.cook_events.map(e => ({...e, request_id: saveRequestId(), added: false, adding: false, addingMissing: false, notAdded: []}));
+        state.cookEvents = r.cook_events.map(e => this.wrapCookEvent(e));
         state.missingCells = r.missing_cells;
         this.ideas.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
       } catch (e) {

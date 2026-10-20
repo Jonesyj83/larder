@@ -343,3 +343,44 @@ async function api(path,opts={}) {
         self.assertIn('e.added ? \'Added\'',html)
         self.assertIn("- don't have this yet",html)
         self.assertIn("qty(i.have, i.short_unit)",html)
+
+    def test_retry_idea_replaces_just_that_cook_event_javascript(self):
+        plan = (ROOT/'app/templates/mealplan.html').read_text().split('<script>')[1].split('</script>')[0].replace('{{ user.id }}','1')
+        helpers = (ROOT/'app/static/app.js').read_text()
+        pre = """
+const assert=require('node:assert/strict');
+const window={}, document={addEventListener(){}}, navigator={};
+const calls=[];
+const first={cook_events:[{name:'Toast',servings:2,ingredients:[],instructions:'',
+  uses:[{day:'2026-10-12',slot:'dinner',portions:2,twist:''}]}],missing_cells:[{day:'2026-10-13',slot:'lunch'}]};
+const second={cook_events:[{name:'Pancakes',servings:2,ingredients:[],instructions:'',
+  uses:[{day:'2026-10-12',slot:'dinner',portions:2,twist:''}]}],missing_cells:[]};
+let ideaCalls=0;
+async function api(path,opts={}) {
+ calls.push({path,...opts});
+ if(path==='/api/suggestions/meals') { ideaCalls++; return ideaCalls===1 ? first : second; }
+ return {added:1};
+}
+"""
+        helpers = helpers[helpers.index('function num'):].replace("function toast(msg, bad = false) { Alpine.store('toast').show(msg, bad); }", 'function toast() {}').replace("function oops(e) { toast(e.message || String(e), true); }", 'function oops() {}')
+        body = """
+(async()=>{
+ const p=planPage(); p.load=()=>{}; p.openIdeas(); await p.getIdeas();
+ assert.equal(p.ideas.cookEvents[0].name,'Toast');
+ assert.equal(p.ideas.missingCells.length,1);
+ const e=p.ideas.cookEvents[0];
+ await p.retryIdea(e);
+ assert.equal(p.ideas.cookEvents.length,1);
+ assert.equal(p.ideas.cookEvents[0].name,'Pancakes');
+ assert.equal(p.ideas.cookEvents[0].added,false);
+ // the retry request asked only for this event's own day/slot, not the whole week
+ const retryCall=calls.filter(c=>c.path==='/api/suggestions/meals').at(-1);
+ assert.deepEqual(retryCall.body.cells,[{day:'2026-10-12',slot:'dinner'}]);
+ // the original missing cell is untouched by a retry on a different cell
+ assert.equal(p.ideas.missingCells.length,1);
+})().catch(e=>{console.error(e);process.exit(1)});
+"""
+        run=subprocess.run(['node'],input=pre+helpers+plan+body,text=True,capture_output=True,timeout=15)
+        self.assertEqual(run.returncode,0,run.stderr)
+        html=(ROOT/'app/templates/mealplan.html').read_text()
+        self.assertIn('Try something different',html)

@@ -219,7 +219,7 @@ class Discovery(unittest.TestCase):
 
     def test_suggestion_mode_controls_how_much_it_relies_on_stock(self):
         # default is open to buying things; 'stock' is strict; 'few' is a lean, not a rule
-        self.assertEqual(sg._mode_text('all'),'')
+        self.assertIn("don't let what's in stock drive the choice",sg._mode_text('all').lower())
         self.assertIn('fully makeable',sg._mode_text('stock'))
         self.assertIn('fine to need a few',sg._mode_text('few'))
         self.meal([{'name':'Bread','amount':2,'unit_id':1}])

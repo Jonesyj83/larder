@@ -61,7 +61,10 @@ def _mode_text(mode):
         return ("Lean toward using what's already in stock, but it's fine to need a few extra "
                 "things if that makes for a genuinely better meal - don't force a worse combination "
                 "just to avoid buying one or two items.")
-    return ""
+    return ("Don't let what's in stock drive the choice at all here - pick genuinely good meals "
+            "first, as if planning a normal week's cooking from scratch, and treat anything already "
+            "in stock as a nice coincidence, not a reason to pick it. Buying most or all of the "
+            "ingredients fresh is completely normal and expected.")
 
 
 def settings_for(db, user):
@@ -379,9 +382,12 @@ Reply with only JSON, nothing before or after:
 "ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ...",
 "uses": [{{"day": "2026-10-20", "slot": "dinner", "portions": 2, "twist": ""}},
 {{"day": "2026-10-22", "slot": "lunch", "portions": 1, "twist": "as jaffles"}}]}}]}}
-"servings" is the whole batch you cook in one go. Each entry in "uses" is one requested
-day/slot eating some of that batch - "portions" is how much of the batch that slot eats
-(roughly in the same servings unit as "servings", not grams), "twist" is a short note like
+"servings" is the whole batch you cook in one go, written as a normal number of servings
+(e.g. 4, matching how the dish is actually portioned). Each entry in "uses" is one requested
+day/slot eating some of that batch - "portions" is how many whole servings that slot eats,
+written as a normal serving count for a person to eat (1, 1.5, 2...), not a fraction of the
+batch like 0.5 and not grams. The portions across every use, plus whatever's sensibly left
+over for the freezer, should add up to roughly "servings". "twist" is a short note like
 "as jaffles" or "" if it's just eaten as-is. Every day/slot below must appear in exactly one
 use, across however many cook events you plan, with no repeats and nothing extra:
 {json.dumps([c.model_dump() for c in data.cells])}
