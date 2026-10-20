@@ -346,6 +346,8 @@ def meal_ideas(data: MealIdeasIn, db=Depends(get_db), user=Depends(current_user)
     known = "\n".join(f"- {r['name']}" + (" (everything in stock)" if r["can_make"] else f" ({r['missing_count']} things missing)")
                       + (f" - rated {r['rating']}/5" if r["rating"] else "")
                       for r in recipes) or "(none saved yet)"
+    recent = [r["name"] for r in rows(db.execute(
+        "SELECT name FROM recent_suggestions WHERE user_id = ? ORDER BY id DESC LIMIT 8", (user["id"],)))]
     me = f"{user['username']}, who likes {user['portion_size']} portions (about {PORTION_FACTOR[user['portion_size']]}x normal)"
     prompt = f"""Plan cook events to cover exactly these days and meals:
 {_grouped_cells(data.cells)}
@@ -363,19 +365,24 @@ In stock right now:
 Recipes we already have saved:
 {known}
 
+{('Already suggested recently - vary it up, don\'t just repeat these unless the household '
+  'specifically asked for one of them again: ' + ', '.join(recent) + '.') if recent else ''}
+
 {('Extra wishes: ' + data.note) if data.note.strip() else ''}
 
-Use saved recipes where they genuinely fit, especially highly-rated ones - lean away from
-anything rated 1-2 unless nothing else works. Think in terms of cook events, not one meal per
-slot: cook a proper batch once, eat some fresh, and spread the rest across other requested
-slots later in the week - same dish again, or given a twist (e.g. chilli con carne one night,
-then chilli con carne jaffles for lunch a couple of days later) - rather than inventing a
-brand new dish from scratch for every single slot. This is the actual point of the plan: buy
-and cook efficiently, not throw out half of everything. A cook event doesn't have to cover
-every remaining slot by itself; it's fine to have several smaller cook events across the week
-as well as a few big ones. Pick good, properly varied meals first - don't just reshuffle what's
-already in stock into odd combinations. Buying extra ingredients is completely normal; point
-out anything we'd need to buy, don't avoid suggesting it.
+A saved recipe is only worth repeating if it genuinely fits well and hasn't been suggested
+recently - with only a few recipes saved so far, don't fall back on the same one or two
+dishes just because they're the only things on the list; a good new idea beats reusing an
+old one every time. Lean away from anything rated 1-2 unless nothing else works. Think in
+terms of cook events, not one meal per slot: cook a proper batch once, eat some fresh, and
+spread the rest across other requested slots later in the week - same dish again, or given a
+twist (e.g. chilli con carne one night, then chilli con carne jaffles for lunch a couple of
+days later) - rather than inventing a brand new dish from scratch for every single slot. This
+is the actual point of the plan: buy and cook efficiently, not throw out half of everything. A
+cook event doesn't have to cover every remaining slot by itself; it's fine to have several
+smaller cook events across the week as well as a few big ones. Pick good, properly varied
+meals first - don't just reshuffle what's already in stock into odd combinations. Buying extra
+ingredients is completely normal; point out anything we'd need to buy, don't avoid suggesting it.
 {_mode_text(data.mode)}
 Reply with only JSON, nothing before or after:
 {{"cook_events": [{{"name": "...", "servings": 4,
@@ -431,6 +438,12 @@ Give 1–50 ingredients per cook event, 1–10 uses per cook event."""
     order = lambda cell: (cell[0], SLOTS.index(cell[1]))
     events.sort(key=lambda e: order((e["uses"][0]["day"], e["uses"][0]["slot"])))
     missing = [dict(day=d, slot=s) for d, s in sorted(requested - seen, key=order)]
+    for e in events:
+        db.execute("INSERT INTO recent_suggestions (user_id, name) VALUES (?, ?)", (user["id"], e["name"]))
+    db.execute("""DELETE FROM recent_suggestions WHERE user_id = ? AND id NOT IN
+                  (SELECT id FROM recent_suggestions WHERE user_id = ? ORDER BY id DESC LIMIT 10)""",
+               (user["id"], user["id"]))
+    db.commit()
     return {"cook_events": events, "missing_cells": missing, "provenance": getattr(text, "provenance", None)}
 
 

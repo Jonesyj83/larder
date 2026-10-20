@@ -54,6 +54,26 @@ class Discovery(unittest.TestCase):
                 sg.recipe_idea(sg.RecipeIdeaIn(idea='',use_expiring=False),self.db,self.user)
         self.assertEqual(self.count('recent_suggestions'),10)
 
+    def test_meal_ideas_avoids_repeating_recent_suggestions(self):
+        user = {'id': 1, 'username': 'test', 'portion_size': 'regular'}
+        cell = [{'day':'2026-10-20','slot':'dinner'}]
+        def gen(name):
+            return sg.GeneratedText(json.dumps({'cook_events':[{'name':name,'servings':2,
+                'ingredients':[{'name':'Beef','amount':500,'unit':'g'}],'instructions':'',
+                'uses':[{'day':'2026-10-20','slot':'dinner','portions':2,'twist':''}]}]}))
+        with patch.object(sg,'_run',return_value=gen('Chilli con carne')):
+            sg.meal_ideas(sg.MealIdeasIn(cells=cell),self.db,user)
+        captured = {}
+        def fake_run(db,user,prompt,system):
+            captured['prompt'] = prompt
+            return gen('Fried rice')
+        with patch.object(sg,'_run',side_effect=fake_run):
+            sg.meal_ideas(sg.MealIdeasIn(cells=cell),self.db,user)
+        self.assertIn('Already suggested recently',captured['prompt'])
+        self.assertIn('Chilli con carne',captured['prompt'])
+        names = [r['name'] for r in sg.rows(self.db.execute('SELECT name FROM recent_suggestions ORDER BY id'))]
+        self.assertEqual(names,['Chilli con carne','Fried rice'])
+
     def test_meal_ideas_cell_validation(self):
         user = {'id': 1, 'username': 'test', 'portion_size': 'regular'}
         with self.assertRaises(HTTPException):
@@ -136,7 +156,9 @@ class Discovery(unittest.TestCase):
         self.assertEqual((bread['have'],bread['short'],bread['short_unit']), (3,3,'slice'))
         self.assertIsNone(butter['suggested_product_id'])
         self.assertEqual(butter['short'],1)
-        self.assertEqual(self.db.total_changes,before)
+        # recent_suggestions gets a row now, for anti-repeat in future calls - that's a real,
+        # expected write, not an accidental one
+        self.assertEqual(self.db.execute("SELECT name FROM recent_suggestions WHERE user_id=1").fetchone()[0],'Toast')
 
     def test_structured_meals_are_ordered_by_day_and_slot(self):
         cells = [{'day':'2026-10-21','slot':'breakfast'}, {'day':'2026-10-20','slot':'dinner'},
