@@ -230,6 +230,7 @@ def get_settings(db=Depends(get_db), user=Depends(current_user)):
         s = dict(provider="anthropic", model="", base_url="", shared=False, api_key="")
     key = s.pop('api_key')
     s['has_key'] = bool(key)
+    s['key_hint'] = key[:6] if key else ''
     s['shared'] = bool(s['shared'])
     s['providers'] = providers.catalogue()
     s['state'] = 'Connection not verified' if providers.is_configured(dict(s,api_key=key)) else 'Setup required'

@@ -208,10 +208,12 @@ PROVIDER_MODELS = {
         "grok-4.7", "grok-4.6", "grok-4.5",
         "minimax-m3", "minimax-m2.7", "minimax-m2.5",
         "mimo-v2.6-pro", "mimo-v2.6-flash", "mimo-v2.5-pro", "mimo-v2.5", "mimo-v2-pro", "mimo-v2-omni",
-        "gpt-6-luna", "gpt-5.6-luna",
         "claude-haiku-5-5", "hy4-preview", "hy3", "hy3-preview",
         "longcat-2.5-preview-free", "longcat-2.0", "step-5-preview-free",
         "space-bunny", "space-bunny-free",
+        # gpt-6-luna and gpt-5.6-luna are deliberately left out - confirmed on 21 Oct 2026
+        # that OpenCode Go's relay rejects them with "Model does not support this protocol"
+        # (HTTP 400) on every request, they're not usable through this integration
     ],
 }
 

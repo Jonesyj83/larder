@@ -113,6 +113,9 @@ async def check():
         assert (await member.put('/api/me/suggestions', json={'provider': 'anthropic'})).status_code == 200
         mine = (await admin.get('/api/me/suggestions')).json()
         assert mine['provider'] == 'openai' and mine['has_key'] and mine['shared'], mine
+        # a short hint of the saved key is ok to show (so people can tell which key they're
+        # about to overwrite without retyping it blind) - the full secret never shows up
+        assert mine['key_hint'] == secret[:6] and secret not in mine['key_hint'], mine
 
         # --- odd numbers and text ---
         units = {u['name']: u['id'] for u in (await admin.get('/api/units')).json()}

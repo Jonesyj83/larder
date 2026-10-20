@@ -577,6 +577,14 @@ class ProviderSafety(unittest.TestCase):
         self.assertNotIn('Too many requests', str(e.exception))
         self.assertIn('HTTP 429', str(e.exception))
 
+    def test_models_known_to_be_rejected_by_the_relay_are_not_offered(self):
+        # gpt-6-luna and gpt-5.6-luna were confirmed (21 Oct 2026) to 400 on every request -
+        # they shouldn't be in the picker where someone could pick them and hit a dead end
+        models = providers.PROVIDER_MODELS.get('opencode-go', [])
+        self.assertNotIn('gpt-6-luna', models)
+        self.assertNotIn('gpt-5.6-luna', models)
+        self.assertIn('deepseek-v4.1-flash', models)
+
     def test_opencode_session_header_on_every_call(self):
         sessions = []
 
