@@ -29,6 +29,24 @@ class ProviderError(Exception):
     pass
 
 
+def _error_detail(raw):
+    """Pull a short, readable reason out of a provider's error body, but only when it's a
+    deliberate structured error message - never echo arbitrary raw/plain-text upstream
+    content back to the user, that's not meant for display and could be anything."""
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return None
+    err = parsed.get("error") if isinstance(parsed, dict) else None
+    if isinstance(err, dict):
+        msg = err.get("message") or err.get("type")
+    elif isinstance(err, str):
+        msg = err
+    else:
+        msg = parsed.get("message") if isinstance(parsed, dict) else None
+    return str(msg)[:200] if msg else None
+
+
 def _post(url, headers, body, params=None):
     started = time.monotonic()
     data = bytearray()
@@ -36,7 +54,15 @@ def _post(url, headers, body, params=None):
         with httpx.Client(transport=_transport, timeout=TIMEOUT, follow_redirects=False) as client:
             with client.stream("POST", url, headers=headers, json=body, params=params) as r:
                 if r.status_code >= 400:
-                    raise ProviderError(f"Provider rejected request (HTTP {r.status_code}); check connection settings")
+                    raw = r.read()
+                    detail = _error_detail(raw)
+                    if detail:
+                        for v in headers.values():
+                            key = v.removeprefix("Bearer ") if v else v
+                            if key and len(key) >= 8:
+                                detail = detail.replace(key, "[redacted]")
+                    raise ProviderError(f"Provider rejected request (HTTP {r.status_code})"
+                                         + (f": {detail}" if detail else "; check connection settings"))
                 for chunk in r.iter_bytes():
                     data += chunk
                     if len(data) > MAX_REPLY:

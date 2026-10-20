@@ -557,6 +557,26 @@ class ProviderSafety(unittest.TestCase):
         with patch.object(providers, '_transport', transport), self.assertRaises(providers.ProviderError):
             providers.openai('hi', 'key', '', None)
 
+    def test_provider_error_surfaces_the_real_reason_and_redacts_the_key(self):
+        secret_key = 'sk-test-abcdef123456'
+        transport = httpx.MockTransport(lambda r: httpx.Response(400, json={
+            'type': 'error', 'error': {'type': 'ModelProtocolUnsupported',
+                                        'message': f'Model does not support this protocol, key {secret_key}'}}))
+        with patch.object(providers, '_transport', transport):
+            with self.assertRaises(providers.ProviderError) as e:
+                providers.openai('hi', secret_key, 'some-model', None)
+        self.assertIn('Model does not support this protocol', str(e.exception))
+        self.assertIn('HTTP 400', str(e.exception))
+        self.assertNotIn(secret_key, str(e.exception))
+        # a plain-text (non-json) error body is never echoed back - it's not a deliberate
+        # structured error message, could be anything, stays generic instead
+        transport2 = httpx.MockTransport(lambda r: httpx.Response(429, text='Too many requests, slow down'))
+        with patch.object(providers, '_transport', transport2):
+            with self.assertRaises(providers.ProviderError) as e:
+                providers.openai('hi', 'key', '', None)
+        self.assertNotIn('Too many requests', str(e.exception))
+        self.assertIn('HTTP 429', str(e.exception))
+
     def test_opencode_session_header_on_every_call(self):
         sessions = []
 
