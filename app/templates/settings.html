@@ -92,11 +92,8 @@
         <div>
           <label class="field">Model
           <select x-ref="modelSelect" x-model="modelChoice" @change="onModelChoice()">
-            <template x-for="m in (selectedProvider().models || [])" :key="m"><option :value="m" x-text="m"></option></template>
-            <option value="">Custom name...</option>
+            <template x-for="m in modelOptions()" :key="m"><option :value="m" x-text="m"></option></template>
           </select></label>
-          <label class="field" x-show="modelChoice === ''" style="margin-top:.4rem">Custom model name
-          <input x-model="sg.model" :placeholder="modelHint()" maxlength="200"></label>
         </div>
       </div>
       <p class="muted small" x-text="selectedProvider().setup"></p>
@@ -171,8 +168,14 @@ function settingsPage() {
       if (this.$refs.modelSelect) this.$refs.modelSelect.value = this.modelChoice;
     },
     syncModelChoice() {
-      const options = this.selectedProvider().models || [];
-      this.modelChoice = options.includes(this.sg.model) ? this.sg.model : '';
+      const options = this.modelOptions();
+      this.modelChoice = options.includes(this.sg.model) ? this.sg.model : (options[0] || '');
+      this.sg.model = this.modelChoice;
+    },
+    modelOptions() {
+      const p = this.selectedProvider();
+      if (p.models && p.models.length) return p.models;
+      return p.default_model ? [p.default_model] : [];
     },
     onProviderChange() {
       // switching back to the provider that's actually saved should restore its
@@ -188,7 +191,7 @@ function settingsPage() {
       this.resyncSelects();
     },
     onModelChoice() {
-      if (this.modelChoice !== '') this.sg.model = this.modelChoice;
+      this.sg.model = this.modelChoice;
     },
     addDislike() {
       const v = this.newDislike.trim().replace(/,$/, '');
@@ -225,9 +228,6 @@ function settingsPage() {
       try { await api('/api/me/keys/' + k.id, { method: 'DELETE' }); this.keys = await api('/api/me/keys'); } catch (e) { oops(e); }
     },
     selectedProvider() { return (this.sg.providers || []).find(p => p.slug === this.sg.provider) || {}; },
-    modelHint() {
-      return this.selectedProvider().default_model || '';
-    },
     async saveSuggest() {
       try {
         this.sg = await api('/api/me/suggestions', { method: 'PUT', body: {
