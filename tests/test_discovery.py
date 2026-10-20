@@ -74,6 +74,25 @@ class Discovery(unittest.TestCase):
         names = [r['name'] for r in sg.rows(self.db.execute('SELECT name FROM recent_suggestions ORDER BY id'))]
         self.assertEqual(names,['Chilli con carne','Fried rice'])
 
+    def test_meal_ideas_description_reaches_the_response(self):
+        user = {'id': 1, 'username': 'test', 'portion_size': 'regular'}
+        cell = [{'day': '2026-10-20', 'slot': 'dinner'}]
+        reply = sg.GeneratedText(json.dumps({'cook_events': [{'name': 'Chilli con carne',
+            'description': 'Beef mince simmered with kidney beans, tomatoes and chilli.', 'servings': 2,
+            'ingredients': [{'name': 'Beef', 'amount': 500, 'unit': 'g'}], 'instructions': 'Brown it.',
+            'uses': [{'day': '2026-10-20', 'slot': 'dinner', 'portions': 2, 'twist': ''}]}]}))
+        with patch.object(sg, '_run', return_value=reply):
+            result = sg.meal_ideas(sg.MealIdeasIn(cells=cell), self.db, user)
+        self.assertEqual(result['cook_events'][0]['description'],
+                         'Beef mince simmered with kidney beans, tomatoes and chilli.')
+        # a missing description shouldn't blow up the whole reply - it just reads blank
+        reply2 = sg.GeneratedText(json.dumps({'cook_events': [{'name': 'Toast', 'servings': 1,
+            'ingredients': [{'name': 'Bread', 'amount': 2, 'unit': 'slice'}], 'instructions': '',
+            'uses': [{'day': '2026-10-20', 'slot': 'dinner', 'portions': 1, 'twist': ''}]}]}))
+        with patch.object(sg, '_run', return_value=reply2):
+            result2 = sg.meal_ideas(sg.MealIdeasIn(cells=cell), self.db, user)
+        self.assertEqual(result2['cook_events'][0]['description'], '')
+
     def test_meal_ideas_cell_validation(self):
         user = {'id': 1, 'username': 'test', 'portion_size': 'regular'}
         with self.assertRaises(HTTPException):

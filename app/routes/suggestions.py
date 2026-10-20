@@ -387,10 +387,14 @@ meals first - don't just reshuffle what's already in stock into odd combinations
 ingredients is completely normal; point out anything we'd need to buy, don't avoid suggesting it.
 {_mode_text(data.mode)}
 Reply with only JSON, nothing before or after:
-{{"cook_events": [{{"name": "...", "servings": 4,
+{{"cook_events": [{{"name": "...", "description": "...", "servings": 4,
 "ingredients": [{{"name": "...", "amount": 1, "unit": "piece"}}], "instructions": "1. ...",
 "uses": [{{"day": "2026-10-20", "slot": "dinner", "portions": 2, "twist": ""}},
 {{"day": "2026-10-22", "slot": "lunch", "portions": 1, "twist": "as jaffles"}}]}}]}}
+"description" is one short, honest sentence about the dish - what it actually is, in plain
+cooking language a person would say out loud, not sales copy. No exclamation marks, no words
+like "delicious" or "perfect", just what it is (e.g. "Beef mince simmered with kidney beans,
+tomatoes and chilli, served with rice.").
 "servings" is the whole batch you cook in one go, written as a normal number of servings
 (e.g. 4, matching how the dish is actually portioned). Each entry in "uses" is one requested
 day/slot eating some of that batch - "portions" is how many whole servings that slot eats,
@@ -562,7 +566,9 @@ def review_recipe(db, parsed, wanted=None):
                                 short_unit=short_unit if match else unit,
                                 short_unit_id=short_unit_id if match else unit_id,
                                 note='' if unit.strip().casefold() in units else 'Proposed unit: ' + unit + '. Choose a valid unit.'))
-    return dict(name=str(parsed.get('name') or 'Proposed recipe')[:200], servings=wanted or servings,
+    return dict(name=str(parsed.get('name') or 'Proposed recipe')[:200],
+                description=str(parsed.get('description') or '')[:300],
+                servings=wanted or servings,
                 ingredients=ingredients, instructions=str(parsed.get('instructions') or '')[:20000])
 
 
