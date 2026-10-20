@@ -159,12 +159,20 @@ async def check():
         assert saved.status_code == 201, saved.text
         result = saved.json()
         assert result['meals'][0]['simple_meal'] == 1
-        assert result['not_added'][0]['name'] == 'Unlisted ingredient'
+        # an ingredient with no matching product but a real unit gets its own product
+        # created on the spot, rather than silently falling out of the recipe
+        assert result['not_added'] == []
         assert (await client.post('/api/mealplan/from-cook-event', json=suggested)).json() == result
-        assert len((await client.get('/api/products')).json()) == 1
+        products = (await client.get('/api/products')).json()
+        assert len(products) == 2
+        new_product = next(p for p in products if p['name'] == 'Unlisted ingredient')
         recipe = (await client.get('/api/recipes/' + str(result['meals'][0]['recipe_id']))).json()
-        assert len(recipe['ingredients']) == 1 and recipe['ingredients'][0]['product_id'] == pid
+        assert len(recipe['ingredients']) == 2
+        assert {i['product_id'] for i in recipe['ingredients']} == {pid, new_product['id']}
         assert recipe['instructions'] == 'Cook it.'
+        # the brand-new product started at zero stock, so it landed straight on the list
+        shopping = (await client.get('/api/shopping')).json()
+        assert any(i['product_id'] == new_product['id'] and i['amount'] == 1 for i in shopping)
         assert (await client.post('/api/mealplan/from-cook-event',
             json=dict(suggested, uses=[{'day':'2026-10-14','slot':'brunch','portions':2,'twist':''}]))).status_code == 422
         (await client.post('/api/auth/logout'))

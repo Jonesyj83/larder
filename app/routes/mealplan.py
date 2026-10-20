@@ -142,6 +142,16 @@ class CookEventIn(BaseModel):
     uses: list[SuggestedUseIn] = Field(min_length=1, max_length=10)
 
 
+def _shop_for_new_ingredients(db, new_ingredients, user, source_label):
+    """A brand-new product just created for a recipe starts at zero stock - put the
+    full amount the recipe needs straight on the shopping list, so it's not a dead end."""
+    for item in new_ingredients:
+        p = row(db.execute("SELECT id FROM products WHERE name = ? COLLATE NOCASE", (item["name"].strip(),)))
+        if p:
+            add_item(db, p["id"], item["amount"], item["unit_id"], user_id=user["id"],
+                     source="suggestion", source_label=source_label)
+
+
 @router.post("/mealplan/from-cook-event", status_code=201)
 @atomic_save
 def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(current_user)):
@@ -153,18 +163,25 @@ def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(cur
     reviewed = review_recipe(db, dict(name=data.name, servings=data.servings,
                                        ingredients=[i.model_dump() for i in data.ingredients],
                                        instructions=data.instructions))
-    ingredients, not_added = [], []
+    ingredients, not_added, new_ingredients = [], [], []
     for item in reviewed["ingredients"]:
         reason = None
-        if not item["suggested_product_id"]:
-            reason = "not added - no matching product"
-        elif item["short"] is None:
-            reason = "not added - choose a valid unit that converts to the product's stock unit"
+        if item["suggested_product_id"]:
+            if item["short"] is None:
+                reason = "not added - choose a valid unit that converts to the product's stock unit"
+            else:
+                ingredients.append(IngredientIn(product_id=item["suggested_product_id"],
+                                                amount=item["amount"], unit_id=item["unit_id"]))
+        elif item["unit_id"]:
+            # no product for this one yet, but the unit is real - create the product so the
+            # recipe actually has every ingredient, and queue it to go on the shopping list
+            # below once it exists (it starts at zero stock, so the full amount is needed)
+            ingredients.append(IngredientIn(name=item["name"], amount=item["amount"], unit_id=item["unit_id"]))
+            new_ingredients.append(item)
+        else:
+            reason = "not added - no matching product, and the unit isn't one we track; add it by hand"
         if reason:
             not_added.append(dict(item, reason=reason))
-        else:
-            ingredients.append(IngredientIn(product_id=item["suggested_product_id"],
-                                            amount=item["amount"], unit_id=item["unit_id"]))
     # same dish already saved - reuse it so ratings/edits build up on one recipe, not several
     existing = row(db.execute("SELECT id FROM recipes WHERE name = ? COLLATE NOCASE", (data.name.strip(),)))
     if not existing and len(data.uses) == 1 and ingredients:
@@ -176,12 +193,14 @@ def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(cur
                                    ingredients=ingredients), db, user)
         if meal["recipe_id"]:
             db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, meal["recipe_id"]))
+        _shop_for_new_ingredients(db, new_ingredients, user, data.name)
         return {"meals": [meal], "not_added": not_added, "reused_recipe": False}
     if existing:
         recipe_id = existing["id"]
     elif ingredients:
         recipe_id = simple_recipe(db, data.name, data.servings, ingredients, user)
         db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, recipe_id))
+        _shop_for_new_ingredients(db, new_ingredients, user, data.name)
     else:
         recipe_id = None  # nothing we could actually match - just a named placeholder, no recipe yet
     meals = []

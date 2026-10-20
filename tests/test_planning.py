@@ -121,20 +121,19 @@ class Planning(unittest.TestCase):
             uses=[{'day':'2026-10-12','slot':'breakfast','portions':2,'twist':''}])
         result = meal_from_cook_event(data,self.db,self.user)
         self.assertEqual(meal_from_cook_event(data,self.db,self.user),result)
-        self.assertEqual((self.count('products'),self.count('meal_plan'),self.count('recipes')),(1,1,1))
+        # Butter had no matching product but a real unit, so it got its own product
+        # created on the spot rather than falling out of the recipe silently
+        self.assertEqual((self.count('products'),self.count('meal_plan'),self.count('recipes')),(2,1,1))
         m = result['meals'][0]
         self.assertEqual((m['day'],m['slot'],m['note'],m['servings'],m['simple_meal']),
                          ('2026-10-12','breakfast','Toast',2,1))
-        self.assertEqual(self.db.execute('SELECT product_id,amount,unit_id FROM recipe_ingredients').fetchone()[:],(1,4,1))
+        self.assertEqual(self.db.execute('SELECT product_id,amount,unit_id FROM recipe_ingredients WHERE product_id=1').fetchone()[:],(1,4,1))
         self.assertEqual(self.db.execute('SELECT instructions FROM recipes').fetchone()[0],'Toast the bread.')
-        self.assertEqual(result['not_added'][0]['name'],'Butter')
-        self.assertEqual(result['not_added'][0]['reason'],'not added - no matching product')
-        self.assertEqual(needs('2026-10-12','2026-10-18',self.db,self.user)['items'][0]['need'],4)
-        self.assertEqual((self.count('shopping_list'),self.count('stock')),(0,0))
-        from app.routes.suggestions import AddMissingIn, add_missing_from_suggestion
-        self.assertEqual(add_missing_from_suggestion(AddMissingIn(name='Toast',ingredients=result['not_added']),self.db,self.user)['added'],1)
-        self.assertEqual(self.count('products'),1)
-        self.assertIsNone(self.db.execute('SELECT product_id FROM shopping_list').fetchone()[0])
+        self.assertEqual(result['not_added'],[])
+        butter = self.db.execute("SELECT id,unit_id FROM products WHERE name='Butter'").fetchone()
+        self.assertEqual(tuple(self.db.execute('SELECT amount,unit_id FROM recipe_ingredients WHERE product_id=?',(butter[0],)).fetchone()),(1,butter[1]))
+        # it starts at zero stock, so the full amount landed straight on the shopping list
+        self.assertEqual(tuple(self.db.execute('SELECT product_id,amount FROM shopping_list').fetchone()),(butter[0],1))
 
     def test_suggestion_reuses_an_existing_recipe_by_name_instead_of_duplicating(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
@@ -190,10 +189,13 @@ class Planning(unittest.TestCase):
                          {'name':'Bread','amount':1,'unit':'piece'},
                          {'name':'Butter','amount':1,'unit':'piece'}],
             uses=[{'day':'2026-10-12','slot':'lunch','portions':1,'twist':''}]),self.db,self.user)
-        self.assertEqual(len(result['not_added']),3)
+        # the two Bread lines matched a product but used a unit that doesn't convert to
+        # its stock unit - those still get reported. Butter had no product at all but a
+        # real, recognised unit, so it got created rather than falling out of the recipe
+        self.assertEqual(len(result['not_added']),2)
         self.assertIn('valid unit',result['not_added'][0]['reason'])
-        self.assertIsNone(result['meals'][0]['recipe_id'])
-        self.assertEqual((self.count('products'),self.count('recipe_ingredients')),(1,0))
+        self.assertIsNotNone(result['meals'][0]['recipe_id'])
+        self.assertEqual((self.count('products'),self.count('recipe_ingredients')),(2,1))
 
     def test_from_suggestion_failure_rolls_back(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
