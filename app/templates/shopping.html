@@ -36,7 +36,7 @@
             <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
           </select>
           <div class="small muted" x-show="i.note" x-text="i.note"></div>
-            <div class="small muted"><span x-show="i.origin_unknown">Origin not recorded. </span><template x-for="(source, idx) in (i.sources || [])" :key="idx"><span x-text="({manual: 'Manual addition', meal_plan: 'Meal plan', recipe: 'Recipe', low_stock: 'Low stock'})[source.kind] + (source.label ? ': ' + source.label : '') + ' (' + num(source.amount) + ') '"></span></template></div>
+            <div class="small muted"><span x-show="i.origin_unknown">Origin not recorded. </span><template x-for="(source, idx) in (i.sources || [])" :key="idx"><span x-text="({manual: 'Manual addition', meal_plan: 'Meal plan', recipe: 'Recipe', low_stock: 'Low stock', suggestion: 'Recipe'})[source.kind] || 'Added' + (source.label ? ': ' + source.label : '') + ' (' + num(source.amount) + ') '"></span></template></div>
         </div>
         <button class="small" x-show="i.product_id" @click="bought(i)" title="Add to stock and remove from list">Got it</button>
         <button class="small" x-show="!i.product_id" @click="makeProduct(i)">Create product &amp; add to stock</button>
