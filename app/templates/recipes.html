@@ -85,8 +85,15 @@
           <button class="danger" @click="remove()">Delete</button>
         </div>
       </div>
-      <div class="card" x-show="current.instructions">
-        <pre class="instructions" x-text="current.instructions"></pre>
+      <div class="card">
+        <h2>Method</h2>
+        <p class="muted" x-show="!methodSteps.length">No method added yet</p>
+        <p x-show="methodSteps.length === 1" x-text="methodSteps[0]"></p>
+        <ol class="instructions" x-show="methodSteps.length > 1">
+          <template x-for="(step, index) in methodSteps" :key="index">
+            <li x-text="step"></li>
+          </template>
+        </ol>
       </div>
 
       <!-- cook it -->
@@ -179,6 +186,14 @@
 
 </div>
 <script>
+function instructionSteps(text) {
+  const method = (text || '').trim();
+  if (!method) return [];
+  const numbered = /(?:^|\s)\d+\.\s+/;
+  return method.split(numbered.test(method) ? /(?:^|\s)\d+\.\s+/ : /\r?\n/)
+    .map(step => step.trim()).filter(Boolean);
+}
+
 function recipesPage() {
   return {
     recipes: [], products: [], units: [], locations: [], loaded: false, filter: 'all',
@@ -205,6 +220,7 @@ function recipesPage() {
       if (this.filter == 'missing') return this.recipes.filter(r => !r.can_make && r.ingredient_count);
       return this.recipes;
     },
+    get methodSteps() { return instructionSteps(this.current?.instructions); },
     stars(n) { return '★'.repeat(n || 0); },
     async open(id, wanted = null) {
       try {

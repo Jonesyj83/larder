@@ -27,16 +27,22 @@
             <b x-text="s"></b>
             <template x-for="m in mealsFor(d, s)" :key="m.id">
               <div class="meal">
-                <span>
+                <span class="meal-name" :title="m.recipe || m.note">
                   <a x-show="m.recipe_id" :href="BASE + '/recipes?id=' + m.recipe_id + '&servings=' + ((m.cook_event_id ? m.cook_servings : m.servings) || '')" x-text="m.recipe"></a>
                   <span x-show="!m.recipe_id" x-text="m.note"></span>
-                  <span class="muted small" x-show="m.recipe_id && m.note && m.note != m.recipe" x-text="m.note"></span>
-                  <span class="muted" x-show="m.servings" x-text="'x' + num(m.servings)"></span>
-                  <span class="muted small" x-show="m.cook_event_id" x-text="'Batch: ' + num(m.cook_servings) + ', allocated: ' + num(meals.filter(x => x.cook_event_id === m.cook_event_id).reduce((n, x) => n + x.servings, 0))"></span>
                 </span>
-                <button @click="openEdit(m)">Edit</button>
-                <button x-show="!m.recipe_id" @click="findForMeal(m)">Find ingredients</button>
-                <button @click="remove(m)" :aria-label="'Remove ' + (m.recipe || m.note)" title="Remove">x</button>
+                <span class="muted meal-servings" x-show="m.servings" x-text="'×' + num(m.servings)"></span>
+                <details class="meal-actions" @click.outside="$el.open = false" @keydown.escape.stop="$el.open = false; $el.querySelector('summary').focus()">
+                  <summary :aria-label="'Actions for ' + (m.recipe || m.note)" title="Meal actions">⋯</summary>
+                  <div class="meal-menu">
+                    <span class="small" x-text="m.recipe || m.note"></span>
+                    <span class="muted small" x-show="m.recipe_id && m.note && m.note != m.recipe" x-text="m.note"></span>
+                    <span class="muted small" x-show="m.cook_event_id" x-text="'Batch: ' + num(m.cook_servings) + ', allocated this week: ' + num(meals.filter(x => x.cook_event_id === m.cook_event_id).reduce((n, x) => n + x.servings, 0))"></span>
+                    <button @click="$el.closest('details').open = false; openEdit(m)">Edit</button>
+                    <button x-show="!m.recipe_id" @click="$el.closest('details').open = false; findForMeal(m)">Find ingredients</button>
+                    <button class="danger" @click="$el.closest('details').open = false; remove(m)" :aria-label="'Remove ' + (m.recipe || m.note)">Remove</button>
+                  </div>
+                </details>
               </div>
             </template>
           </div>
