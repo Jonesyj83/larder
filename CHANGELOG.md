@@ -2,6 +2,26 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-21
+
+- Taken out the built-in meal-idea and recipe-suggestion feature (the provider
+  connections in Settings, the "Meal ideas" and "Suggest a recipe" buttons) -
+  planning is better done by an outside agent talking to the app directly now.
+- Added a Memory page: likes, dislikes, maybes, conditions, habits, buying
+  patterns, recipe notes and cost notes, searchable, grouped and collapsed so
+  it doesn't turn into a wall of text as it fills up.
+- Added an Overview page as the new front page - use-by summary, low stock,
+  the next two days' meals, shopping list count and recent memory notes at a
+  glance, each linking through to the real page. Stock moved to its own
+  `/stock` page.
+- Added a "Work" location by default, for things kept away from home.
+- Purchase prices now stick around in the stock log after the stock itself is
+  used up, so price history and a spending summary are both possible per
+  product.
+- Added a small standalone MCP server (`mcp_server/`) so an outside agent can
+  read and write stock, products, recipes, the meal plan, shopping list and
+  the new memory notes through the same API keys already used for scripts.
+
 ## 2026-10-20
 
 - Meal ideas now plans cook events, not one meal per slot - cook a proper batch once,
