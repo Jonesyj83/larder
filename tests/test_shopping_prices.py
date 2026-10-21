@@ -21,8 +21,11 @@ class ShoppingPrices(unittest.TestCase):
 
     def test_shopping_prices_and_inline_history(self):
         template = (ROOT / 'app/templates/shopping.html').read_text()
-        for removed in ('Match this item', 'Auto-match all', 'openMatch(', 'searchMatches(', 'pickMatch(', 'redoMatch(', 'i.sources', 'origin_unknown', "'/products?id='"):
+        for removed in ('Match this item', 'Auto-match all', 'openMatch(', 'redoMatch(', 'i.sources', 'origin_unknown', "'/products?id='"):
             self.assertNotIn(removed, template)
+        self.assertIn('@click="openPicker(i, store.store)"', template)
+        self.assertIn('@submit.prevent="searchMatches(i)"', template)
+        self.assertIn('@click="pickMatch(i, store.store, candidate)"', template)
         self.assertIn('x-for="store in enabledStores"', template)
         self.assertIn('x-effect="drawHistory($el, i.historyChart)"', template)
         self.run_logic('shopping.html', r'''

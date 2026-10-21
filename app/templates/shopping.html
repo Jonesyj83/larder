@@ -52,9 +52,26 @@
         </div>
         <div class="shopping-store-grid" :title="i.pricingError">
           <template x-for="store in enabledStores" :key="store.store">
-            <div class="shopping-store-badge" :data-store="store.store" :class="[storeLink(i, store.store) && cheapest(i, storeLink(i, store.store)) ? 'is-cheapest' : '', !storeLink(i, store.store) ? 'is-unmatched' : '']">
-              <span class="shopping-store-name" x-text="storeName(store.store)"></span>
-              <span x-text="badgePrice(i, store.store)"></span>
+            <div class="shopping-store-cell">
+              <button type="button" class="shopping-store-badge" :data-store="store.store"
+                      :class="[storeLink(i, store.store) && cheapest(i, storeLink(i, store.store)) ? 'is-cheapest' : '', !storeLink(i, store.store) ? 'is-unmatched' : '']"
+                      @click="openPicker(i, store.store)">
+                <span class="shopping-store-name" x-text="storeName(store.store)"></span>
+                <span x-text="badgePrice(i, store.store)"></span>
+              </button>
+              <div class="shopping-picker" x-show="i.picker && i.picker.store === store.store" @click.outside="i.picker = null">
+                <form @submit.prevent="searchMatches(i)">
+                  <input x-model="i.picker.query" :aria-label="'Search ' + storeName(store.store)" maxlength="200" required>
+                  <button class="small" :disabled="i.picker && i.picker.busy">Search</button>
+                  <button type="button" class="small" x-show="storeLink(i, store.store)" @click="unlink(i, store.store)">Unlink</button>
+                  <button type="button" class="small" @click="i.picker = null">Close</button>
+                </form>
+                <p class="muted small" x-show="i.picker && i.picker.message" x-text="i.picker && i.picker.message"></p>
+                <template x-for="candidate in (i.picker ? i.picker.candidates : [])" :key="candidate.store_item_id">
+                  <button type="button" class="small picker-result" :disabled="i.picker && i.picker.busy" @click="pickMatch(i, store.store, candidate)"
+                          x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+                </template>
+              </div>
             </div>
           </template>
           <span class="small muted" x-show="!enabledStores.length">No stores enabled</span>
@@ -132,7 +149,7 @@ function shoppingPage() {
         }
         const items = await api(this.scoped());
         if (version !== this.loadVersion) return;
-        this.items = items.map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', historyChart: null}));
+        this.items = items.map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', historyChart: null, picker: null}));
         this.loadPrices(this.items);
       } catch (e) { oops(e); }
     },
@@ -167,6 +184,39 @@ function shoppingPage() {
       if (!link) return '—';
       const size = link.size || (link.store_name || '').match(/\b\d+(?:\.\d+)?\s*(?:kg|ml|mg|g|l|pack|pk)\b/i)?.[0];
       return this.priceText(link.latest_check?.price) + (size ? ' · ' + size : '');
+    },
+    openPicker(i, store) {
+      if (i.picker && i.picker.store === store) { i.picker = null; return; }
+      i.picker = { store, query: i.label, candidates: [], busy: false, message: '' };
+    },
+    async searchMatches(i) {
+      if (!i.picker) return;
+      i.picker.busy = true; i.picker.message = ''; i.picker.candidates = [];
+      try {
+        i.picker.candidates = await api('/api/pricing/search?store=' + i.picker.store + '&q=' + encodeURIComponent(i.picker.query));
+        if (!i.picker.candidates.length) i.picker.message = 'No matches found.';
+      } catch (e) { i.picker.message = 'Search failed.'; }
+      i.picker.busy = false;
+    },
+    async pickMatch(i, store, candidate) {
+      if (!i.picker) return;
+      i.picker.busy = true;
+      try {
+        await api('/api/pricing/products/' + i.product_id + '/link', { method: 'POST', body: {
+          store, store_item_id: String(candidate.store_item_id), store_name: candidate.name,
+          price: candidate.price, was_price: candidate.was_price, unit_price: candidate.unit_price,
+          unit_measure: candidate.unit_measure, on_special: candidate.on_special,
+        }});
+        i.picker = null;
+        await this.loadPrice(i);
+      } catch (e) { oops(e); i.picker.busy = false; }
+    },
+    async unlink(i, store) {
+      try {
+        await api('/api/pricing/products/' + i.product_id + '/link/' + store, { method: 'DELETE' });
+        i.picker = null;
+        await this.loadPrice(i);
+      } catch (e) { oops(e); }
     },
     async updateAmount(i) {
       try {
