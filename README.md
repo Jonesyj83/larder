@@ -59,6 +59,24 @@ memory - the same data the web pages use, through the same API key system.
 Point your MCP client's config at that command and those two environment variables.
 Full setup, the JSON config example, and what each tool expects: [mcp_server/README.md](mcp_server/README.md).
 
+## Keeping store prices fresh
+
+Matching a product to a store (via the shopping list) is a one-off search.
+After that, `scripts/refresh_prices.py` re-checks every matched item's
+price directly by its known ID - no searching, no browsing a catalogue,
+just "is this exact item still this price." It's meant to run once a
+night, not inside the web process.
+
+If you're running this as a systemd user service alongside `larder.service`,
+two more unit files do it:
+
+    cp scripts/larder-price-refresh.service scripts/larder-price-refresh.timer ~/.config/systemd/user/
+    systemctl --user daemon-reload
+    systemctl --user enable --now larder-price-refresh.timer
+
+Or a plain cron line does the same thing - see the example and the pacing/
+circuit-breaker notes in the script's own docstring.
+
 ## Updating
 
     ./update.sh

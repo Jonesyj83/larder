@@ -1,0 +1,10 @@
+# Adjust WorkingDirectory below if this isn't cloned to this exact path.
+[Unit]
+Description=Larder nightly store price refresh
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/jonesy/larder
+ExecStart=/home/jonesy/larder/.venv/bin/python scripts/refresh_prices.py
+StandardOutput=append:/home/jonesy/larder/data/price-refresh.log
+StandardError=append:/home/jonesy/larder/data/price-refresh.log
