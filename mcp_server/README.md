@@ -7,9 +7,11 @@ Set both required environment variables:
 - `LARDER_URL`: the application URL, such as `http://127.0.0.1:8000` (include any deployment path prefix).
 - `LARDER_API_KEY`: a personal API key created in Larder's Settings page. Every request sends it in the `x-api-key` header.
 
-From the repository root, use the supplied MCP environment:
+From the repository root:
 
 ```sh
+python3 -m venv .venv-mcp
+.venv-mcp/bin/pip install -r mcp_server/requirements.txt
 export LARDER_URL=http://127.0.0.1:8000
 export LARDER_API_KEY=your-personal-key
 .venv-mcp/bin/python mcp_server/server.py

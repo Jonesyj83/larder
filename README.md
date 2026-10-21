@@ -44,6 +44,21 @@ If you'd rather do it by hand:
     .venv/bin/pip install -r requirements.txt
     .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 
+## Connecting an AI assistant
+
+Larder ships its own MCP server (`mcp_server/`) so Claude, Hermes or anything else that
+speaks MCP can read and write your stock, shopping list, recipes, meal plan and household
+memory - the same data the web pages use, through the same API key system.
+
+    python3 -m venv .venv-mcp
+    .venv-mcp/bin/pip install -r mcp_server/requirements.txt
+    export LARDER_URL=http://127.0.0.1:8000
+    export LARDER_API_KEY=your-personal-key   # made in Settings
+    .venv-mcp/bin/python mcp_server/server.py
+
+Point your MCP client's config at that command and those two environment variables.
+Full setup, the JSON config example, and what each tool expects: [mcp_server/README.md](mcp_server/README.md).
+
 ## Updating
 
     ./update.sh
@@ -104,18 +119,16 @@ fills in a name and picture, and you can either make a new product or attach the
 to one you already have. The location you last used for each barcode is remembered in the
 browser.
 
-## Household memory and MCP
+## Household memory
 
 The Memory page keeps household likes, dislikes, conditions, habits, buying patterns,
 recipe notes and cost notes - things worth remembering about how the house eats that
 don't belong on any one product or recipe. Edit notes inline or add and delete them
-manually; search works across every category at once.
+manually; search works across every category at once. This is also what makes the
+MCP server (above) worth connecting day to day - an assistant reading stock and
+writing down a new household preference keeps it useful, rather than something
+you fill in by hand once and forget about.
 
-A separate stdio MCP server exposes the REST API to your MCP client using a personal
-API key from Settings. See [the server setup guide](mcp_server/README.md). This is
-how an assistant actually keeps the Memory page useful day to day - reading what's
-in stock, writing down a new household preference, planning meals - rather than
-something you fill in by hand once and forget about.
 Purchase prices stay in the stock log after stock is consumed; the API provides
 product price history and spending totals. A receipt has its own record too
 (`/api/receipts`) - its own total, store and date, separate from the individual
