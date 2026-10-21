@@ -1,76 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="memoryPage()">
-  <div class="row page-head"><h1 class="grow">Memory</h1></div>
-  <p class="muted">Household food preferences, habits and notes.</p>
+  <div class="row page-head"><h1 class="grow" x-text="activeGroup ? activeGroup.label : 'Memory'"></h1></div>
+  <p class="muted" x-show="!activeGroup">Household food preferences, habits and notes.</p>
   <label class="field">Search notes<input type="search" x-model="query" @input.debounce.250ms="load()" placeholder="Search all notes"></label>
-  <template x-if="searching">
-    <div class="card">
-      <p class="muted small" x-show="loaded && !notes.length">No matching notes.</p>
-      <template x-for="note in notes" :key="note.id">
-          <div class="list-item">
-            <span class="muted small" x-show="searching" x-text="kindLabel(note.kind)"></span>
-            <template x-if="editing !== note.id">
-              <button class="grow compact-note" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="compactNote(note.content)"></button>
-            </template>
-            <template x-if="editing === note.id">
-              <form class="grow" @submit.prevent="save(note)">
-                <label class="field">Note<textarea x-model="draft" required></textarea></label>
-                <div class="row">
-                  <button class="primary small" :disabled="busy">Save</button>
-                  <button type="button" class="small" :disabled="busy" @click="editing = null">Cancel</button>
-                </div>
-              </form>
-            </template>
-            <button x-show="editing === note.id" class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
-          </div>
-
-      </template>
-    </div>
-  </template>
-  <template x-if="!searching">
-    <div class="card">
-      <template x-for="group in kinds" :key="group.kind">
-        <section>
-          <div class="group-head"><button class="link-head" @click="expanded[group.kind] = !expanded[group.kind]" :aria-expanded="!!expanded[group.kind]" x-text="group.label + ' (' + notesFor(group.kind).length + ')'"></button></div>
-          <template x-if="expanded[group.kind]">
-            <div>
-              <p class="muted small" x-show="loaded && !notesFor(group.kind).length">No notes yet.</p>
-              <template x-for="note in visibleNotes(group.kind)" :key="note.id">
-                <div class="list-item">
-                  <template x-if="editing !== note.id">
-                    <button class="grow compact-note" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="compactNote(note.content)"></button>
-                  </template>
-                  <template x-if="editing === note.id">
-                    <form class="grow" @submit.prevent="save(note)">
-                      <label class="field">Note<textarea x-model="draft" required></textarea></label>
-                      <div class="row">
-                        <button class="primary small" :disabled="busy">Save</button>
-                        <button type="button" class="small" :disabled="busy" @click="editing = null">Cancel</button>
-                      </div>
-                    </form>
-                  </template>
-                  <button x-show="editing === note.id" class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
-                </div>
-              </template>
-              <button class="link-head small" x-show="!showAll[group.kind] && notesFor(group.kind).length > 5" @click="showAll[group.kind] = true" x-text="'Show all ' + notesFor(group.kind).length"></button>
-              <form class="row" @submit.prevent="add(group.kind)">
-                <label class="field grow"><span x-text="'Add ' + group.label.toLowerCase() + ' note'"></span><input x-model="newNotes[group.kind]" required></label>
-                <button class="small" :disabled="busy">Add</button>
-              </form>
+  <div class="card">
+    <p class="muted small" x-show="loaded && !visibleNotes.length" x-text="searching ? 'No matching notes.' : (activeGroup ? 'No notes in this category yet.' : 'No notes yet.')"></p>
+    <template x-for="note in visibleNotes" :key="note.id">
+      <div class="list-item">
+        <span class="muted small" x-text="kindLabel(note.kind)" x-show="!activeKind || searching"></span>
+        <template x-if="editing !== note.id">
+          <button class="grow compact-note" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="compactNote(note.content)"></button>
+        </template>
+        <template x-if="editing === note.id">
+          <form class="grow" @submit.prevent="save(note)">
+            <label class="field">Note<textarea x-model="draft" required></textarea></label>
+            <div class="row">
+              <button class="primary small" :disabled="busy">Save</button>
+              <button type="button" class="small" :disabled="busy" @click="editing = null">Cancel</button>
+              <button type="button" class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
             </div>
-          </template>
-        </section>
-      </template>
-    </div>
-  </template>
+          </form>
+        </template>
+      </div>
+    </template>
+    <button class="link-head small" x-show="!searching && !showAll && notesForCurrent.length > 5" @click="showAll = true" x-text="'Show all ' + notesForCurrent.length"></button>
+    <form class="row" @submit.prevent="add(activeKind || newKind)">
+      <label class="field" x-show="!activeKind"><span>Category</span><select x-model="newKind"><template x-for="group in kinds" :key="group.kind"><option :value="group.kind" x-text="group.label"></option></template></select></label>
+      <label class="field grow"><span x-text="activeGroup ? 'Add ' + activeGroup.label.toLowerCase() + ' note' : 'Add a note'"></span><input x-model="newContent" required></label>
+      <button class="small" :disabled="busy">Add</button>
+    </form>
+  </div>
 </div>
 <script>
 function memoryPage() {
   return {
-    query: '', expanded: {}, showAll: {}, request: 0,
+    query: '', activeKind: '', newKind: 'like', newContent: '', request: 0,
+    showAll: false,
+    get activeGroup() { return this.kinds.find(group => group.kind === this.activeKind) || null; },
     get searching() { return !!this.query.trim(); },
-    notes: [], loaded: false, editing: null, draft: '', busy: false, newNotes: {},
+    get notesForCurrent() { return this.notes.filter(note => !this.activeKind || note.kind === this.activeKind); },
+    get visibleNotes() {
+      const notes = this.searching ? this.notes : this.notesForCurrent;
+      return this.searching || this.showAll ? notes : notes.slice(0, 5);
+    },
+    notes: [], loaded: false, editing: null, draft: '', busy: false,
     kinds: [
       {kind: 'like', label: 'Likes'}, {kind: 'dislike', label: 'Dislikes'},
       {kind: 'maybe', label: 'Maybes'}, {kind: 'condition', label: 'Conditions'},
@@ -78,9 +52,8 @@ function memoryPage() {
       {kind: 'recipe_note', label: 'Recipe notes'}, {kind: 'cost_note', label: 'Cost notes'},
     ],
     async init() {
-      this.newNotes = Object.fromEntries(this.kinds.map(group => [group.kind, '']));
       const kind = new URLSearchParams(location.search).get('kind');
-      if (this.kinds.some(group => group.kind === kind)) this.expanded = {[kind]: true};
+      if (this.kinds.some(group => group.kind === kind)) this.activeKind = kind;
       await this.load();
     },
     async load() {
@@ -91,18 +64,16 @@ function memoryPage() {
         if (request === this.request) { this.notes = notes; this.loaded = true; }
       } catch (e) { if (request === this.request) oops(e); }
     },
-    notesFor(kind) { return this.notes.filter(note => note.kind === kind); },
-    visibleNotes(kind) { const notes = this.notesFor(kind); return this.showAll[kind] ? notes : notes.slice(0, 5); },
     kindLabel(kind) { return this.kinds.find(group => group.kind === kind)?.label || kind; },
     edit(note) { if (!this.busy) { this.editing = note.id; this.draft = note.content; } },
     async add(kind) {
       if (this.busy) return;
-      const content = (this.newNotes[kind] || '').trim();
-      if (!content) return;
+      const content = (this.newContent || '').trim();
+      if (!content || !kind) return;
       this.busy = true;
       try {
         const note = await api('/api/memory', {method: 'POST', body: {kind, content, source: 'manual'}});
-        this.notes.unshift(note); this.newNotes[kind] = ''; toast('Added');
+        this.notes.unshift(note); this.newContent = ''; toast('Added');
       } catch (e) { oops(e); }
       finally { this.busy = false; }
     },

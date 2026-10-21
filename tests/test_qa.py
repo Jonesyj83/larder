@@ -75,18 +75,19 @@ modal.setMode('purchase'); assert.equal(modal.expires_on, today());
 
 class MemoryLayout(unittest.TestCase):
     run_js = PageSeams.run_js
-    def test_collapsed_groups_and_search(self):
+    def test_category_filter_and_search(self):
         attrs = expressions('memory')
-        self.assertTrue(any(a.get('x-if') == 'expanded[group.kind]' for a in attrs))
-        self.assertTrue(any(a.get('x-if') == 'searching' for a in attrs))
-        self.assertTrue(any(a.get('class') == 'link-head' and ':aria-expanded' in a for a in attrs))
+        self.assertTrue(any(a.get('x-text') == 'activeGroup ? activeGroup.label : \'Memory\'' for a in attrs))
+        self.assertTrue(any(a.get('x-text') == 'kindLabel(note.kind)' for a in attrs))
         self.run_js(page_script('memory') + """
 (async () => {
  const p = memoryPage(); await p.init();
- assert.deepEqual(p.expanded, {}); assert.equal(p.searching, false);
- p.notes = Array.from({length: 8}, (_, id) => ({id, kind: 'like', content: 'Note ' + id}));
- assert.deepEqual(p.visibleNotes('like').map(n => n.id), [0,1,2,3,4]);
- p.showAll.like = true; assert.equal(p.visibleNotes('like').length, 8);
+ assert.equal(p.activeKind, ''); assert.equal(p.searching, false);
+ p.notes = Array.from({length: 8}, (_, id) => ({id, kind: id < 6 ? 'like' : 'habit', content: 'Note ' + id}));
+ assert.deepEqual(p.visibleNotes.map(n => n.id), [0,1,2,3,4]);
+ p.showAll = true; assert.equal(p.visibleNotes.length, 8);
+ p.activeKind = 'habit'; p.showAll = false;
+ assert.deepEqual(p.visibleNotes.map(n => n.id), [6,7]);
  p.query = 'rice & beans'; await p.load();
  assert.equal(p.searching, true); assert.equal(calls.at(-1).path, '/api/memory?q=rice%20%26%20beans');
  p.query = ''; await p.load(); assert.equal(calls.at(-1).path, '/api/memory');

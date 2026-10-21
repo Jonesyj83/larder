@@ -4,6 +4,9 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
 
 ## 2026-10-21
 
+- Memory now opens one category at a time from the sidebar instead of showing
+  every category section together. Search still covers all notes.
+
 - Taken out the built-in meal-idea and recipe-suggestion feature (the provider
   connections in Settings, the "Meal ideas" and "Suggest a recipe" buttons) -
   planning is better done by an outside agent talking to the app directly now.
