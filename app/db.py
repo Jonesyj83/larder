@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS product_store_links (
     store TEXT NOT NULL,
     store_item_id TEXT NOT NULL,
     store_name TEXT NOT NULL DEFAULT '',
+    size TEXT NOT NULL DEFAULT '',
     matched_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(product_id, store)
@@ -299,6 +300,8 @@ def init_db():
     # all of it under one write lock: two workers starting at once shouldn't both
     # try to add the same column or seed the same rows
     conn.executescript("BEGIN IMMEDIATE;\n" + SCHEMA)
+    if "size" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
+        conn.execute("ALTER TABLE product_store_links ADD COLUMN size TEXT NOT NULL DEFAULT ''")
     if "list_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(shopping_list)")}:
         conn.execute("ALTER TABLE shopping_list ADD COLUMN list_id INTEGER REFERENCES shopping_lists(id) ON DELETE CASCADE")
     needs_backfill = conn.execute("SELECT 1 FROM shopping_list WHERE list_id IS NULL").fetchone()

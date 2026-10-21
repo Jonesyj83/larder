@@ -40,16 +40,18 @@ class SchemaAndRefresh(unittest.TestCase):
 
     def test_upsert_ledger_and_cascades(self):
         db = self.db
-        first = pricing.link_product(db, 1, 'coles', '123', 'Milk', 1)
+        first = pricing.link_product(db, 1, 'coles', '123', 'Milk', 1, size='2L')
         pricing.record_price(db, first, CANDIDATE)
         pricing.record_price(db, first, dict(CANDIDATE, price=3.6))
         self.assertEqual(first, pricing.link_product(db, 1, 'coles', '123', 'Updated', 1))
+        self.assertEqual(db.execute('SELECT size FROM product_store_links').fetchone()[0], '2L')
         self.assertEqual(db.execute('SELECT COUNT(*) FROM store_price_checks').fetchone()[0], 2)
         with self.assertRaises(sqlite3.IntegrityError):
             db.execute("INSERT INTO product_store_links(product_id,store,store_item_id) VALUES(1,'coles','other')")
         db.execute('DELETE FROM users WHERE id=1')
         self.assertIsNone(db.execute('SELECT matched_by FROM product_store_links').fetchone()[0])
         pricing.link_product(db, 1, 'coles', '456', 'Different')
+        self.assertEqual(db.execute('SELECT size FROM product_store_links').fetchone()[0], '')
         self.assertEqual(db.execute('SELECT COUNT(*) FROM product_store_links').fetchone()[0], 1)
         self.assertEqual(db.execute('SELECT COUNT(*) FROM store_price_checks').fetchone()[0], 0)
         db.execute('DELETE FROM products WHERE id=1')
@@ -66,12 +68,15 @@ class SchemaAndRefresh(unittest.TestCase):
                 db = database.connect()
                 self.assertEqual(len(db.execute('SELECT * FROM store_settings').fetchall()), 4)
                 db.execute("UPDATE store_settings SET enabled=0,postcode='6000' WHERE store='iga'")
+                db.execute("INSERT INTO product_store_links(product_id,store,store_item_id,store_name) VALUES(1,'coles','legacy','Legacy')")
+                db.execute("ALTER TABLE product_store_links DROP COLUMN size")
                 db.commit()
                 db.close()
                 database.init_db()
                 db = database.connect()
                 self.assertEqual(tuple(db.execute("SELECT enabled,postcode FROM store_settings WHERE store='iga'").fetchone()), (0, '6000'))
                 self.assertEqual(db.execute('SELECT name FROM products').fetchone()[0], 'Legacy')
+                self.assertEqual(tuple(db.execute('SELECT store_item_id,size FROM product_store_links').fetchone()), ('legacy', ''))
                 self.assertEqual(db.execute('PRAGMA foreign_key_check').fetchall(), [])
                 db.close()
 
@@ -289,6 +294,15 @@ class ScoredMatching(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertIsNotNone(pricing.strongest_match(name, [self.candidate(candidate)]))
 
+    def test_supermarket_noise_words_and_real_brand_lock(self):
+        self.assertEqual(pricing.name_words('WOOLWORTHS Chilli Coles Ground ALDI iga'), {'chilli', 'ground'})
+        for store in ('Coles', 'Aldi', ''):
+            candidate = self.candidate((store + ' Chilli Ground').strip(), brand=store)
+            self.assertEqual(pricing.strongest_match('Woolworths Chilli Ground', [candidate]), candidate)
+        own = self.candidate('Devondale Full Cream Milk', brand='Devondale')
+        other = self.candidate('Milk', item='2', brand='Other')
+        self.assertEqual(pricing.strongest_match('Devondale Milk', [own, other]), own)
+
     def test_brand_guard_and_ambiguous_candidates(self):
         own = self.candidate('Vegemite Spread Jar', brand='Vegemite')
         other = self.candidate('Vegemite', '2', 'Home Brand')
@@ -445,5 +459,5 @@ const oops = e => {throw e;};
   assert.equal(page.historyChart, null);
 })().catch(e => {console.error(e); process.exit(1);});
 '''
-        result = subprocess.run(['node'], input=script + program, text=True, capture_output=True, timeout=15)
+        result = subprocess.run(['node'], input='function drawHistory(svg, chart)' + (Path(__file__).resolve().parents[1] / 'app/static/app.js').read_text().split('function drawHistory(svg, chart)')[1] + script + program, text=True, capture_output=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)

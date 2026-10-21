@@ -17,16 +17,17 @@ def search(store, query, postcode=""):
     return function(query)
 
 
-def link_product(db, product_id, store, item_id, name, matched_by=None):
+def link_product(db, product_id, store, item_id, name, matched_by=None, size=""):
     existing = db.execute("SELECT id,store_item_id FROM product_store_links WHERE product_id=? AND store=?",
                           (product_id, store)).fetchone()
     if existing and existing["store_item_id"] != item_id:
         # A replacement identity must not inherit the previous item's history.
         db.execute("DELETE FROM product_store_links WHERE id=?", (existing["id"],))
-    db.execute("""INSERT INTO product_store_links(product_id,store,store_item_id,store_name,matched_by)
-        VALUES(?,?,?,?,?) ON CONFLICT(product_id,store) DO UPDATE SET
-        store_name=excluded.store_name, matched_by=excluded.matched_by""",
-        (product_id, store, item_id, name, matched_by))
+    db.execute("""INSERT INTO product_store_links(product_id,store,store_item_id,store_name,matched_by,size)
+        VALUES(?,?,?,?,?,?) ON CONFLICT(product_id,store) DO UPDATE SET
+        store_name=excluded.store_name, matched_by=excluded.matched_by,
+        size=CASE WHEN excluded.size != '' THEN excluded.size ELSE product_store_links.size END""",
+        (product_id, store, item_id, name, matched_by, size or ""))
     return db.execute("SELECT id FROM product_store_links WHERE product_id=? AND store=?",
                       (product_id, store)).fetchone()[0]
 
@@ -53,7 +54,8 @@ def normalized_name(name):
 def name_words(name):
     # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
     name = re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name)
-    return set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold()))
+    # Supermarket names are scoring noise; keep stored names and brand guards intact.
+    return set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga"}
 
 
 def strongest_match(name, candidates):
@@ -92,7 +94,7 @@ def auto_match(db, product_id, name, before_search=None):
             if candidate is None:
                 continue
             with db:
-                link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"])
+                link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"))
                 record_price(db, link_id, candidate)
             matched.append({"product_id": product_id, "name": name, "store": setting["store"]})
         except Exception:

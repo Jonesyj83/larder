@@ -25,6 +25,7 @@ class LinkIn(BaseModel):
     unit_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     unit_measure: str | None = Field(default=None, max_length=100)
     on_special: bool | None = None
+    size: str = Field(default="", max_length=200)
     store: str
     store_item_id: str = Field(min_length=1, max_length=200)
     store_name: str = Field(min_length=1, max_length=500)
@@ -81,7 +82,7 @@ def set_link(product_id: int, data: LinkIn, db=Depends(get_db), user=Depends(cur
         raise HTTPException(400, "Item ID and store name can't be empty")
     with db:
         link_id = pricing.link_product(db, product_id, data.store, data.store_item_id.strip(),
-                                       data.store_name.strip(), user["id"])
+                                       data.store_name.strip(), user["id"], size=data.size.strip())
         pricing.record_price(db, link_id, data.model_dump())
     return row(db.execute("SELECT * FROM product_store_links WHERE id=?", (link_id,)))
 

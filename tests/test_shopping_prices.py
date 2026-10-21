@@ -3,6 +3,7 @@ import json
 import sqlite3
 import subprocess
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,66 +12,54 @@ ROOT = Path(__file__).resolve().parents[1]
 class ShoppingPrices(unittest.TestCase):
     def run_logic(self, template, program):
         source = (ROOT / 'app/templates' / template).read_text()
-        script = re.findall(r'<script>(.*?)</script>', source, re.S)[0]
+        script = (ROOT / 'app/static/app.js').read_text().split('function drawHistory(svg, chart)')[1]
+        script = 'function drawHistory(svg, chart)' + script + re.findall(r'<script>(.*?)</script>', source, re.S)[0]
         script = script.replace("{{ user.portion_size }}", 'regular').replace("{{ 'true' if user.is_admin else 'false' }}", 'false')
         result = subprocess.run(['node'], input="const assert = require('node:assert/strict');\n" + script + program,
                                 text=True, capture_output=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_shopping_prices_and_matching(self):
+    def test_shopping_prices_and_inline_history(self):
         template = (ROOT / 'app/templates/shopping.html').read_text()
-        self.assertIn('i.pricingLoaded && !priceLinks(i).length', template)
-        self.assertIn('Match this item', template)
-        self.assertIn('x-for="link in priceLinks(i)"', template)
+        for removed in ('Match this item', 'Auto-match all', 'openMatch(', 'searchMatches(', 'pickMatch(', 'redoMatch(', 'i.sources', 'origin_unknown', "'/products?id='"):
+            self.assertNotIn(removed, template)
+        self.assertIn('x-for="store in enabledStores"', template)
+        self.assertIn('x-effect="drawHistory($el, i.historyChart)"', template)
         self.run_logic('shopping.html', r'''
 const calls = [];
 const oops = e => { throw e; };
-let linked = false;
 let fail = false;
 const api = async (path, options) => {
   calls.push([path, options]);
-  if (path === '/api/shopping/lists') return [{id: 1, name: 'Shopping', item_count: 1}];
-  if (path === '/api/shopping?list_id=1') return [{id:1, product_id:10, label:'Milk'}, {id:2, label:'Loose'}, {id:3, product_id:11, label:'Bread'}];
-  if (path === '/api/pricing/stores') return [{store:'coles', enabled:1}, {store:'iga', enabled:0}];
-  if (path === '/api/pricing/products/11') throw Error('offline');
-  if (path.endsWith('/link/coles')) { linked = false; return {}; }
-  if (path.endsWith('/link')) { assert.equal(options.body.price, 3); assert.equal(options.body.store_name, 'Milk 2L'); assert.equal(options.body.store, 'coles'); linked = true; return {}; }
-  if (path === '/api/pricing/products/10') {
-    if (fail) throw Error('offline');
-    return linked ? [{store:'coles', latest_check:{price:3, on_special:1}}, {store:'iga', latest_check:{price:1}}] : [];
-  }
-  if (path.startsWith('/api/pricing/search?')) return [{store_item_id:'123', name:'Milk 2L', brand:'Brand', size:'2L', price:3}];
+  if (path === '/api/shopping/lists') return [{id:1}];
+  if (path === '/api/shopping?list_id=1') return [{id:1, product_id:10, label:'Milk'}, {id:2, label:'Loose'}];
+  if (path === '/api/pricing/stores') return [{store:'coles',enabled:1},{store:'aldi',enabled:1},{store:'iga',enabled:0}];
+  if (fail) throw Error('offline');
+  if (path.endsWith('/history')) return {stores:[{store:'coles',enabled:1,history:[{price:3,checked_at:'2026-10-01'}]}],purchases:[]};
+  if (path === '/api/pricing/products/10') return [{store:'coles',store_name:'Milk 2L',latest_check:{price:3}}, {store:'iga',latest_check:{price:1}}];
+  if (path === '/api/shopping/1?list_id=1') {assert.deepEqual(options.body, {amount:2}); return {};}
   throw Error('Unexpected ' + path);
 };
 (async () => {
   const page = shoppingPage();
-  page.products = [{id:10, name:'Milk'}];
   await page.load();
-  assert.equal(page.items.length, 3);
   await page.loadPrices(page.items);
   const item = page.items[0];
-  assert.equal(item.pricingLoaded, true);
-  assert.equal(page.priceLinks(item).length, 0);
-  assert.ok(page.items[2].pricingError);
-  assert.ok(!calls.some(([path]) => path.includes('/products/undefined')));
-  page.openMatch(item);
-  assert.equal(item.picker.query, 'Milk');
-  assert.equal(item.picker.store, 'coles');
-  await page.searchMatches(item);
-  assert.ok(calls.some(([path]) => path === '/api/pricing/search?store=coles&q=Milk'));
-  await page.pickMatch(item, item.picker.candidates[0]);
   assert.equal(page.priceLinks(item).length, 1);
-  assert.equal(page.priceText(page.priceLinks(item)[0].latest_check.price), '$3.00');
-  assert.equal(page.cheapest(item, page.priceLinks(item)[0]), true);
-  assert.equal(page.priceText(null), 'price not checked yet');
-  assert.equal(page.priceText(0), '$0.00');
-  assert.equal(page.cheapest({links:[{store:'coles',latest_check:null}]}, {store:'coles',latest_check:null}), false);
-  await page.redoMatch(item, page.priceLinks(item)[0]);
-  assert.equal(page.priceLinks(item).length, 0);
-  assert.equal(item.picker.store, 'coles');
+  assert.equal(page.badgePrice(item, 'coles'), '$3.00 · 2L');
+  assert.equal(page.badgePrice(item, 'aldi'), '—');
+  item.links[0].size = '3L';
+  assert.equal(page.badgePrice(item, 'coles'), '$3.00 · 3L');
+  assert.ok(page.cheapest(item, page.storeLink(item, 'coles')));
+  assert.ok(item.historyChart);
+  assert.ok(!calls.some(([path]) => path.includes('undefined')));
+  item.amount = 2;
+  await page.updateAmount(item);
   fail = true;
   await page.loadPrice(item);
   assert.ok(item.pricingError);
+  assert.equal(item.historyChart, null);
+  assert.equal(page.priceText(0), '$0.00');
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
 
@@ -137,7 +126,7 @@ const api = async (path, options) => {
         self.assertFalse(by_id[6]['stock_covers_need'])
         template = (ROOT / 'app/templates/shopping.html').read_text()
         self.assertIn('x-show="i.stock_covers_need">Already have enough in stock', template)
-        self.assertIn("'/products?id=' + i.product_id", template)
+        self.assertIn('x-model.number="i.amount"', template)
         helpers = (ROOT / 'app/static/app.js').read_text()
         helpers = helpers[helpers.index('function num('):helpers.index('function shelfLabel(')] + helpers[helpers.index('const MASS ='):]
         self.run_logic('shopping.html', "const window = {}; const preferences = () => ({measurement_system:'metric'});\n" + helpers +
@@ -148,29 +137,31 @@ assert.equal(page.amountText(items[2]), '1 bottle');
 assert.equal(page.amountText(items[4]), '1 piece');
 ''')
 
-    def test_bulk_action_summary_and_recovery(self):
-        self.run_logic('shopping.html', r'''
-let fail = false;
-const api = async (path, opts) => {
-  assert.equal(path, '/api/pricing/products/auto-match');
-  assert.equal(opts.method, 'POST');
-  if (fail) throw Error('offline');
-  return {matched:[{product_id:1, name:'Milk', store:'coles'}], unmatched:[{product_id:2, name:'Blue Cheese'}]};
-};
-(async () => {
-  const page = shoppingPage();
-  let refreshed = 0;
-  page.loadPrices = async () => {refreshed++;};
-  await page.autoMatchAll();
-  assert.equal(page.matchSummary, 'Matched 1, couldn’t match 1: Blue Cheese');
-  assert.equal(page.matching, false);
-  assert.equal(refreshed, 1);
-  fail = true;
-  await page.autoMatchAll();
-  assert.match(page.matchSummary, /unavailable/);
-  assert.equal(page.matching, false);
-})().catch(e => {console.error(e); process.exit(1);});
-''')
+    def test_add_matches_only_added_product_and_keeps_item_on_failure(self):
+        from app import db as database, pricing
+        from app.routes import shopping
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO units(id,name) VALUES(1,'piece');
+            INSERT INTO products(id,name,unit_id) VALUES(1,'Woolworths Chilli Ground',1),(2,'Other',1);
+            INSERT INTO shopping_lists(id,name) VALUES(1,'Home');
+            INSERT INTO store_settings(store,enabled) VALUES('coles',1),('iga',0);
+        """)
+        with patch.object(pricing, 'auto_match') as match:
+            shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
+            match.assert_called_once_with(db, 1, 'Woolworths Chilli Ground')
+        with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')) as match, self.assertLogs(level='WARNING'):
+            result = shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
+            self.assertEqual(result['amount'], 2)
+        db.execute("INSERT INTO product_store_links(product_id,store,store_item_id,store_name) VALUES(1,'coles','1','Chilli Ground')")
+        db.commit()
+        with patch.object(pricing, 'auto_match') as match:
+            shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
+            shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
+            match.assert_not_called()
 
     def test_settings_store_controls(self):
         template = (ROOT / 'app/templates/settings.html').read_text()

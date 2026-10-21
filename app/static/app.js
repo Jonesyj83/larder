@@ -249,3 +249,61 @@ function compactNote(content) {
   const line = content.replace(/\s+/g, ' ').trim();
   return line.length > 140 ? line.slice(0, 140) + '…' : line;
 }
+
+function drawHistory(svg, chart) {
+  svg.replaceChildren();
+  if (!chart) return;
+  const add = (tag, attrs, text, parent = svg) => {
+    const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [key, value] of Object.entries(attrs)) element.setAttribute(key, value);
+    if (text !== undefined) element.textContent = text;
+    parent.appendChild(element);
+    return element;
+  };
+  add('path', {d:'M52 16V174H544', fill:'none', stroke:'var(--line)'});
+  add('text', {x:48, y:24, 'text-anchor':'end'}, chart.high);
+  add('text', {x:48, y:174, 'text-anchor':'end'}, chart.low);
+  add('text', {x:52, y:200}, chart.start);
+  add('text', {x:544, y:200, 'text-anchor':'end'}, chart.end);
+  const dot = (p, colour, purchase = false) => {
+    const circle = add('circle', {cx:p.x, cy:p.y, r:purchase || p.fake_special ? 4 : 2,
+      fill:p.fake_special ? 'var(--card)' : colour,
+      stroke:purchase ? 'var(--card)' : colour, tabindex:0});
+    add('title', {}, p.label, circle);
+  };
+  for (const series of chart.stores) {
+    add('polyline', {points:series.points.map(p => p.x + ',' + p.y).join(' '),
+      fill:'none', stroke:series.colour, 'stroke-width':2});
+    series.points.forEach(p => dot(p, series.colour));
+  }
+  chart.purchases.forEach(p => dot(p, 'var(--text)', true));
+}
+function buildHistoryChart(history) {
+  const timestamp = p => {
+    const value = (p.checked_at || p.at || '').replace(' ', 'T');
+    return Date.parse(value.length === 19 ? value + 'Z' : value);
+  };
+  const valid = p => p.price !== null && Number.isFinite(p.price) && Number.isFinite(timestamp(p));
+  const colours = ['var(--accent)', 'var(--ok)', 'var(--muted)', 'var(--warn)'];
+  const names = {woolworths:'Woolworths', coles:'Coles', aldi:'Aldi', iga:'IGA'};
+  const stores = history.stores.filter(s => s.enabled).map((s, i) => ({
+    store:s.store, name:names[s.store] || s.store, colour:colours[i % colours.length], points:s.history.filter(valid)
+  })).filter(s => s.points.length);
+  const purchases = history.purchases.filter(valid);
+  const all = [...stores.flatMap(s => s.points), ...purchases];
+  if (!all.length) return null;
+  const times = all.map(timestamp);
+  const prices = all.map(p => p.price);
+  const start = Math.min(...times), end = Math.max(...times);
+  const low = Math.min(...prices), high = Math.max(...prices);
+  const point = (p, name) => ({...p,
+    x:end === start ? 298 : 52 + (timestamp(p) - start) / (end - start) * 492,
+    y:high === low ? 95 : 174 - (p.price - low) / (high - low) * 158,
+    label:name + ' · ' + (p.checked_at || p.at).slice(0, 10) + ' · $' + p.price.toFixed(2)
+      + (p.fake_special ? ' · not really cheaper than usual' : '')
+  });
+  return {stores:stores.map(s => ({...s, points:s.points.map(p => point(p, s.name))})),
+    purchases:purchases.map(p => point(p, 'Your purchase (amount paid)')),
+    low:'$' + low.toFixed(2), high:'$' + high.toFixed(2),
+    start:new Date(start).toISOString().slice(0, 10), end:new Date(end).toISOString().slice(0, 10)};
+}

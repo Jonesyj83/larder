@@ -499,7 +499,6 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 @media (prefers-reduced-motion: reduce) {
   button.primary:hover:not(:disabled), .btn.primary:hover { transform: none; }
 }
-.shopping-amount { display: inline-block; font-weight: 700; margin-left: var(--space-3); }
 .history-surface { box-shadow: none; background: transparent; border-width: 1px 0 0; border-radius: 0; padding-inline: 0; color: var(--muted); }
 .history-surface > template + div { padding-block: var(--space-2); }
 .recipe-detail td:nth-child(2), .recipe-detail td:nth-child(3), .plan-page td:not(:first-child), .plan-page th:not(:first-child) { text-align: right; }
@@ -511,8 +510,51 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .price-history-chart text { fill: var(--muted); font-size: 11px; }
 .price-history-chart circle:focus { outline: none; stroke: var(--text); stroke-width: 3; }
 
-.shopping-prices { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: var(--space-2); max-width: 100%; }
-.shopping-price-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
-.price-chip { display: inline-block; border: 1px solid var(--line); border-radius: var(--radius-small); padding: 2px 6px; }
-.shopping-prices > .card { flex-basis: 100%; margin-left: 0; }
-.price-chip.pill { background: var(--control); border-color: var(--accent); color: var(--text); }
+
+/* Shopping rows share column tracks, including unmatched stores and empty history. */
+.shopping-row {
+  display: grid;
+  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(240px, 1.5fr) minmax(160px, 1fr) 80px 140px;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-2);
+  border-bottom: 1px solid var(--edge);
+}
+.shopping-row:last-child { border-bottom: 0; }
+.shopping-row.is-done { opacity: .55; }
+.shopping-row.is-done .shopping-product strong { text-decoration: line-through; }
+.shopping-identity { display: flex; align-items: center; gap: var(--space-3); }
+.shopping-thumbnail { width: 36px; height: 40px; flex-shrink: 0; }
+.shopping-thumbnail .thumb { width: 100%; height: 100%; object-fit: contain; }
+.shopping-product { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.shopping-product strong { font-size: 1rem; line-height: 1.4; }
+.shopping-store-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.shopping-store-badge { --store-colour: var(--muted); border-left: 2px solid var(--store-colour); padding: var(--space-1) var(--space-2); font-size: .78rem; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+.shopping-store-badge[data-store="woolworths"] { --store-colour: var(--ok); }
+.shopping-store-badge[data-store="coles"] { --store-colour: var(--bad); }
+.shopping-store-badge[data-store="aldi"] { --store-colour: var(--accent); }
+.shopping-store-badge[data-store="iga"] { --store-colour: var(--warn); }
+.shopping-store-name { display: block; color: var(--store-colour); font-weight: 600; }
+.shopping-store-badge.is-cheapest { background: var(--control); border-radius: var(--radius-small); }
+.shopping-store-badge.is-cheapest > span:last-child { color: var(--ok); font-weight: 700; }
+.shopping-store-badge.is-unmatched { opacity: .5; border-left-color: var(--line); }
+.shopping-history { min-width: 0; min-height: 76px; display: flex; align-items: center; justify-content: center; }
+.shopping-history svg { width: 100%; height: auto; max-height: 96px; overflow: visible; }
+.shopping-history svg text { fill: var(--muted); font-size: 19px; }
+.shopping-history > span { font-size: .75rem; text-align: center; }
+.shopping-quantity { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.shopping-quantity input { width: 100%; min-width: 0; padding: var(--space-2); }
+.shopping-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); }
+.shopping-actions button { padding: var(--space-2); }
+@media (max-width: 1150px) {
+  .shopping-row { grid-template-columns: 72px minmax(120px, 1fr) minmax(190px, 1.3fr) 130px 68px; gap: var(--space-3); }
+  .shopping-actions { grid-column: 2 / -1; }
+}
+@media (max-width: 840px) {
+  .shopping-row { grid-template-columns: 72px minmax(0, 1fr) 76px; gap: var(--space-3); }
+  .shopping-quantity { grid-column: 3; grid-row: 1; }
+  .shopping-store-grid { grid-column: 2 / -1; }
+  .shopping-history { grid-column: 2 / -1; justify-content: flex-start; min-height: 60px; }
+  .shopping-history svg { width: 240px; max-width: 100%; }
+  .shopping-actions { grid-column: 2 / -1; }
+}

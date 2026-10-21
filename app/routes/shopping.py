@@ -1,4 +1,7 @@
+import logging
 from typing import Optional
+
+from .. import pricing
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -173,6 +176,17 @@ def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: O
     begin(db)
     item_id = add_item(db, data.product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
     db.commit()
+    if data.product_id:
+        try:
+            missing = db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
+                SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
+                (data.product_id,)).fetchone()
+            if missing:
+                product = db.execute("SELECT name FROM products WHERE id=?", (data.product_id,)).fetchone()
+                pricing.auto_match(db, data.product_id, product["name"])
+        except Exception:
+            db.rollback()
+            logging.getLogger(__name__).warning("Shopping item pricing failed", exc_info=True)
     return row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
 
 

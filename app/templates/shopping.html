@@ -10,13 +10,12 @@
     <label class="field grow">List<select x-ref="listSelect" x-model.number="list_id" @change="selectList()">
       <template x-for="list in lists" :key="list.id"><option :value="list.id" x-text="list.name + ' (' + list.item_count + ')'"></option></template>
     </select></label>
-    <button @click="autoMatchAll()" :disabled="matching" x-text="matching ? 'Matching…' : 'Auto-match all'"></button>
     <button @click="newList()">New list</button>
     <button @click="renameList()">Rename</button>
     <button class="danger" @click="deleteList()">Delete list</button>
   </div>
 
-  <p class="muted small" role="status" x-show="matchSummary" x-text="matchSummary"></p>
+
 
   <form class="card" @submit.prevent="add()">
     <div class="ingredient-row">
@@ -36,57 +35,42 @@
   <div class="card list-surface">
     <p class="muted" x-show="!items.length">The list is empty.</p>
     <template x-for="i in items" :key="i.id">
-      <div class="list-item" :style="i.done && 'opacity: .55'">
-        <input type="checkbox" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)" class="check-item">
-        <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
-        <div class="grow">
-          <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
-          <span class="shopping-amount" x-text="amountText(i)"></span>
+      <div class="shopping-row" :class="i.done ? 'is-done' : ''">
+        <div class="shopping-identity">
+          <input type="checkbox" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)" class="check-item">
+          <div class="shopping-thumbnail"><img x-show="i.picture" :src="pic(i.picture)" class="thumb" alt=""></div>
+        </div>
+        <div class="shopping-product">
+          <strong x-text="i.label"></strong>
           <span class="small muted" x-show="i.stock_covers_need">Already have enough in stock</span>
           <span class="pill" x-show="!i.product_id">not a product</span>
           <select class="small" x-show="!i.product_id" x-model="i.unitChoice" :disabled="!!i.unit_id" aria-label="Unit for new product">
             <option value="">Choose a stock unit</option>
             <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
           </select>
-          <template x-if="i.product_id">
-            <div class="shopping-prices small">
-              <template x-for="link in priceLinks(i)" :key="link.store">
-                <span class="shopping-price-group">
-                  <span class="price-chip" :class="cheapest(i, link) ? 'pill' : 'muted'">
-                    <span x-text="storeName(link.store) + ': ' + priceText(link.latest_check?.price)"></span>
-                    <span class="small" x-show="link.latest_check?.on_special"> · special</span>
-                  </span>
-                  <button class="small" @click="redoMatch(i, link)">Change match</button>
-                </span>
-              </template>
-              <a class="small" x-show="priceLinks(i).length" :href="'/products?id=' + i.product_id">Price history</a>
-              <button class="small" x-show="i.pricingLoaded && !priceLinks(i).length && enabledStores.length" @click="openMatch(i)">Match this item</button>
-              <span class="muted" x-show="i.pricingError" x-text="i.pricingError"></span>
-              <button class="small" x-show="i.pricingError" @click="loadPrices(items)">Retry prices</button>
-              <template x-if="i.picker">
-                <div class="card space-top-small">
-                  <form @submit.prevent="searchMatches(i)">
-                    <label class="field">Store<select x-model="i.picker.store" @change="i.picker.candidates = []; i.picker.version++">
-                      <template x-for="store in enabledStores" :key="store.store"><option :value="store.store" x-text="storeName(store.store)"></option></template>
-                    </select></label>
-                    <label class="field">Search<input x-model="i.picker.query" maxlength="200" required></label>
-                    <button class="small" :disabled="i.picker.busy">Search</button>
-                    <button type="button" class="small" @click="i.picker = null">Cancel</button>
-                  </form>
-                  <p class="muted small" x-show="i.picker.message" x-text="i.picker.message"></p>
-                  <template x-for="candidate in i.picker.candidates" :key="candidate.store_item_id">
-                    <button class="small space-top-small" :disabled="i.picker.busy" @click="pickMatch(i, candidate)" x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
-                  </template>
-                </div>
-              </template>
+          <span class="small muted" x-show="i.note" x-text="i.note"></span>
+        </div>
+        <div class="shopping-store-grid" :title="i.pricingError">
+          <template x-for="store in enabledStores" :key="store.store">
+            <div class="shopping-store-badge" :data-store="store.store" :class="[storeLink(i, store.store) && cheapest(i, storeLink(i, store.store)) ? 'is-cheapest' : '', !storeLink(i, store.store) ? 'is-unmatched' : '']">
+              <span class="shopping-store-name" x-text="storeName(store.store)"></span>
+              <span x-text="badgePrice(i, store.store)"></span>
             </div>
           </template>
-          <div class="small muted" x-show="i.note" x-text="i.note"></div>
-            <div class="small muted"><span x-show="i.origin_unknown">Origin not recorded. </span><template x-for="(source, idx) in (i.sources || [])" :key="idx"><span x-text="({manual: 'Manual addition', meal_plan: 'Meal plan', recipe: 'Recipe', low_stock: 'Low stock', suggestion: 'Recipe'})[source.kind] || 'Added' + (source.label ? ': ' + source.label : '') + ' (' + num(source.amount) + ') '"></span></template></div>
+          <span class="small muted" x-show="!enabledStores.length">No stores enabled</span>
         </div>
-        <button class="small" x-show="i.product_id" @click="bought(i)" title="Add to stock and remove from list">Got it</button>
-        <button class="small" x-show="!i.product_id" @click="makeProduct(i)">Create product &amp; add to stock</button>
-        <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>
+        <div class="shopping-history">
+          <svg x-show="i.historyChart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + i.label" x-effect="drawHistory($el, i.historyChart)"></svg>
+          <span class="small muted" x-show="!i.historyChart" x-text="i.pricingError || 'No price history yet'"></span>
+        </div>
+        <label class="shopping-quantity"><span class="small muted">Qty<span x-show="i.unit" x-text="' · ' + i.unit"></span></span>
+          <input type="number" min="0.000001" step="any" :aria-label="'Quantity for ' + i.label" :title="amountText(i)" x-model.number="i.amount" @change="updateAmount(i)">
+        </label>
+        <div class="shopping-actions">
+          <button class="small" x-show="i.product_id" @click="bought(i)" title="Add to stock and remove from list">Got it</button>
+          <button class="small" x-show="!i.product_id" @click="makeProduct(i)">Create product &amp; add to stock</button>
+          <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>
+        </div>
       </div>
     </template>
     <div class="space-top-small row" x-show="items.some(i => i.done)">
@@ -98,7 +82,7 @@
 <script>
 function shoppingPage() {
   return {
-    matching: false, matchSummary: '',
+    drawHistory,
     lists: [], list_id: null, loadVersion: 0, stores: [], items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
     async init() {
       [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
@@ -148,24 +132,13 @@ function shoppingPage() {
         }
         const items = await api(this.scoped());
         if (version !== this.loadVersion) return;
-        this.items = items.map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', picker: null}));
+        this.items = items.map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', historyChart: null}));
         this.loadPrices(this.items);
       } catch (e) { oops(e); }
     },
     amountText(i) {
       const amount = i.unit ? qty(i.amount, i.unit) : num(i.amount);
       return i.purchase_size ? amount + ' needed (sold as ' + qty(i.purchase_size.amount, i.purchase_size.unit) + ')' : amount;
-    },
-    async autoMatchAll() {
-      if (this.matching) return;
-      this.matching = true; this.matchSummary = '';
-      try {
-        const result = await api('/api/pricing/products/auto-match', {method: 'POST'});
-        this.matchSummary = 'Matched ' + result.matched.length + ', couldn’t match ' + result.unmatched.length
-          + (result.unmatched.length ? ': ' + result.unmatched.map(p => p.name).join(', ') : '');
-        await this.loadPrices(this.items);
-      } catch (e) { this.matchSummary = 'Auto-match unavailable. Try again.'; }
-      finally { this.matching = false; }
     },
     storeName(store) { return {woolworths: 'Woolworths', coles: 'Coles', aldi: 'Aldi', iga: 'IGA'}[store] || store; },
     get enabledStores() { return this.stores.filter(s => s.enabled); },
@@ -185,40 +158,21 @@ function shoppingPage() {
       i.pricingError = '';
       try { i.links = await api('/api/pricing/products/' + i.product_id); i.pricingLoaded = true; }
       catch (e) { i.pricingError = 'Prices unavailable.'; }
+      try { i.historyChart = buildHistoryChart(await api('/api/pricing/products/' + i.product_id + '/history')); }
+      catch (e) { i.historyChart = null; i.pricingError = i.pricingError || 'History unavailable.'; }
     },
-    openMatch(i, store = '') {
-      const product = this.products.find(p => p.id === i.product_id);
-      i.picker = {store: store || this.enabledStores[0]?.store || '', query: product?.name || i.label,
-        candidates: [], busy: false, message: '', version: 0};
+    storeLink(i, store) { return this.priceLinks(i).find(link => link.store === store); },
+    badgePrice(i, store) {
+      const link = this.storeLink(i, store);
+      if (!link) return '—';
+      const size = link.size || (link.store_name || '').match(/\b\d+(?:\.\d+)?\s*(?:kg|ml|mg|g|l|pack|pk)\b/i)?.[0];
+      return this.priceText(link.latest_check?.price) + (size ? ' · ' + size : '');
     },
-    async searchMatches(i) {
-      const picker = i.picker;
-      if (!picker.query.trim() || !this.enabledStores.some(s => s.store === picker.store)) return;
-      const version = ++picker.version;
-      picker.busy = true; picker.message = ''; picker.candidates = [];
+    async updateAmount(i) {
       try {
-        const candidates = await api('/api/pricing/search?' + new URLSearchParams({store: picker.store, q: picker.query.trim()}));
-        if (picker.version === version) { picker.candidates = candidates; picker.message = candidates.length ? '' : 'No matches found.'; }
-      } catch (e) { if (picker.version === version) picker.message = 'Search unavailable. Try again.'; }
-      finally { picker.busy = false; }
-    },
-    async pickMatch(i, candidate) {
-      const picker = i.picker;
-      picker.busy = true;
-      try {
-        await api('/api/pricing/products/' + i.product_id + '/link', {method: 'POST', body: {
-          ...candidate, store: picker.store, store_item_id: candidate.store_item_id, store_name: candidate.name}});
-        i.picker = null;
-        await this.loadPrice(i);
-      } catch (e) { picker.message = 'Could not save match. Try again.'; }
-      finally { picker.busy = false; }
-    },
-    async redoMatch(i, link) {
-      try {
-        await api('/api/pricing/products/' + i.product_id + '/link/' + link.store, {method: 'DELETE'});
-        await this.loadPrice(i);
-        this.openMatch(i, link.store);
-      } catch (e) { oops(e); }
+        await api(this.scoped('/' + i.id), {method: 'PUT', body: {amount: i.amount}});
+        await this.load();
+      } catch (e) { oops(e); await this.load(); }
     },
     async add() {
       const name = this.text.trim();
