@@ -22,15 +22,15 @@
         <option value="metric">Metric</option><option value="imperial">Imperial (US volume)</option>
       </select><p class="muted small">Selects units and formats quantities. Counts and stored amounts stay as entered.</p></div>
     </div>
-    <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="showPrices" @change="savePortion()"> Show prices</label>
+    <label class="space-top-small inline"><input type="checkbox" x-model="showPrices" @change="savePortion()"> Show prices</label>
     <p class="muted small">Price is always optional when adding or scanning stock. This just controls whether it's shown back to you afterward.</p>
-    <form @submit.prevent="changePassword()" style="margin-top: 1rem">
+    <form @submit.prevent="changePassword()" class="space-top">
       <b class="small">Change password</b>
       <div class="grid2">
         <div><label class="field">Current<input type="password" x-model="pw.old" autocomplete="current-password" required></label></div>
         <div><label class="field">New<input type="password" x-model="pw.new" autocomplete="new-password" required></label></div>
       </div>
-      <button style="margin-top: .6rem">Change</button>
+      <button class="space-top-small">Change</button>
     </form>
   </div>
 
@@ -39,18 +39,18 @@
     <p class="muted small">For phone apps, scripts and so on. Send it as an <code>X-API-Key</code> header.
       Everything is listed at <a href="{{ base_path }}/docs">/docs</a>.</p>
     <template x-for="k in keys" :key="k.id">
-      <div class="row small" style="margin-bottom: .3rem">
+      <div class="space-bottom-small row small">
         <code x-text="k.prefix + '...'"></code>
         <span class="grow" x-text="k.name || '(no name)'"></span>
         <span class="muted" x-text="k.last_used ? 'last used ' + formatDate(k.last_used.slice(0, 10)) + ' ' + k.last_used.slice(11, 16) : 'never used'"></span>
         <button class="small danger" @click="deleteKey(k)">Revoke</button>
       </div>
     </template>
-    <div class="card" x-show="newKey" style="margin-top: .6rem">
+    <div class="space-top-small card" x-show="newKey">
       <b>Copy this now, it won't be shown again:</b>
-      <div><code x-text="newKey" style="word-break: break-all"></code></div>
+      <div><code x-text="newKey" class="break-key"></code></div>
     </div>
-    <form class="form-row" @submit.prevent="createKey()" style="margin-top: .6rem">
+    <form class="space-top-small form-row" @submit.prevent="createKey()">
       <label class="field grow">Key name<input x-model="keyName" placeholder="What's it for? e.g. scanner app"></label>
       <button>New key</button>
     </form>
@@ -65,7 +65,7 @@
         <label class="inline small"><input type="checkbox" :value="t" x-model="prefs.diet"> <span x-text="t"></span></label>
       </template>
     </div>
-    <label style="margin-top: .8rem">Avoid (ingredients or dishes)</label>
+    <label class="space-top">Avoid (ingredients or dishes)</label>
     <div class="chip-row">
       <template x-for="(d, idx) in prefs.dislikes" :key="d">
         <span class="chip"><span x-text="d"></span><button type="button" aria-label="Remove" @click="prefs.dislikes.splice(idx,1)">×</button></span>
@@ -73,8 +73,8 @@
       <input aria-label="Add something to avoid" placeholder="type and press enter, e.g. mushrooms" x-model="newDislike"
              @keydown.enter.prevent="addDislike()" @keydown.comma.prevent="addDislike()" @blur="addDislike()">
     </div>
-    <label class="field" style="margin-top: .8rem">Other notes<textarea x-model="prefs.other" placeholder="e.g. chilli goes on Doritos Mexicana, not rice"></textarea></label>
-    <div class="row" style="margin-top: .8rem">
+    <label class="space-top field">Other notes<textarea x-model="prefs.other" placeholder="e.g. chilli goes on Doritos Mexicana, not rice"></textarea></label>
+    <div class="space-top row">
       <button class="primary" @click="savePreferences()">Save</button>
     </div>
   </div>
@@ -83,7 +83,7 @@
   <h2>People</h2>
   <div class="card">
     <template x-for="u in users" :key="u.id">
-      <div class="row" style="margin-bottom: .4rem">
+      <div class="space-bottom-small row">
         <b class="grow" x-text="u.username"></b>
         <span class="muted small" x-text="u.portion_size"></span>
         <label class="inline small"><input type="checkbox" :checked="u.is_admin" @change="toggleAdmin(u, $event.target.checked)"> admin</label>
@@ -91,7 +91,7 @@
         <button class="small danger" x-show="u.id != {{ user.id }}" @click="deleteUser(u)">Delete</button>
       </div>
     </template>
-    <form @submit.prevent="addUser()" style="margin-top: .8rem">
+    <form @submit.prevent="addUser()" class="space-top">
       <b class="small">Add someone</b>
       <div class="grid3">
         <div><label class="field">Username<input x-model="nu.username" required></label></div>
@@ -102,7 +102,7 @@
           </select></label>
         </div>
       </div>
-      <button style="margin-top: .6rem">Add</button>
+      <button class="space-top-small">Add</button>
     </form>
   </div>
   {% endif %}

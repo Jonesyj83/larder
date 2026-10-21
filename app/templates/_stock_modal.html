@@ -11,7 +11,7 @@
             <div class="muted small" x-text="'In stock: ' + qty(p.in_stock, p.unit, p.unit_plural)"></div>
           </div>
         </div>
-        <div class="tabs" style="margin-top: .8rem">
+        <div class="space-top tabs">
           <button type="button" :class="mode == 'purchase' && 'on'" @click="setMode('purchase')">Purchase</button>
           <button type="button" :class="mode == 'consume' && 'on'" @click="setMode('consume')">Consume</button>
         </div>
@@ -47,10 +47,10 @@
           <div x-show="mode == 'purchase'">
             <label class="field">Price (optional)<input type="number" step="any" min="0" x-model="price"></label>
           </div>
-          <div x-show="mode == 'consume'" style="margin-top: .6rem">
+          <div x-show="mode == 'consume'" class="space-top-small">
             <label class="inline"><input type="checkbox" x-model="spoiled"> Spoiled / thrown away</label>
           </div>
-          <div class="row" style="margin-top: 1rem">
+          <div class="space-top row">
             <button class="primary" :disabled="busy" x-text="mode == 'purchase' ? 'Add to stock' : (spoiled ? 'Throw out' : 'Use up')"></button>
             <button type="button" @click="show = false">Cancel</button>
           </div>

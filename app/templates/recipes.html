@@ -26,7 +26,7 @@
           </div>
           <b x-text="r.name"></b>
           <div class="small muted" x-text="num(r.servings) + ' servings, ' + r.ingredient_count + ' ingredients'"></div>
-          <div class="row" style="margin-top: .3rem">
+          <div class="space-top-small row">
             <span class="stars small" x-text="stars(r.rating)" x-show="r.rating"></span>
             <span class="spacer grow"></span>
             <span x-show="r.can_make" class="ok small">can make it</span>
@@ -44,20 +44,20 @@
       <div class="card">
         <div class="recipe-banner" x-show="current.picture"><img :src="pic(current.picture)" alt=""></div>
         <div class="row">
-          <h2 class="grow" style="margin: 0" x-text="current.name"></h2>
+          <h2 class="no-margin grow" x-text="current.name"></h2>
           <span x-show="current.can_make" class="ok">You've got everything</span>
           <span x-show="!current.can_make && current.ingredients.length" class="warn" x-text="current.missing_count + ' missing'"></span>
         </div>
-        <div class="row" style="margin: .4rem 0">
+        <div class="space-block-small row">
           <span class="muted small">Rate it</span>
           <template x-for="n in [1,2,3,4,5]" :key="n">
             <button type="button" class="star-btn" :aria-label="'Rate ' + n + ' stars'" @click="rate(n)" x-text="n <= current.rating ? '★' : '☆'"></button>
           </template>
           <button type="button" class="small" x-show="current.rating" @click="rate(0)">Clear</button>
         </div>
-        <div class="row" style="margin: .6rem 0">
+        <div class="space-block-small row">
           <span>Servings</span>
-          <input aria-label="Recipe servings" type="number" step="any" min="0.000001" x-model.number="servings" @change="open(current.id)" style="width: 5.5rem">
+          <input aria-label="Recipe servings" type="number" step="any" min="0.000001" x-model.number="servings" @change="open(current.id)" class="serving-input">
           <span class="muted small" x-show="servings != current.servings" x-text="'(recipe is for ' + num(current.servings) + ')'"></span>
         </div>
         <p class="muted" x-show="!current.ingredients.length">No ingredients recorded. Edit this recipe to check what you need.</p>
@@ -76,7 +76,7 @@
             </tr>
           </template>
         </table>
-        <div class="row" style="margin-top: .8rem">
+        <div class="space-top row">
           <button x-show="!current.can_make" @click="toShopping()">Put missing on shopping list</button>
           <button @click="cookOpen = true; cook.leftover = Math.max(0, Math.round((servings - portionFactor()) * 100) / 100) || ''; cook.location_id = ''">Cooked it (take from stock)</button>
           <button @click="planOpen = true">Add to meal plan</button>
@@ -103,7 +103,7 @@
                 <template x-for="l in locations" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
               </select>
             </label>
-            <div class="row" style="margin-top: 1rem">
+            <div class="space-top row">
               <button class="primary">Cook it</button>
               <button type="button" @click="cookOpen = false">Cancel</button>
             </div>
@@ -124,7 +124,7 @@
               </div>
             </div>
             <label class="field">Servings<input type="number" step="any" min="0.000001" x-model.number="plan.servings"></label>
-            <div class="row" style="margin-top: 1rem">
+            <div class="space-top row">
               <button class="primary">Add</button>
               <button type="button" @click="planOpen = false">Cancel</button>
             </div>
@@ -169,7 +169,7 @@
         <button type="button" class="small" @click="form.ingredients.push({product_id: '', name: '', amount: 1, unit_id: '', note: ''})">+ ingredient</button>
         <p class="muted small">New ingredients are saved to the catalogue only when you save. This adds no stock. If a name already exists, choose that catalogue product above. Units and names can be edited in Products.</p>
         <label class="field">Method<textarea x-model="form.instructions"></textarea></label>
-        <div class="row" style="margin-top: 1rem">
+        <div class="space-top row">
           <button class="primary" :disabled="busy" x-text="form.reviewing ? 'Save reviewed ingredients' : 'Save'"></button>
           <button type="button" @click="form = null">Cancel</button>
         </div>

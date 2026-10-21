@@ -3,21 +3,21 @@
 <div x-data="overviewPage()">
   <div class="row page-head"><h1 class="grow">Overview</h1></div>
   <p class="muted" x-show="!loaded">Loading household summary…</p>
-  <div x-show="loaded" x-cloak>
-    <section class="card">
+  <div class="overview-flow" x-show="loaded" x-cloak>
+    <section class="card" data-overview="dates">
       <h2>Use-by summary</h2>
       <p x-text="overdue + ' overdue · ' + soon + ' going off soon'"></p>
       <a href="{{ base_path }}/expiring">View use-by dates</a>
     </section>
-    <section class="card">
+    <section class="card" data-overview="low">
       <h2>Low stock</h2>
       <p x-text="lowStock + ' products below minimum stock'"></p>
       <a href="{{ base_path }}/stock">View stock</a>
     </section>
-    <section class="card">
+    <section class="card" data-overview="meals">
       <h2>Next meals</h2>
       <template x-for="day in mealDays" :key="day.date">
-        <div>
+        <div class="overview-meal-day">
           <b class="small" x-text="day.label"></b>
           <p class="muted small" x-show="!mealsFor(day.date).length">Nothing planned yet</p>
           <template x-for="meal in mealsFor(day.date)" :key="meal.id">
@@ -27,12 +27,12 @@
       </template>
       <a href="{{ base_path }}/mealplan">View meal plan</a>
     </section>
-    <section class="card">
+    <section class="card" data-overview="shopping">
       <h2>Shopping list</h2>
       <p x-text="shoppingCount + ' items still to buy'"></p>
       <a href="{{ base_path }}/shopping">View shopping list</a>
     </section>
-    <section class="card">
+    <section class="card" data-overview="notes">
       <h2>Recent memory</h2>
       <p class="muted small" x-show="!notes.length">No notes yet.</p>
       <template x-for="note in notes" :key="note.id">

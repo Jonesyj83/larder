@@ -45,7 +45,7 @@
     </template>
   </div>
 
-  <p class="muted small" style="margin-top: 1rem">
+  <p class="space-top muted small">
     Servings get worked out from who's eating and their portion size (set in Settings).
     Your portion size: <b>{{ user.portion_size }}</b>.
   </p>
@@ -117,7 +117,7 @@
           </template>
         </div>
         <label class="field">Servings<input type="number" step="any" min="0.000001" x-model.number="adding.servings"></label>
-        <div class="row" style="margin-top: 1rem">
+        <div class="space-top row">
           <button class="primary" :disabled="busy" x-text="adding.reviewing ? 'Save reviewed ingredients' : (adding.id ? 'Save meal' : 'Add meal')"></button>
           <button type="button" @click="adding = null">Cancel</button>
         </div>
@@ -148,7 +148,7 @@
           </template>
         </table>
         <template x-for="p in needs.problems"><p class="bad small" x-text="p"></p></template>
-        <div class="row" style="margin-top: 1rem">
+        <div class="space-top row">
           <button class="primary" x-show="needs.items.some(i => i.missing > 0)" @click="needsToShopping()">Put what's short on the shopping list</button>
           <button @click="needs = null">Close</button>
         </div>

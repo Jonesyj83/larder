@@ -26,7 +26,7 @@
 
   <div class="card" x-show="batches.length" x-cloak>
     <b>Stored meals</b>
-    <div class="small muted" style="margin-bottom: .4rem">Cooked meals sitting in the fridge or freezer. Write the code on the container when you put it away.</div>
+    <div class="space-bottom-small small muted">Cooked meals sitting in the fridge or freezer. Write the code on the container when you put it away.</div>
     <template x-for="b in batches" :key="b.id">
       <div class="list-item">
         <div class="grow">
@@ -82,7 +82,7 @@
               <button class="small">Save</button>
             </form>
           </template>
-          <div class="row" style="margin-top: .4rem">
+          <div class="space-top-small row">
             <button class="small" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'purchase'})">Purchase</button>
             <button class="small danger" @click="$dispatch('stock-modal', {product_id: s.product_id, mode: 'consume', spoiled: true})">Spoiled</button>
             <button class="small" @click="toShopping(s)">Add to shopping list</button>
@@ -111,7 +111,7 @@
         <b>Add stock</b>
         <label class="field">Product<input aria-label="Find a product to add stock" placeholder="Search products" x-model="pq" @input.debounce.200ms="searchProducts()" x-init="$el.focus()"></label>
         <template x-for="p in found" :key="p.id">
-          <div class="list-item" style="cursor: pointer" @click="adding = false; $dispatch('stock-modal', {product_id: p.id, mode: 'purchase'})">
+          <div class="clickable list-item"  @click="adding = false; $dispatch('stock-modal', {product_id: p.id, mode: 'purchase'})">
             <img x-show="p.picture" :src="pic(p.picture)" class="thumb">
             <span class="grow" x-text="p.name"></span>
           </div>

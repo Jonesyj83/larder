@@ -14,7 +14,7 @@
         <button class="small danger" @click="delLoc(l)">Delete</button>
       </div>
     </template>
-    <form class="form-row" @submit.prevent="addLoc()" style="margin-top: .8rem">
+    <form class="space-top form-row" @submit.prevent="addLoc()">
       <label class="field">New location<input class="grow" placeholder="New location, e.g. Garage freezer" x-model="newLoc"></label>
       <button class="primary">Add</button>
     </form>
@@ -30,7 +30,7 @@
         <button class="small danger" @click="delUnit(u)">Delete</button>
       </div>
     </template>
-    <form class="form-row" @submit.prevent="addUnit()" style="margin-top: .8rem">
+    <form class="space-top form-row" @submit.prevent="addUnit()">
       <label class="field">New unit name<input class="grow" placeholder="New unit, e.g. slice" x-model="newUnit"></label>
       <label class="field">New unit plural<input class="grow" placeholder="plural (slices)" x-model="newUnitPlural"></label>
       <button class="primary">Add</button>
@@ -50,12 +50,12 @@
   <p class="muted small">For general rules that apply to every product. Product pack sizes belong on the product.</p>
   <div class="card">
     <template x-for="c in conversions.filter(c => !c.automatic)" :key="c.id">
-      <div class="row" style="margin-bottom: .3rem">
+      <div class="space-bottom-small row">
         <span class="grow" x-text="'1 ' + c.from_unit + ' = ' + num(c.factor) + ' ' + c.to_unit"></span>
         <button class="small danger" @click="delConv(c)">Delete</button>
       </div>
     </template>
-    <form class="conversion-row" @submit.prevent="addConv()" style="margin-top: .8rem">
+    <form class="space-top conversion-row" @submit.prevent="addConv()">
 
       <label class="field">From (1 unit)<select x-model="conv.from" required>
         <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>

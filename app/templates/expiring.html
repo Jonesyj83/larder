@@ -56,7 +56,7 @@
     <template x-if="undated.length">
       <div>
         <div class="group-head"><b>No date set</b> <span class="muted small" x-text="'(' + undated.length + ')'"></span></div>
-        <p class="muted small" style="padding: 0 20px 12px">Open an item's stock entry to add a best by / use by date.</p>
+        <p class="inset-note muted small">Open an item's stock entry to add a best by / use by date.</p>
         <template x-for="s in undated" :key="s.product_id">
           <div class="stock-item">
             <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><a :href="'{{ base_path }}/stock?q=' + encodeURIComponent(s.name)" x-text="s.name"></a></div>

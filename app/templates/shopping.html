@@ -25,7 +25,7 @@
     <p class="muted" x-show="!items.length">The list is empty.</p>
     <template x-for="i in items" :key="i.id">
       <div class="list-item" :style="i.done && 'opacity: .55'">
-        <input type="checkbox" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)" style="width: 1.3rem; height: 1.3rem">
+        <input type="checkbox" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)" class="check-item">
         <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
         <div class="grow">
           <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
@@ -43,7 +43,7 @@
         <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>
       </div>
     </template>
-    <div class="row" style="margin-top: .6rem" x-show="items.some(i => i.done)">
+    <div class="space-top-small row" x-show="items.some(i => i.done)">
       <button class="small" @click="clearDone()">Clear ticked items</button>
     </div>
   </div>

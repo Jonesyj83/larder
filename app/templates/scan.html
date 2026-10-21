@@ -22,7 +22,7 @@
     </div>
   </div>
 
-  <div class="row toolbar" style="margin-top: 16px">
+  <div class="space-top row toolbar">
     <form class="row grow" @submit.prevent="lookup(manual)">
       <input class="grow" aria-label="Barcode" x-model="manual" placeholder="Type a barcode" inputmode="numeric" autocomplete="off">
       <button>Look up</button>
@@ -76,11 +76,11 @@
           <label x-text="shelfLabel(product.shelf_life_kind)"></label>
           {{ date_field('expires_on', 'Packet date', false, "mode != 'purchase'") }}
         </div>
-        <div x-show="mode == 'consume'" style="padding-top: 1.8rem">
+        <div x-show="mode == 'consume'" class="align-control">
           <label class="inline"><input type="checkbox" x-model="spoiled"> Spoiled / thrown away</label>
         </div>
       </div>
-      <div class="row" style="margin-top: 1rem">
+      <div class="space-top row">
         <button class="primary" :disabled="busy"
                 x-text="mode == 'purchase' ? 'Add to stock' : (spoiled ? 'Throw out' : 'Use up')"></button>
         <button type="button" @click="reset(true)">Cancel</button>
@@ -104,7 +104,7 @@
         </div>
       </div>
       <label class="field">Or link it to an existing product<input aria-label="Link to a catalogue product" placeholder="Search products" x-model="linkQ" @input.debounce.200ms="searchLink()"></label>
-      <div class="row" style="margin-top: .3rem">
+      <div class="space-top-small row">
         <template x-for="m in linkFound" :key="m.id">
           <button type="button" class="small" @click="link(m.id)" x-text="m.name"></button>
         </template>
@@ -121,7 +121,7 @@
       <form x-show="mode == 'purchase'" @submit.prevent="create()">
         <h2 x-text="createdProduct ? 'Add stock to ' + createdProduct.name : 'Or make a new product'"></h2>
         <p class="small muted" x-show="createdProduct">Product and barcode saved. Stock has not been added yet; retry below.</p>
-        <fieldset :disabled="!!createdProduct" style="border: 0; padding: 0; margin: 0">
+        <fieldset :disabled="!!createdProduct" class="plain-fields">
           <label class="field">Name<input x-model="np.name" required></label>
           <div class="grid2">
             <div>
@@ -149,10 +149,10 @@
               </select></label>
             </div>
           </div>
-          <label class="inline" style="margin-top: .6rem" x-show="unknown.off && unknown.off.image_url">
+          <label class="space-top-small inline" x-show="unknown.off && unknown.off.image_url">
             <input type="checkbox" x-model="np.use_pic"> Use the OpenFoodFacts picture
           </label>
-          <details style="margin-top: .6rem">
+          <details class="space-top-small">
             <summary>Advanced product settings</summary>
             <label class="field">Default shelf life (days, optional)<input type="number" min="0" x-model="np.default_days"></label>
             <p class="small muted">For future purchases when no packet date is entered.</p>
@@ -180,7 +180,7 @@
             </select></label>
           </div>
         </div>
-        <div class="row" style="margin-top: 1rem">
+        <div class="space-top row">
           <button class="primary" :disabled="busy" x-text="createdProduct ? 'Retry adding to stock' : 'Create product and add to stock'"></button>
           <button type="button" @click="reset(true)">Cancel</button>
         </div>

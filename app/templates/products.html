@@ -14,7 +14,7 @@
     <template x-for="p in filtered()" :key="p.id">
       <div class="list-item">
         <img x-show="p.picture" :src="pic(p.picture)" class="thumb">
-        <div class="grow" @click="edit(p)" style="cursor: pointer">
+        <div class="clickable grow" @click="edit(p)">
           <b x-text="p.name"></b>
           <div class="small muted">
             <span x-text="qty(p.in_stock, p.unit, p.unit_plural) + ' in stock'"></span>
@@ -80,14 +80,14 @@
               <label class="field">Keep at least<input type="number" step="any" min="0" x-model.number="form.min_stock"></label>
             </div>
           </div>
-          <label class="field">Barcodes (one per line)<textarea x-model="form.barcodes" style="min-height: 3rem"></textarea></label>
+          <label class="field">Barcodes (one per line)<textarea x-model="form.barcodes" class="short-textarea"></textarea></label>
           <label class="field">Notes<input x-model="form.notes"></label>
 
           <template x-if="form.id">
             <div>
               <label>Picture</label>
               <div class="row">
-                <img x-show="form.picture" :src="pic(form.picture)" class="thumb" style="width: 64px; height: 64px">
+                <img x-show="form.picture" :src="pic(form.picture)" class="thumb-large thumb">
                 <input aria-label="Product picture" type="file" accept="image/*" @change="upload($event)" class="grow">
                 <button type="button" class="small" x-show="form.picture" @click="removePic()">Remove</button>
               </div>
@@ -99,7 +99,7 @@
             </div>
           </template>
 
-          <div class="row" style="margin-top: 1rem">
+          <div class="space-top row">
             <button class="primary" :disabled="busy">Save</button>
             <button type="button" @click="form = null">Cancel</button>
             <button type="button" class="danger right" x-show="form.id" @click="remove()">Delete</button>
