@@ -4,6 +4,22 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
 
 ## 2026-10-22
 
+- Fixed matched items losing their price - picking a match now keeps the
+  price you just saw instead of showing "not checked yet" until the next
+  nightly run.
+- Auto-matching got smarter - staples like pork chops, capsicum and milk
+  match a store's equivalent item without needing an exact name, but a
+  branded product won't silently cross-match to a different brand.
+  Added an "Auto-match all" button that does the whole list in one go
+  and tells you what it couldn't figure out.
+- Shopping list prices are compact chips now instead of stacked lines,
+  cheapest one stands out, and there's a direct link to a matched item's
+  price history.
+- Items already covered by what's in stock get a quiet note saying so.
+  A small recipe amount (60 ml of milk) now shows what you're actually
+  buying it as (a 2 L bottle) so it's clear you're not meant to find
+  exactly that much.
+
 - Store price matching: match a product to its listing at Woolworths, Coles
   or Aldi straight from the shopping list, see every store's current price
   side by side, pick the cheapest. IGA isn't wired up yet - their pricing
