@@ -39,7 +39,7 @@
                     <span class="muted small" x-show="m.recipe_id && m.note && m.note != m.recipe" x-text="m.note"></span>
                     <span class="muted small" x-show="m.cook_event_id" x-text="'Batch: ' + num(m.cook_servings) + ', allocated this week: ' + num(meals.filter(x => x.cook_event_id === m.cook_event_id).reduce((n, x) => n + x.servings, 0))"></span>
                     <button @click="$el.closest('details').open = false; openEdit(m)">Edit</button>
-                    <button x-show="!m.recipe_id" @click="$el.closest('details').open = false; findForMeal(m)">Find ingredients</button>
+                    <a x-show="m.recipe_id" :href="BASE + '/recipes?id=' + m.recipe_id">View recipe ingredients</a>
                     <button class="danger" @click="$el.closest('details').open = false; remove(m)" :aria-label="'Remove ' + (m.recipe || m.note)">Remove</button>
                   </div>
                 </details>
@@ -68,63 +68,16 @@
             <label class="inline small"><input type="radio" :value="s" x-model="adding.slot"> <span x-text="s"></span></label>
           </template>
         </div>
-        <div class="card small" x-show="batches.length && !adding.id" x-cloak>
-          <label class="field">Or use something already made
-            <select x-model.number="useBatchId">
-              <option value="">Choose a stored meal</option>
-              <template x-for="b in batches" :key="b.id">
-                <option :value="b.id" x-text="b.code + ' ' + b.name + ' - ' + num(b.portions_left) + ' left (' + b.location + ')'"></option>
-              </template>
-            </select>
-          </label>
-          <button type="button" :disabled="!useBatchId" @click="useStoredMeal()">Use it</button>
-        </div>
         <label class="field">Recipe<select x-model="adding.recipe_id" @change="calcServings()">
-          <option value="">Simple meal or note (choose ingredients below)</option>
+          <option value="">Simple meal or note</option>
           <template x-for="r in recipes" :key="r.id">
             <option :value="r.id" x-text="r.name + (r.can_make ? '' : ' (' + r.missing_count + ' missing)')"></option>
           </template>
         </select></label>
-        <p class="small" x-show="adding.recipe_id"><a :href="BASE + '/recipes?id=' + adding.recipe_id">View or edit recipe ingredients</a>. To attach different products to this meal, choose “Simple meal or note” above.</p>
         <label x-text="adding.recipe_id ? 'Note (optional)' : 'What is it?'"></label>
         <input :aria-label="adding.recipe_id ? 'Note (optional)' : 'What is it?'" x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
-        <div x-show="!adding.recipe_id">
-          <p class="muted small">Name new ingredients or choose catalogue products, then enter their amounts for the servings below. No purchase details are needed. Saving ingredients also saves this simple meal as a recipe for reuse. Leaving this empty keeps a note; its needs cannot be calculated.</p>
-          <template x-for="(i, idx) in adding.ingredients" :key="idx">
-          <div class="ingredient-row">
-            <div class="ingredient-product field">
-              <label>Catalogue product
-                <select :disabled="!!adding.recipe_id" x-model="i.product_id" @change="selectIngredient(i, products)">
-                  <option value="">New ingredient (no stock)</option>
-                  <template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name + ' — on hand: ' + num(p.in_stock) + ' ' + p.unit"></option></template>
-                </select>
-              </label>
-              <label x-show="!i.product_id">Ingredient name
-                <input x-model="i.name" :required="!i.product_id && !adding.recipe_id" :disabled="!!i.product_id || !!adding.recipe_id" placeholder="e.g. Bread">
-              </label>
-            </div>
-            <label class="field">Amount<input type="number" step="any" min="0.000001" x-model.number="i.amount" :required="!adding.recipe_id" :disabled="!!adding.recipe_id"></label>
-            <label class="field">Unit<select x-model="i.unit_id" :required="!adding.recipe_id" :disabled="!!adding.recipe_id">
-              <option value="">Choose unit</option><template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
-            </select></label>
-            <p class="small warn ingredient-note" x-show="i.note" x-text="i.note"></p>
-            <button type="button" class="small danger" @click="adding.ingredients.splice(idx, 1)" aria-label="Remove ingredient">Remove</button>
-          </div>
-          </template>
-          <button type="button" @click="adding.ingredients.push({product_id: '', name: '', amount: 1, unit_id: ''})">Add ingredient</button>
-        </div>
-        <label>Who's eating</label>
-        <div class="row">
-          <template x-for="u in household" :key="u.id">
-            <label class="inline small">
-              <input type="checkbox" :value="u.id" x-model.number="adding.eaters" @change="calcServings()">
-              <span x-text="u.username + ' (' + u.portion_size + ')'"></span>
-            </label>
-          </template>
-        </div>
-        <label class="field">Servings<input type="number" step="any" min="0.000001" x-model.number="adding.servings"></label>
         <div class="space-top row">
-          <button class="primary" :disabled="busy" x-text="adding.reviewing ? 'Save reviewed ingredients' : (adding.id ? 'Save meal' : 'Add meal')"></button>
+          <button class="primary" :disabled="busy" x-text="adding.id ? 'Save meal' : 'Add meal'"></button>
           <button type="button" @click="adding = null">Cancel</button>
         </div>
       </form>
@@ -139,7 +92,7 @@
         <p class="muted small" x-show="!needs.items.length && !needs.unmapped.length && !needs.problems.length">No ingredient needs recorded this week.</p>
         <template x-for="m in needs.unmapped" :key="m.id">
           <div class="notice card small"><span x-text="formatDate(m.day) + ' ' + m.slot + ': ' + m.note + ' — no ingredients linked; needs cannot be calculated.'"></span>
-            <button class="small" @click="findUnmapped(m)">Find ingredients</button>
+            <button class="small" @click="findUnmapped(m)">Choose recipe</button>
           </div>
         </template>
         <table class="small" x-show="needs.items.length">

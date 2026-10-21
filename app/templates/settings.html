@@ -56,7 +56,8 @@
     </form>
   </div>
 
-  <h2>Food preferences</h2>
+  <details class="space-top">
+    <summary>Food preferences</summary>
   <div class="card">
     <p class="muted small">Shared by the whole household. Keep diet tags, dislikes and other food preferences here.</p>
     <label>Diet</label>
@@ -79,8 +80,11 @@
     </div>
   </div>
 
+  </details>
+
   {% if user.is_admin %}
-  <h2>People</h2>
+  <details class="space-top">
+    <summary>People</summary>
   <div class="card">
     <template x-for="u in users" :key="u.id">
       <div class="space-bottom-small row">
@@ -105,6 +109,7 @@
       <button class="space-top-small">Add</button>
     </form>
   </div>
+  </details>
   {% endif %}
 </div>
 <script>

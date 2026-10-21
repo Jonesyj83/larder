@@ -29,9 +29,9 @@
     </div>
   </template>
   <template x-if="!searching">
-    <div>
+    <div class="card">
       <template x-for="group in kinds" :key="group.kind">
-        <section class="card">
+        <section>
           <div class="group-head"><button class="link-head" @click="expanded[group.kind] = !expanded[group.kind]" :aria-expanded="!!expanded[group.kind]" x-text="group.label + ' (' + notesFor(group.kind).length + ')'"></button></div>
           <template x-if="expanded[group.kind]">
             <div>
