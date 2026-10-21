@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,6 +24,10 @@ class HttpSafety(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
+@patch.multiple("app.pricing.stores", **{
+    "search_" + store: MagicMock(return_value=[])
+    for store in ("woolworths", "coles", "aldi", "iga")
+})
 async def check():
     from unittest.mock import patch
     from httpx import AsyncClient, ASGITransport

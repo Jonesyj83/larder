@@ -90,6 +90,34 @@ CREATE TABLE IF NOT EXISTS products (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+
+CREATE TABLE IF NOT EXISTS store_settings (
+    store TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    postcode TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS product_store_links (
+    id INTEGER PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    store TEXT NOT NULL,
+    store_item_id TEXT NOT NULL,
+    store_name TEXT NOT NULL DEFAULT '',
+    matched_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(product_id, store)
+);
+CREATE TABLE IF NOT EXISTS store_price_checks (
+    id INTEGER PRIMARY KEY,
+    link_id INTEGER NOT NULL REFERENCES product_store_links(id) ON DELETE CASCADE,
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    on_special INTEGER NOT NULL DEFAULT 0,
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS store_price_checks_latest ON store_price_checks(link_id, checked_at DESC, id DESC);
+
 CREATE TABLE IF NOT EXISTS barcodes (
     id INTEGER PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -232,6 +260,8 @@ CREATE TABLE IF NOT EXISTS household_preferences (
 );
 """
 
+DEFAULT_STORES = ("woolworths", "coles", "aldi", "iga")
+
 DEFAULT_LOCATIONS = [("Fridge", 0), ("Pantry", 0), ("Freezer", 1), ("Work", 0)]
 DEFAULT_UNITS = [
     ("piece", "pieces"), ("slice", "slices"), ("pack", "packs"), ("g", "g"), ("kg", "kg"),
@@ -261,6 +291,8 @@ def init_db():
     # all of it under one write lock: two workers starting at once shouldn't both
     # try to add the same column or seed the same rows
     conn.executescript("BEGIN IMMEDIATE;\n" + SCHEMA)
+    conn.executemany("INSERT OR IGNORE INTO store_settings(store) VALUES (?)",
+                     [(store,) for store in DEFAULT_STORES])
     triggers = {
         "household_notes_ai": "AFTER INSERT ON household_notes BEGIN INSERT INTO household_notes_fts(rowid,content) VALUES(new.id,new.content); END",
         "household_notes_ad": "AFTER DELETE ON household_notes BEGIN INSERT INTO household_notes_fts(household_notes_fts,rowid,content) VALUES('delete',old.id,old.content); END",

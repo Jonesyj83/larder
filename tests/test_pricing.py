@@ -1,0 +1,283 @@
+import asyncio
+import json
+import sqlite3
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import httpx
+from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
+
+from app import db as database, pricing
+from app.auth import current_user
+from app.pricing import stores
+from app.routes import pricing as routes, products
+from scripts.refresh_prices import refresh_prices
+
+
+def prepare(db):
+    db.row_factory = sqlite3.Row
+    db.execute('PRAGMA foreign_keys=ON')
+    db.executescript(database.SCHEMA)
+    db.execute("INSERT INTO users(id,username,password_hash) VALUES(1,'test','unused')")
+    db.execute("INSERT INTO units(id,name) VALUES(1,'piece')")
+    db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Milk 2L',1)")
+    db.executemany('INSERT INTO store_settings(store) VALUES(?)', [(s,) for s in stores.STORES])
+    db.commit()
+    return db
+
+
+CANDIDATE = dict(store_item_id='123', name='Milk 2L', brand='', size='2L', price=3.4,
+                 was_price=4, unit_price=1.7, unit_measure='1L', on_special=True)
+
+
+class SchemaAndRefresh(unittest.TestCase):
+    def setUp(self):
+        self.db = prepare(sqlite3.connect(':memory:'))
+        self.addCleanup(self.db.close)
+
+    def test_upsert_ledger_and_cascades(self):
+        db = self.db
+        first = pricing.link_product(db, 1, 'coles', '123', 'Milk', 1)
+        pricing.record_price(db, first, CANDIDATE)
+        pricing.record_price(db, first, dict(CANDIDATE, price=3.6))
+        self.assertEqual(first, pricing.link_product(db, 1, 'coles', '123', 'Updated', 1))
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM store_price_checks').fetchone()[0], 2)
+        with self.assertRaises(sqlite3.IntegrityError):
+            db.execute("INSERT INTO product_store_links(product_id,store,store_item_id) VALUES(1,'coles','other')")
+        db.execute('DELETE FROM users WHERE id=1')
+        self.assertIsNone(db.execute('SELECT matched_by FROM product_store_links').fetchone()[0])
+        pricing.link_product(db, 1, 'coles', '456', 'Different')
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM product_store_links').fetchone()[0], 1)
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM store_price_checks').fetchone()[0], 0)
+        db.execute('DELETE FROM products WHERE id=1')
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM product_store_links').fetchone()[0], 0)
+
+    def test_migration_repeatable_preserves_settings_and_legacy_products(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.multiple(database, DATA_DIR=root, DB_PATH=root/'larder.db', UPLOAD_DIR=root/'uploads'):
+                db = sqlite3.connect(root/'larder.db')
+                db.executescript("CREATE TABLE products(id INTEGER PRIMARY KEY,name TEXT NOT NULL,unit_id INTEGER NOT NULL); INSERT INTO products VALUES(1,'Legacy',1);")
+                db.close()
+                database.init_db()
+                db = database.connect()
+                self.assertEqual(len(db.execute('SELECT * FROM store_settings').fetchall()), 4)
+                db.execute("UPDATE store_settings SET enabled=0,postcode='6000' WHERE store='iga'")
+                db.commit()
+                db.close()
+                database.init_db()
+                db = database.connect()
+                self.assertEqual(tuple(db.execute("SELECT enabled,postcode FROM store_settings WHERE store='iga'").fetchone()), (0, '6000'))
+                self.assertEqual(db.execute('SELECT name FROM products').fetchone()[0], 'Legacy')
+                self.assertEqual(db.execute('PRAGMA foreign_key_check').fetchall(), [])
+                db.close()
+
+    def add_links(self, store, count):
+        for number in range(count):
+            pid = self.db.execute("INSERT INTO products(name,unit_id) VALUES('Milk',1)").lastrowid
+            pricing.link_product(self.db, pid, store, str(number), 'Milk')
+        self.db.commit()
+
+    def test_breaker_stops_one_store_and_continues_others_with_pacing(self):
+        self.add_links('coles', 6)
+        self.add_links('woolworths', 1)
+        self.add_links('aldi', 1)
+        self.db.execute("UPDATE store_settings SET enabled=0 WHERE store='aldi'")
+        self.db.commit()
+        def fetch(store, name, postcode):
+            if store == 'coles':
+                raise httpx.ReadTimeout('unavailable')
+            return [dict(CANDIDATE, store_item_id='0')]
+        fetch = MagicMock(side_effect=fetch)
+        sleep = MagicMock()
+        with self.assertLogs(level='WARNING'):
+            result = refresh_prices(self.db, fetch, sleep)
+        self.assertEqual(result, dict(products_checked=4, prices_updated=1, circuit_breakers=['coles']))
+        self.assertEqual(fetch.call_count, 4)
+        self.assertEqual(sleep.call_count, 3)
+        sleep.assert_called_with(1.5)
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM store_price_checks').fetchone()[0], 4)
+
+    def test_exact_id_missing_id_and_append_only_history(self):
+        link = pricing.link_product(self.db, 1, 'coles', '123', 'Milk 2L')
+        self.db.commit()
+        refresh_prices(self.db, lambda *args: [dict(CANDIDATE, store_item_id='other'), CANDIDATE], lambda _: None)
+        refresh_prices(self.db, lambda *args: [dict(CANDIDATE, store_item_id='other')], lambda _: None)
+        self.assertEqual([r[0] for r in self.db.execute('SELECT price FROM store_price_checks WHERE link_id=? ORDER BY id', (link,))], [3.4, None])
+
+    def test_breaker_resets_on_success_and_counts_parse_failures(self):
+        self.add_links('coles', 7)
+        fetch = MagicMock(side_effect=[ValueError('parse'), ValueError('parse'), [],
+                                      stores.FailedResults(), {}, stores.FailedResults()])
+        with self.assertLogs(level='WARNING'):
+            result = refresh_prices(self.db, fetch, lambda _: None)
+        self.assertEqual(result['products_checked'], 6)
+        self.assertEqual(result['circuit_breakers'], ['coles'])
+
+
+class PricingAPI(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        async def tick():
+            while True:
+                await asyncio.sleep(.01)
+        self.timer = asyncio.create_task(tick())
+        self.db = prepare(sqlite3.connect(':memory:', check_same_thread=False))
+        app = FastAPI()
+        app.add_middleware(SessionMiddleware, secret_key="test")
+        app.include_router(routes.router)
+        app.include_router(products.router)
+        app.dependency_overrides[database.get_db] = lambda: self.db
+        app.dependency_overrides[current_user] = lambda: {'id': 1}
+        self.app = app
+        self.client = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test')
+        self.patches = []
+        self.searches = {}
+        for store in stores.STORES:
+            mocked = patch.object(stores, 'search_' + store, return_value=[])
+            self.patches.append(mocked)
+            self.searches[store] = mocked.start()
+
+    async def asyncTearDown(self):
+        self.timer.cancel()
+        for mocked in self.patches:
+            mocked.stop()
+        await self.client.aclose()
+        self.db.close()
+
+    async def test_stores_search_validation_and_auth(self):
+        self.assertEqual(len((await self.client.get('/api/pricing/stores')).json()), 4)
+        response = await self.client.put('/api/pricing/stores/iga', json={'enabled': False, 'postcode': '6000'})
+        self.assertEqual(response.json()['postcode'], '6000')
+        self.searches['iga'].return_value = [CANDIDATE]
+        self.assertEqual((await self.client.get('/api/pricing/search?store=iga&q=milk')).json(), [CANDIDATE])
+        self.searches['iga'].assert_called_once_with('milk', postcode='6000')
+        for store in ('coles', 'aldi', 'woolworths'):
+            self.searches[store].return_value = [CANDIDATE]
+            self.assertEqual((await self.client.get(f'/api/pricing/search?store={store}&q=milk')).json(), [CANDIDATE])
+        self.searches['coles'].side_effect = ValueError('parse')
+        with self.assertLogs(level='WARNING'):
+            self.assertEqual((await self.client.get('/api/pricing/search?store=coles&q=milk')).status_code, 502)
+        self.assertEqual((await self.client.put('/api/pricing/stores/unknown', json={'enabled': True})).status_code, 404)
+        self.assertEqual((await self.client.get('/api/pricing/search?store=unknown&q=milk')).status_code, 404)
+        self.assertEqual((await self.client.get('/api/pricing/search?store=coles&q=')).status_code, 422)
+        self.app.dependency_overrides.pop(current_user)
+        self.assertEqual((await self.client.get('/api/pricing/stores')).status_code, 401)
+
+    async def test_link_replace_latest_check_delete_and_missing_product(self):
+        url = '/api/pricing/products/1/link'
+        body = dict(store='coles', store_item_id='123', store_name='Milk 2L')
+        first = (await self.client.post(url, json=body)).json()
+        self.assertEqual(first['matched_by'], 1)
+        pricing.record_price(self.db, first['id'], CANDIDATE)
+        pricing.record_price(self.db, first['id'], dict(CANDIDATE, price=0))
+        self.db.commit()
+        links = (await self.client.get('/api/pricing/products/1')).json()
+        self.assertEqual(links[0]['latest_check']['price'], 0)
+        second = (await self.client.post(url, json=body)).json()
+        self.assertEqual(second['id'], first['id'])
+        await self.client.post(url, json=dict(body, store_item_id='different'))
+        links = (await self.client.get('/api/pricing/products/1')).json()
+        self.assertEqual(len(links), 1)
+        self.assertIsNone(links[0]['latest_check'])
+        self.assertEqual((await self.client.delete(url + '/coles')).status_code, 200)
+        self.assertEqual((await self.client.get('/api/pricing/products/1')).json(), [])
+        self.assertEqual((await self.client.get('/api/pricing/products/999')).status_code, 404)
+        self.assertEqual((await self.client.post('/api/pricing/products/999/link', json=body)).status_code, 404)
+        self.assertEqual((await self.client.post(url, json=dict(body, store='unknown'))).status_code, 404)
+
+    async def test_creation_matches_only_unambiguous_names_and_enabled_stores(self):
+        self.db.execute("UPDATE store_settings SET enabled=0 WHERE store='iga'")
+        self.db.commit()
+        self.searches['coles'].return_value = [dict(CANDIDATE, name='MILK 2 L')]
+        self.searches['woolworths'].return_value = [CANDIDATE, dict(CANDIDATE, store_item_id='456')]
+        self.searches['aldi'].return_value = [dict(CANDIDATE, name='Milk Chocolate 2L')]
+        response = await self.client.post('/api/products', json={'name': 'Milk 2L', 'unit_id': 1})
+        self.assertEqual(response.status_code, 201)
+        product_id = response.json()['id']
+        links = (await self.client.get(f'/api/pricing/products/{product_id}')).json()
+        self.assertEqual([link['store'] for link in links], ['coles'])
+        self.assertEqual(links[0]['latest_check']['price'], 3.4)
+        self.searches['iga'].assert_not_called()
+        await self.client.put(f'/api/products/{product_id}', json={'name': 'Milk', 'unit_id': 1})
+        self.assertEqual(self.searches['coles'].call_count, 1)
+
+    async def test_creation_survives_site_and_whole_hook_failure(self):
+        self.searches['coles'].side_effect = httpx.ConnectError('offline')
+        with self.assertLogs(level='WARNING'):
+            response = await self.client.post('/api/products', json={'name': 'Milk', 'unit_id': 1})
+        self.assertEqual(response.status_code, 201)
+        self.searches['woolworths'].assert_called_once()
+        with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')), self.assertLogs(level='WARNING'):
+            response = await self.client.post('/api/products', json={'name': 'Bread', 'unit_id': 1})
+        self.assertEqual(response.status_code, 201)
+
+
+class StoreParsers(unittest.TestCase):
+    def session(self, handler):
+        return httpx.Client(transport=httpx.MockTransport(handler), headers=stores.HEADERS, timeout=15, follow_redirects=True)
+
+    def test_woolworths_handshake_and_nested_products(self):
+        requests = []
+        def handler(request):
+            requests.append(request)
+            self.assertIn('Mozilla', request.headers['user-agent'])
+            self.assertEqual(request.extensions['timeout']['read'], 15)
+            if request.method == 'GET':
+                return httpx.Response(200, headers={'Set-Cookie': 'session=ready; Path=/'})
+            self.assertIn('session=ready', request.headers['cookie'])
+            self.assertEqual(json.loads(request.content)['SearchTerm'], 'milk')
+            self.assertEqual(json.loads(request.content)['PageSize'], 36)
+            return httpx.Response(200, json={'Products': [{'Products': [{'Stockcode': 123, 'Name': 'Milk', 'Price': 0}]}]})
+        with patch.object(stores, 'client', lambda: self.session(handler)):
+            found = stores.search_woolworths('milk', 100)
+        self.assertEqual(found[0]['store_item_id'], '123')
+        self.assertEqual(found[0]['price'], 0)
+        self.assertEqual([r.method for r in requests], ['GET', 'POST'])
+
+    def test_coles_next_data_and_non_product_filter(self):
+        data = {'props': {'pageProps': {'searchResults': {'results': [
+            {'_type': 'AD'}, {'_type': 'PRODUCT', 'id': 123, 'name': 'Milk', 'pricing': {
+                'now': 3.4, 'was': 4, 'unit': {'price': 1.7, 'ofMeasureQuantity': 1, 'ofMeasureType': 'L'}, 'onlineSpecial': True}}
+        ]}}}}
+        html = '<script nonce="x" type="application/json" id="__NEXT_DATA__">' + json.dumps(data) + '</script>'
+        def handler(request):
+            self.assertEqual(request.url.params['q'], 'milk')
+            return httpx.Response(200, text=html)
+        with patch.object(stores, 'client', lambda: self.session(handler)):
+            found = stores.search_coles('milk')
+        self.assertEqual(found[0]['price'], 3.4)
+        self.assertEqual(found[0]['unit_measure'], '1L')
+        self.assertTrue(found[0]['on_special'])
+        with patch.object(stores, 'client', lambda: self.session(lambda _: httpx.Response(200, text='<html/>'))):
+            with self.assertRaises(ValueError):
+                stores.search_coles('milk')
+
+    def test_nuxt_references_shared_slots_wrappers_and_cycle(self):
+        data = [{'product': 1, 'same': 1, 'cycle': 5}, {'name': 2, 'price': 3}, 'Milk', 3.4, None, {'self': 5}]
+        found = stores._unflatten(data)
+        self.assertEqual(found['product'], {'name': 'Milk', 'price': 3.4})
+        self.assertEqual(found['same'], found['product'])
+        self.assertEqual(found['cycle'], {'self': None})
+        self.assertEqual(stores._unflatten([['Reactive', 1], {'name': 2}, 'Milk']), {'name': 'Milk'})
+
+    def test_aldi_nav_cached_category_payload_and_failure(self):
+        arr = [{'products': 1}, [2], {'sku': 3, 'name': 4, 'price': 5}, '123', 'Dairy Milk', 3.4]
+        urls = []
+        def handler(request):
+            urls.append(str(request.url))
+            if request.url.path == '/':
+                return httpx.Response(200, text='<a href="/products/dairy-eggs-fridge/k/960000000">Dairy</a>')
+            return httpx.Response(200, text='<script id="__NUXT_DATA__">' + json.dumps(arr) + '</script>')
+        with tempfile.TemporaryDirectory() as directory, patch.object(database, 'DATA_DIR', Path(directory)), \
+                patch.object(stores, '_category_cache', (0, [])), patch.object(stores, 'client', lambda: self.session(handler)):
+            self.assertEqual(stores.search_aldi('Dairy Milk')[0]['price'], 3.4)
+            self.assertEqual(stores.search_aldi('Dairy Milk')[0]['store_item_id'], '123')
+            self.assertEqual(sum(url.endswith('.au/') for url in urls), 1)
+            self.assertEqual(stores.search_aldi('Unknown'), [])
+            with patch.object(stores, 'payload', side_effect=ValueError('bad data')), self.assertLogs(level='WARNING'):
+                self.assertTrue(stores.search_aldi('Dairy Milk').failed)
+        with self.assertLogs(level='WARNING'):
+            self.assertTrue(stores.search_iga('Milk', postcode='6000').failed)

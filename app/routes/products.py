@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 from typing import Literal, Optional
 
@@ -5,6 +6,7 @@ import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from .. import pricing
 from ..auth import current_user
 from ..db import begin, get_db, row, rows
 from ..ingredients import MAX_AMOUNT
@@ -124,6 +126,11 @@ def add_product(data: ProductIn, db=Depends(get_db)):
         remove_picture(picture)
         raise HTTPException(400, "Unknown unit or location")
     db.commit()
+    try:
+        pricing.auto_match(db, cur.lastrowid, data.name.strip())
+    except Exception:
+        db.rollback()
+        logging.getLogger(__name__).warning("New product pricing failed", exc_info=True)
     return load_product(db, cur.lastrowid)
 
 
