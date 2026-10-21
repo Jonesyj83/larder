@@ -2,6 +2,22 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-22
+
+- Store price matching: match a product to its listing at Woolworths, Coles
+  or Aldi straight from the shopping list, see every store's current price
+  side by side, pick the cheapest. IGA isn't wired up yet - their pricing
+  needs a store selected first and that part isn't sorted out yet.
+- A nightly job re-checks every matched item's price by its known ID - no
+  searching, no browsing a catalogue, just checking what's already linked.
+  Runs via a systemd timer at 03:15 with a circuit breaker per store if
+  something goes wrong partway through.
+- Settings has a Store prices section now - turn a store off if you don't
+  shop there and it stops being searched or shown anywhere. IGA also takes
+  a postcode, for when that part's finished.
+- Multiple shopping lists - Work, Home, Picnic, whatever's useful. Each one
+  remembers its own items and its own matched prices.
+
 ## 2026-10-21
 
 - MCP setup moved to the front of the README instead of being buried in a
