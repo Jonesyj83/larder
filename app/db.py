@@ -7,6 +7,18 @@ DB_PATH = DATA_DIR / "larder.db"
 UPLOAD_DIR = DATA_DIR / "uploads"
 
 SCHEMA = """
+
+CREATE TABLE IF NOT EXISTS household_notes (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('like','dislike','maybe','condition','habit','buying_pattern','recipe_note','cost_note')),
+    content TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'chat',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS household_notes_fts USING fts5(content, content='household_notes', content_rowid='id');
+
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     username TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -29,7 +41,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     last_used TEXT
 );
 
--- per-user provider settings for the suggestions feature
+-- Retained legacy settings.
 CREATE TABLE IF NOT EXISTS suggestion_settings (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     provider TEXT NOT NULL DEFAULT 'openai',
@@ -104,6 +116,7 @@ CREATE TABLE IF NOT EXISTS stock_log (
     kind TEXT NOT NULL, -- purchase, consume, spoiled, adjust
     amount REAL NOT NULL,
     location_id INTEGER,
+    price REAL,
     at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -191,7 +204,7 @@ CREATE TABLE IF NOT EXISTS planning_requests (
     PRIMARY KEY(user_id, kind, request_id)
 );
 
--- recently suggested dish names, so the same recipe doesn't keep coming up
+-- Retained legacy history.
 CREATE TABLE IF NOT EXISTS recent_suggestions (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -199,7 +212,7 @@ CREATE TABLE IF NOT EXISTS recent_suggestions (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- one shared row of household diet/taste rules, fed into every suggestion
+-- Shared household diet and taste preferences.
 CREATE TABLE IF NOT EXISTS household_preferences (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     diet TEXT NOT NULL DEFAULT '[]',      -- json list of tags, e.g. ["vegetarian","no seafood"]
@@ -208,7 +221,7 @@ CREATE TABLE IF NOT EXISTS household_preferences (
 );
 """
 
-DEFAULT_LOCATIONS = [("Fridge", 0), ("Pantry", 0), ("Freezer", 1)]
+DEFAULT_LOCATIONS = [("Fridge", 0), ("Pantry", 0), ("Freezer", 1), ("Work", 0)]
 DEFAULT_UNITS = [
     ("piece", "pieces"), ("slice", "slices"), ("pack", "packs"), ("g", "g"), ("kg", "kg"),
     ("ml", "ml"), ("l", "l"), ("tin", "tins"), ("bottle", "bottles"),
@@ -237,9 +250,25 @@ def init_db():
     # all of it under one write lock: two workers starting at once shouldn't both
     # try to add the same column or seed the same rows
     conn.executescript("BEGIN IMMEDIATE;\n" + SCHEMA)
+    triggers = {
+        "household_notes_ai": "AFTER INSERT ON household_notes BEGIN INSERT INTO household_notes_fts(rowid,content) VALUES(new.id,new.content); END",
+        "household_notes_ad": "AFTER DELETE ON household_notes BEGIN INSERT INTO household_notes_fts(household_notes_fts,rowid,content) VALUES('delete',old.id,old.content); END",
+        "household_notes_au": "AFTER UPDATE ON household_notes BEGIN INSERT INTO household_notes_fts(household_notes_fts,rowid,content) VALUES('delete',old.id,old.content); INSERT INTO household_notes_fts(rowid,content) VALUES(new.id,new.content); END",
+    }
+    rebuild = False
+    for name, body in triggers.items():
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='trigger' AND name=?", (name,)).fetchone():
+            conn.execute(f"CREATE TRIGGER {name} {body}")
+            rebuild = True
+    if rebuild:
+        conn.execute("INSERT INTO household_notes_fts(household_notes_fts) VALUES('rebuild')")
     if conn.execute("SELECT COUNT(*) FROM locations").fetchone()[0] == 0:
         for i, (name, freezer) in enumerate(DEFAULT_LOCATIONS):
             conn.execute("INSERT INTO locations (name, is_freezer, sort) VALUES (?, ?, ?)", (name, freezer, i))
+    if not conn.execute("SELECT 1 FROM locations WHERE name='Work' COLLATE NOCASE").fetchone():
+        conn.execute("INSERT OR IGNORE INTO locations(name,is_freezer,sort) VALUES('Work',0,3)")
+    if "price" not in {r["name"] for r in conn.execute("PRAGMA table_info(stock_log)")}:
+        conn.execute("ALTER TABLE stock_log ADD COLUMN price REAL")
     if conn.execute("SELECT COUNT(*) FROM units").fetchone()[0] == 0:
         conn.executemany("INSERT INTO units (name, name_plural) VALUES (?, ?)", DEFAULT_UNITS)
         ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}
@@ -247,8 +276,6 @@ def init_db():
         conn.execute("INSERT INTO unit_conversions (from_unit_id, to_unit_id, factor) VALUES (?, ?, 1000)", (ids["l"], ids["ml"]))
     if "simple_meal" not in {r["name"] for r in conn.execute("PRAGMA table_info(meal_plan)")}:
         conn.execute("ALTER TABLE meal_plan ADD COLUMN simple_meal INTEGER NOT NULL DEFAULT 0")
-    if "reuse_account" not in {r["name"] for r in conn.execute("PRAGMA table_info(suggestion_settings)")}:
-        conn.execute("ALTER TABLE suggestion_settings ADD COLUMN reuse_account INTEGER NOT NULL DEFAULT 0")
     # Additive migration: preserve users, meals and existing conversion overrides.
     columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
     for name, default in (("date_format", "DD/MM/YYYY"), ("measurement_system", "metric")):

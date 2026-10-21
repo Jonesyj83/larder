@@ -97,26 +97,6 @@ async def check():
         r = await bare.get('/api/users', headers={'X-API-Key': admin_key})
         assert r.status_code == 200 and all('password_hash' not in u for u in r.json())
 
-        # --- provider keys are never handed back, to the owner or anyone else ---
-        secret = 'sk-test-SECRET-0123456789'
-        r = await admin.put('/api/me/suggestions', json={'provider': 'openai', 'api_key': secret, 'shared': True})
-        assert r.status_code == 200 and secret not in r.text, r.text
-        r = await admin.put('/api/me/suggestions', json={'provider': 'openai', 'base_url': 'https://169.254.169.254/v1'})
-        assert r.status_code == 400, r.text
-        r = await admin.put('/api/me/suggestions', json={'provider': 'openai', 'base_url': 'http://localhost:1234/v1'})
-        assert r.status_code == 400, r.text
-        for c, path in ((admin, '/api/me/suggestions'), (member, '/api/me/suggestions'),
-                        (member, '/api/suggestions/status')):
-            r = await c.get(path)
-            assert r.status_code == 200 and secret not in r.text, (path, r.text)
-        assert not (await member.get('/api/me/suggestions')).json()['has_key']
-        assert (await member.put('/api/me/suggestions', json={'provider': 'anthropic'})).status_code == 200
-        mine = (await admin.get('/api/me/suggestions')).json()
-        assert mine['provider'] == 'openai' and mine['has_key'] and mine['shared'], mine
-        # a short hint of the saved key is ok to show (so people can tell which key they're
-        # about to overwrite without retyping it blind) - the full secret never shows up
-        assert mine['key_hint'] == secret[:6] and secret not in mine['key_hint'], mine
-
         # --- odd numbers and text ---
         units = {u['name']: u['id'] for u in (await admin.get('/api/units')).json()}
         r = await admin.post('/api/products', json={'name': 'Crème brûlée 🍮', 'unit_id': units['g']})

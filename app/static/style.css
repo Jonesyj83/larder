@@ -198,7 +198,7 @@ th { font-size: .8rem; color: var(--muted); font-weight: 600; background: var(--
   .week .day { min-height: 0; }
 }
 
-pre.suggestion { white-space: pre-wrap; font: inherit; margin: 0; }
+pre.instructions { white-space: pre-wrap; font: inherit; margin: 0; }
 
 .idea-grid-wrap { max-height: 50vh; overflow: auto; border: 1px solid var(--line); margin-top: .4rem; }
 .idea-grid { table-layout: auto; width: 100%; }
@@ -219,7 +219,7 @@ input, textarea { caret-color: var(--accent); }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shrink: 0; }
 .row > *, .grid2 > *, .grid3 > * { min-width: 0; }
-.list-item .grow, td, pre, .suggestion { overflow-wrap: anywhere; }
+.list-item .grow, td, pre, .instructions { overflow-wrap: anywhere; }
 .card > :first-child { margin-top: 0; }
 .card .card { background: var(--inventory); border: 1px solid var(--line); padding: 14px; }
 .modal > b, .modal .grow > b { font-size: 1.15rem; }

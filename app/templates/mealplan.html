@@ -4,9 +4,7 @@
 <div x-data="planPage()">
   <div class="row page-head">
     <h1 class="grow">Meal plan</h1>
-    <button @click="openIdeas()" :disabled="!suggest" :title="suggest ? '' : 'Connect a provider in Settings to use this'">Meal ideas</button>
   </div>
-  <p class="muted small" x-show="!suggest" x-cloak>Meal ideas are off. Connect a provider in <a href="{{ base_path }}/settings">Settings</a> to use them.</p>
 
   <div class="row toolbar">
     <button aria-label="Previous week" @click="move(-7)">&larr;</button>
@@ -34,6 +32,7 @@
                   <span x-show="!m.recipe_id" x-text="m.note"></span>
                   <span class="muted small" x-show="m.recipe_id && m.note && m.note != m.recipe" x-text="m.note"></span>
                   <span class="muted" x-show="m.servings" x-text="'x' + num(m.servings)"></span>
+                  <span class="muted small" x-show="m.cook_event_id" x-text="'Batch: ' + num(m.cook_servings) + ', allocated: ' + num(meals.filter(x => x.cook_event_id === m.cook_event_id).reduce((n, x) => n + x.servings, 0))"></span>
                 </span>
                 <button @click="openEdit(m)">Edit</button>
                 <button x-show="!m.recipe_id" @click="findForMeal(m)">Find ingredients</button>
@@ -84,24 +83,6 @@
         <label x-text="adding.recipe_id ? 'Note (optional)' : 'What is it?'"></label>
         <input :aria-label="adding.recipe_id ? 'Note (optional)' : 'What is it?'" x-model="adding.note" :required="!adding.recipe_id" placeholder="e.g. leftovers, takeaway">
         <div x-show="!adding.recipe_id">
-          <div class="card">
-            <b>Find ingredients</b>
-            <label class="field">Recipe or variant<input x-model="discovery.idea" placeholder="e.g. Vegemite toast or egg toast"></label>
-            <div class="row">
-              <button type="button" @click="findIngredients(false)" :disabled="discovery.busy">Search saved recipes</button>
-              <button type="button" @click="findIngredients(true)" :disabled="discovery.busy || !suggest">Request provider draft</button>
-            </div>
-            <p class="muted small" x-show="!suggest">Provider suggestions unavailable. Search saved recipes or enter ingredients below. <a href="{{ base_path }}/settings">Connect a provider</a>.</p>
-            <p class="small" role="status" x-text="discovery.message"></p>
-            <template x-for="r in discovery.matches" :key="r.id"><div class="row"><span class="grow" x-text="r.name + ' — ' + r.ingredients.length + ' ingredients (stock not required)'"></span><button type="button" @click="reviewDraft(r)">Review ingredients</button></div></template>
-            <template x-if="discovery.recipe"><div>
-              <b>Proposed ingredients — review amounts and units</b>
-              <ul><template x-for="(i, idx) in discovery.recipe.ingredients" :key="idx"><li x-text="num(i.amount) + ' ' + i.unit + ' ' + i.name"></li></template></ul>
-              <p class="muted small" x-text="discovery.provenance"></p>
-              <button type="button" @click="reviewDraft(discovery.recipe)">Review this draft</button>
-              <button type="button" @click="discovery.recipe = null">Reject draft</button>
-            </div></template>
-          </div>
           <p class="muted small">Name new ingredients or choose catalogue products, then enter their amounts for the servings below. No purchase details are needed. Saving ingredients also saves this simple meal as a recipe for reuse. Leaving this empty keeps a note; its needs cannot be calculated.</p>
           <template x-for="(i, idx) in adding.ingredients" :key="idx">
           <div class="ingredient-row">
@@ -112,7 +93,6 @@
                   <template x-for="p in products" :key="p.id"><option :value="p.id" x-text="p.name + ' — on hand: ' + num(p.in_stock) + ' ' + p.unit"></option></template>
                 </select>
               </label>
-              <button type="button" class="small" x-show="i.suggested_product_id && !i.product_id" @click="i.product_id = i.suggested_product_id">Choose matching catalogue product</button>
               <label x-show="!i.product_id">Ingredient name
                 <input x-model="i.name" :required="!i.product_id && !adding.recipe_id" :disabled="!!i.product_id || !!adding.recipe_id" placeholder="e.g. Bread">
               </label>
@@ -176,115 +156,6 @@
     </div>
   </template>
 
-  <!-- meal ideas -->
-  <template x-if="ideasOpen">
-    <div class="modal-bg" @click.self="ideasOpen = false">
-      <div class="modal">
-        <b>Meal ideas</b>
-        <p class="muted small">Based on what's in stock, your saved recipes and everyone's portion sizes.</p>
-        <div class="card small" x-show="batches.length" x-cloak>
-          <b>Use these up first?</b>
-          <p class="muted small" style="margin: .2rem 0">Already cooked and sitting in the fridge or freezer - no point generating a new idea if one of these fits a day you're planning.</p>
-          <template x-for="b in batches" :key="b.id">
-            <div x-text="b.code + ' ' + b.name + ' - ' + num(b.portions_left) + ' left (' + b.location + ')'"></div>
-          </template>
-          <p class="muted small" style="margin-top: .3rem">Close this and use "Or use something already made" on the day you want it for.</p>
-        </div>
-        <form @submit.prevent="getIdeas()">
-          <label class="field">How long<select x-model="ideas.length">
-            <option value="week">1 week</option>
-            <option value="2weeks">2 weeks</option>
-            <option value="4weeks">4 weeks</option>
-            <option value="custom">Custom range</option>
-          </select></label>
-          <div class="grid2" x-show="ideas.length === 'custom'" x-cloak>
-            <div><label>From</label>{{ date_field('ideas.rangeFrom', 'From', true) }}</div>
-            <div><label>To</label>{{ date_field('ideas.rangeTo', 'To', true) }}</div>
-          </div>
-          <label>Days &amp; meals - tick what you want ideas for</label>
-          <div class="idea-grid-wrap">
-            <table class="idea-grid small">
-              <thead><tr>
-                <th></th>
-                <template x-for="s in slots" :key="s">
-                  <th><button type="button" class="link-head" @click="toggleSlotColumn(s)" x-text="s"></button></th>
-                </template>
-              </tr></thead>
-              <tbody>
-                <template x-for="d in ideasDays()" :key="d">
-                  <tr>
-                    <th><button type="button" class="link-head" @click="toggleDay(d)" x-text="dayName(d)"></button></th>
-                    <template x-for="s in slots" :key="s">
-                      <td><input type="checkbox" :aria-label="dayName(d) + ' ' + s" :disabled="!ideaSlotAvailable(d, s)" x-model="ideas.grid[d][s]"></td>
-                    </template>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-          <label class="field">Anything else?<input x-model="ideas.note" placeholder="e.g. no fish, something light"></label>
-          <label class="field" style="margin-top: .3rem">How much should it stick to what we've got?
-            <div class="seg" role="group" aria-label="How much to rely on stock">
-              <button type="button" :class="{on: ideas.mode == 'all'}" @click="ideas.mode = 'all'">All</button>
-              <button type="button" :class="{on: ideas.mode == 'few'}" @click="ideas.mode = 'few'">Missing a few</button>
-              <button type="button" :class="{on: ideas.mode == 'stock'}" @click="ideas.mode = 'stock'">Can make</button>
-            </div>
-          </label>
-          <div class="row" style="margin-top: .6rem">
-            <button class="primary" :disabled="ideas.busy" x-text="ideas.busy ? 'Thinking...' : 'Get ideas'"></button>
-            <button type="button" @click="ideasOpen = false">Close</button>
-          </div>
-        </form>
-        <p class="muted small" x-show="ideas.busy" x-cloak>Can take a minute or two - sometimes up to 3, depending on the provider. Leave this open and wait, don't close it.</p>
-        <p class="bad small" x-show="ideas.error" x-cloak x-text="ideas.error"></p>
-        <p class="muted small" x-text="ideas.provenance"></p>
-        <template x-for="c in ideas.missingCells" :key="c.day + c.slot">
-          <p class="warn small" x-text="'No suggestion returned for ' + dayName(c.day) + ' ' + c.slot"></p>
-        </template>
-        <template x-for="e in ideas.cookEvents" :key="e.uses[0].day + e.uses[0].slot">
-          <div class="card" style="margin-top: 1rem">
-            <b x-text="e.name"></b>
-            <span class="muted small" x-text="'(makes ' + num(e.servings) + (e.servings == 1 ? ' serving)' : ' servings)')"></span>
-            <p class="small" x-show="e.description" x-text="e.description"></p>
-            <ul class="small">
-              <template x-for="u in e.uses" :key="u.day + u.slot">
-                <li x-text="dayName(u.day) + ' ' + u.slot + ': ' + num(u.portions) + (u.portions == 1 ? ' serving' : ' servings') + (u.twist ? ' - ' + u.twist : '')"></li>
-              </template>
-            </ul>
-            <p class="small ok" x-show="leftover(e) > 0.01"
-               x-text="num(leftover(e)) + (leftover(e) == 1 ? ' serving' : ' servings') + ' left over - fridge or freeze it for another day'"></p>
-            <p class="warn small" x-show="shoppingNeeds(e).length" x-text="'To buy or check: ' + shoppingNeeds(e).map(i => i.name).join(', ')"></p>
-            <p class="muted small">Saving this adds the recipe to Recipes and its missing ingredients to Shopping.</p>
-            <button type="button" class="link-head small" @click="e.expanded = !e.expanded" x-text="e.expanded ? 'Hide ingredients and recipe' : 'Show ingredients and recipe'"></button>
-            <template x-if="e.expanded">
-              <div>
-                <ul class="small">
-                  <template x-for="i in e.ingredients">
-                    <li>
-                      <span x-text="qty(i.amount, i.unit) + ' ' + i.name"></span>
-                      <span x-show="i.product && i.short === 0" class="ok" x-text="'- ' + i.product"></span>
-                      <span x-show="i.product && i.short > 0 && i.have > 0" class="bad" x-text="'- have ' + qty(i.have, i.short_unit) + ', short ' + qty(i.short, i.short_unit)"></span>
-                      <span x-show="i.product && i.short === null" class="warn" x-text="'- can\'t compare that amount to how ' + i.product + ' is stocked'"></span>
-                      <span x-show="!i.product || (i.product && i.short > 0 && !i.have)" class="bad">- don't have this yet</span>
-                    </li>
-                  </template>
-                </ul>
-                <pre class="suggestion small" x-text="e.instructions"></pre>
-              </div>
-            </template>
-            <template x-for="(i, idx) in e.notAdded" :key="idx">
-              <p class="bad small" x-text="i.name + ' - ' + i.reason"></p>
-            </template>
-            <p class="small ok" x-show="e.addedSummary" x-text="e.addedSummary"></p>
-            <div class="row" style="margin-top: .6rem">
-              <button class="primary" @click="addIdeaToPlan(e)" :disabled="e.added || e.adding" x-text="e.added ? 'Added' : (e.adding ? 'Adding...' : 'Add to plan')"></button>
-              <button type="button" x-show="!e.added" :disabled="e.retrying" @click="retryIdea(e)" x-text="e.retrying ? 'Trying again...' : 'Try something different'"></button>
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-  </template>
 </div>
 <script>
 function monday(iso) {
@@ -296,19 +167,12 @@ function monday(iso) {
 function planPage() {
   return {
     start: monday(today()), meals: [], slots: ['breakfast', 'lunch', 'dinner', 'snack', 'dessert'],
-    busy: false, recipes: [], household: [], products: [], units: [], batches: [], useBatchId: '', adding: null, needs: null, suggest: false,
-    ideasOpen: false,
-    ideas: { length: 'week', rangeFrom: today(), rangeTo: addDays(today(), 13), grid: {}, note: '', mode: 'all', busy: false, cookEvents: [], missingCells: [], provenance: '', error: '' },
-    discovery: {idea: '', matches: [], recipe: null, busy: false, message: '', provenance: ''},
+    busy: false, recipes: [], household: [], products: [], units: [], batches: [], useBatchId: '', adding: null, needs: null,
     meId: {{ user.id }},
 
     async init() {
       [this.recipes, this.household, this.products, this.units, this.batches] = await Promise.all([api('/api/recipes/makeable'), api('/api/household'), api('/api/products'), api('/api/units'), api('/api/cooked-batches')]);
-      api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
       this.load();
-      this.$watch('ideas.length', () => this.buildIdeasGrid());
-      this.$watch('ideas.rangeFrom', () => this.buildIdeasGrid());
-      this.$watch('ideas.rangeTo', () => this.buildIdeasGrid());
     },
     async load() {
       try {
@@ -328,7 +192,6 @@ function planPage() {
     openAdd(day) {
       this.adding = { request_id: saveRequestId(), day, slot: 'dinner', recipe_id: '', note: '', eaters: [this.meId], servings: null, ingredients: [] };
       this.useBatchId = '';
-      this.resetDiscovery();
       this.calcServings();
     },
     async openEdit(m) {
@@ -340,42 +203,12 @@ function planPage() {
         } catch (e) { return oops(e); }
       }
       this.adding = draft;
-      this.resetDiscovery();
     },
-    resetDiscovery() {
-      this.discovery = {idea: this.adding?.note || '', matches: [], recipe: null, busy: false, message: '', provenance: ''};
-    },
-    async findForMeal(m) {
-      await this.openEdit(m);
-      if (this.adding) {
-        if (this.adding.recipe_id) { this.adding.recipe_id = ''; this.adding.note = m.note || m.recipe || ''; this.resetDiscovery(); }
-        await this.findIngredients(false);
-      }
-    },
+    async findForMeal(m) { await this.openEdit(m); },
     async findUnmapped(m) {
-      const meal = this.meals.find(x => x.id == m.id);
       this.needs = null;
-      if (meal) await this.findForMeal(meal);
-    },
-    async findIngredients(generate) {
-      const target = this.adding, state = this.discovery;
-      state.busy = true; state.recipe = null; state.message = '';
-      try {
-        const r = await api('/api/suggestions/ingredients', {method: 'POST', body: {
-          idea: state.idea || target.note, servings: Number(target.servings) || 1, generate}});
-        if (this.adding !== target || this.discovery !== state) return;
-        state.matches = r.matches; state.recipe = r.recipe;
-        state.message = r.message + (!r.matches.length && !generate ? ' No saved recipe matches. Enter ingredients manually or request a draft.' : '');
-        state.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
-      } catch (e) { if (this.adding === target) state.message = e.message; }
-      finally { state.busy = false; }
-    },
-    reviewDraft(r) {
-      this.adding.ingredients = r.ingredients.map(i => ({name: i.name, product_id: i.product_id || '',
-        suggested_product_id: i.suggested_product_id, amount: i.amount, unit_id: i.unit_id || '', note: i.note || ''}));
-      this.adding.reviewing = true;
-      this.discovery.recipe = null; this.discovery.matches = [];
-      this.discovery.message = 'Review every amount, unit and catalogue choice below. Cancel discards this draft. Saving does not add shopping or stock.';
+      const meal = this.meals.find(x => x.id == m.id);
+      if (meal) await this.openEdit(meal);
     },
     pickIngredient(i) {
       const p = this.products.find(p => p.id == i.product_id);
@@ -425,109 +258,6 @@ function planPage() {
         toast('Added ' + r.added + ' to the shopping list');
         this.needs = null;
       } catch (e) { oops(e); }
-    },
-    openIdeas() {
-      this.ideas = { length: 'week', rangeFrom: this.start, rangeTo: addDays(this.start, 13), grid: {}, note: '', mode: 'all', busy: false, cookEvents: [], missingCells: [], provenance: '', error: '', existingMeals: this.meals || [] };
-      this.buildIdeasGrid();
-      this.ideasOpen = true;
-    },
-    ideasDays() {
-      const i = this.ideas;
-      if (!i.rangeFrom || (i.length === 'custom' && (!i.rangeTo || i.rangeTo < i.rangeFrom))) return [];
-      const n = i.length === 'custom' ? Math.min(42, Math.round((new Date(i.rangeTo + 'T12:00:00') - new Date(i.rangeFrom + 'T12:00:00')) / 86400000) + 1)
-        : { week: 7, '2weeks': 14, '4weeks': 28 }[i.length] || 7;
-      if (!Number.isFinite(n) || n < 1) return [];
-      return [...Array(n)].map((_, idx) => addDays(i.rangeFrom, idx));
-    },
-    ideaSlotAvailable(d, s) {
-      return d >= today() && !this.ideas.existingMeals.some(m => m.day === d && m.slot === s);
-    },
-    buildIdeasGrid() {
-      const grid = {};
-      for (const d of this.ideasDays()) {
-        grid[d] = this.ideas.grid[d] || Object.fromEntries(this.slots.map(s => [s,
-          s === 'dinner' && this.ideaSlotAvailable(d, s)]));
-      }
-      this.ideas.grid = grid;
-    },
-    toggleDay(d) {
-      const row = this.ideas.grid[d];
-      const available = this.slots.filter(s => this.ideaSlotAvailable(d, s));
-      const allOn = available.length && available.every(s => row[s]);
-      for (const s of available) row[s] = !allOn;
-    },
-    toggleSlotColumn(s) {
-      const days = this.ideasDays().filter(d => this.ideaSlotAvailable(d, s));
-      const allOn = days.length && days.every(d => this.ideas.grid[d][s]);
-      for (const d of days) this.ideas.grid[d][s] = !allOn;
-    },
-    ideasCells() {
-      const cells = [];
-      for (const d of this.ideasDays()) {
-        for (const s of this.slots) {
-          if (this.ideas.grid[d]?.[s]) cells.push({ day: d, slot: s });
-        }
-      }
-      return cells;
-    },
-    shoppingNeeds(e) {
-      return (e.ingredients || []).filter(i => !i.product || i.short === null || i.short > 0);
-    },
-    leftover(e) {
-      const used = e.uses.reduce((sum, u) => sum + u.portions, 0);
-      return Math.max(0, e.servings - used);
-    },
-    async addIdeaToPlan(e) {
-      if (e.added || e.adding) return;
-      e.adding = true;
-      try {
-        const r = await api('/api/mealplan/from-cook-event', {method: 'POST', body: {
-          request_id: e.request_id, name: e.name, servings: e.servings, instructions: e.instructions,
-          ingredients: e.ingredients.map(i => ({name: i.name, amount: i.amount, unit: i.unit})),
-          uses: e.uses.map(u => ({day: u.day, slot: u.slot, portions: u.portions, twist: u.twist}))}});
-        e.added = true; e.notAdded = r.not_added;
-        const needed = this.shoppingNeeds(e).length;
-        e.addedSummary = needed ? 'Recipe saved; check the ' + needed + ' missing ingredients on Shopping.' : 'Recipe saved; it is now on the plan.';
-      } catch (ex) { oops(ex); e.adding = false; return; }
-      try { [this.recipes, this.products] = await Promise.all([api('/api/recipes/makeable'), api('/api/products')]); } catch (ex) {}
-      this.load();
-      e.adding = false;
-    },
-    wrapCookEvent(e) {
-      return {...e, request_id: saveRequestId(), added: false, adding: false, retrying: false, notAdded: [], expanded: false};
-    },
-    async retryIdea(e) {
-      if (e.retrying || e.adding) return;
-      e.retrying = true;
-      try {
-        const cells = e.uses.map(u => ({day: u.day, slot: u.slot}));
-        const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note, mode: this.ideas.mode } });
-        const idx = this.ideas.cookEvents.indexOf(e);
-        if (idx === -1) return;
-        const fresh = r.cook_events.map(ev => this.wrapCookEvent(ev));
-        this.ideas.cookEvents.splice(idx, 1, ...fresh);
-        const covered = new Set(cells.map(c => c.day + c.slot));
-        this.ideas.missingCells = this.ideas.missingCells.filter(c => !covered.has(c.day + c.slot)).concat(r.missing_cells);
-      } catch (ex) { oops(ex); }
-      finally { e.retrying = false; }
-    },
-    async getIdeas() {
-      if (!this.ideasDays().length) { toast('Choose a valid date range, with the end on or after the start'); return; }
-      const cells = this.ideasCells();
-      if (!cells.length) { toast('Tick at least one day and meal'); return; }
-      const state = this.ideas;
-      state.busy = true; state.cookEvents = []; state.missingCells = []; state.provenance = ''; state.error = '';
-      try {
-        const r = await api('/api/suggestions/meals', { method: 'POST', body: { cells, note: this.ideas.note, mode: this.ideas.mode } });
-        if (this.ideas !== state || !this.ideasOpen) return;
-        state.cookEvents = r.cook_events.map(e => this.wrapCookEvent(e));
-        state.missingCells = r.missing_cells;
-        this.ideas.provenance = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
-      } catch (e) {
-        state.error = (e.message || String(e)) + ' - try again, or try fewer days/meals at once.';
-        oops(e);
-      }
-      finally { state.busy = false; }
     },
   };
 }

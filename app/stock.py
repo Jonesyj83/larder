@@ -88,8 +88,8 @@ def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=
     cur = db.execute(
         "INSERT INTO stock (product_id, location_id, amount, expires_on, price) VALUES (?, ?, ?, ?, ?)",
         (product_id, location_id, qty, expires_on or None, price))
-    db.execute("INSERT INTO stock_log (product_id, user_id, kind, amount, location_id) VALUES (?, ?, 'purchase', ?, ?)",
-               (product_id, user_id, qty, location_id))
+    db.execute("INSERT INTO stock_log (product_id, user_id, kind, amount, location_id, price) VALUES (?, ?, 'purchase', ?, ?, ?)",
+               (product_id, user_id, qty, location_id, price))
     if commit:
         db.commit()
     return {"stock_id": cur.lastrowid, "added": qty, "in_stock": in_stock(db, product_id)}

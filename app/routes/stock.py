@@ -156,3 +156,20 @@ def edit_entry(entry_id: int, data: EntryEdit, db=Depends(get_db), user=Depends(
                    (e["product_id"], user["id"], max(data.amount, 0) - e["amount"], data.location_id))
     db.commit()
     return {"ok": True}
+
+
+@router.get("/price-history/{product_id}")
+def price_history(product_id: int, db=Depends(get_db), user=Depends(current_user)):
+    return rows(db.execute("""SELECT * FROM stock_log WHERE product_id=? AND kind='purchase'
+        ORDER BY at, id""", (product_id,)))
+
+
+@router.get("/spending")
+def spending(days: int = 30, db=Depends(get_db), user=Depends(current_user)):
+    if not 1 <= days <= 36500:
+        raise HTTPException(400, "Days must be between 1 and 36500")
+    items = rows(db.execute("""SELECT g.product_id, p.name, COALESCE(SUM(g.price),0) AS total
+        FROM stock_log g JOIN products p ON p.id=g.product_id
+        WHERE g.kind='purchase' AND g.at >= datetime('now', ?) AND g.at <= datetime('now')
+        GROUP BY g.product_id ORDER BY total DESC, p.name COLLATE NOCASE""", (f'-{days} days',)))
+    return {"days": days, "products": items, "total": sum(item['total'] for item in items)}

@@ -95,20 +95,16 @@ fills in a name and picture, and you can either make a new product or attach the
 to one you already have. The location you last used for each barcode is remembered in the
 browser.
 
-## Suggestions (optional)
+## Household memory and MCP
 
-The Meal plan and Recipes pages have "Meal ideas" and "Suggest a recipe" buttons. These
-send your stock list to a text generation API and show what comes back. Connect one of
-Anthropic, OpenAI, local Ollama, OpenCode Go, Gemini, or OpenRouter in Settings. Ollama
-usually just needs its address; the others need an API key. Without a connection the
-buttons stay greyed out and nothing gets sent anywhere. A connection can be shared
-with the rest of the household with the tickbox under it.
+The Memory page keeps household likes, dislikes, conditions, habits, buying patterns,
+recipe notes and cost notes. Edit notes inline or add and delete them manually.
+The dashboard supports manual recipes, meal planning and shopping lists.
 
-Keys are stored as plain text in the database, since the server needs them to make the
-calls. Bear that in mind with your backups.
-
-Everything else (the recipe check, shopping list maths and so on) is just sums and works
-without any of this.
+A separate stdio MCP server exposes the REST API to your MCP client using a personal
+API key from Settings. See [the server setup guide](mcp_server/README.md).
+Purchase prices stay in the stock log after stock is consumed; the API provides
+product price history and spending totals. Work is included in the default locations.
 
 ## API
 
@@ -134,8 +130,6 @@ for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: your-ke
   unless they come from the app's own pages.
 - Ten wrong passwords for the same username from the same address locks that login for
   15 minutes (it's kept in memory, so a restart clears it).
-- A custom base URL for suggestions can't point at this machine or the home network,
-  except for Ollama, which is meant to run there.
 - There's no import from Grocy, at least not yet.
 
 ## What's next
@@ -149,12 +143,5 @@ Things I know are missing and might get to:
   data becomes available rather than all at once - some places just don't publish anything
   usable yet.
 - Proper import from Grocy's export, instead of the one-off script I used for my own data.
-- Importing recipes instead of typing them in by hand: paste a block of text, paste a link
-  to a recipe site, or a photo of a cookbook page, and have it come back as a real recipe
-  you review before saving - the same review screen suggestions already use. Paste-a-link
-  can read structured recipe data straight off most recipe sites without needing a model at
-  all; a photo needs a provider that can actually look at images.
-- A quick "give me an idea" right on a single meal plan slot instead of only the whole-grid
-  version - type what you feel like for just that one meal and get one answer back.
 
 If you build any of these first, a pull request is very welcome.

@@ -159,18 +159,18 @@ async def check():
         assert n['items'][0]['need'] == 4 and n['items'][0]['missing'] == 2 and not n['unmapped']
         assert (await client.put('/api/mealplan/' + str(mid), json={'day':'13/10/2026'})).status_code == 400
         assert (await client.post('/api/stock/purchase', json={'product_id':pid,'amount':1,'expires_on':'2026-02-30'})).status_code == 422
-        suggested = {'request_id':'page-suggestion', 'name':'Simple dinner','servings':2,'instructions':'Cook it.',
+        batch_request = {'request_id':'page-batch', 'name':'Simple dinner','servings':2,'instructions':'Cook it.',
                      'ingredients':[{'name':'Compatibility item','amount':3,'unit':units[0]['name']},
                                     {'name':'Unlisted ingredient','amount':1,'unit':units[0]['name']}],
                      'uses':[{'day':'2026-10-14','slot':'dinner','portions':2,'twist':''}]}
-        saved = await client.post('/api/mealplan/from-cook-event', json=suggested)
+        saved = await client.post('/api/mealplan/from-cook-event', json=batch_request)
         assert saved.status_code == 201, saved.text
         result = saved.json()
         assert result['meals'][0]['simple_meal'] == 1
         # an ingredient with no matching product but a real unit gets its own product
         # created on the spot, rather than silently falling out of the recipe
         assert result['not_added'] == []
-        assert (await client.post('/api/mealplan/from-cook-event', json=suggested)).json() == result
+        assert (await client.post('/api/mealplan/from-cook-event', json=batch_request)).json() == result
         products = (await client.get('/api/products')).json()
         assert len(products) == 3
         new_product = next(p for p in products if p['name'] == 'Unlisted ingredient')
@@ -182,7 +182,7 @@ async def check():
         shopping = (await client.get('/api/shopping')).json()
         assert any(i['product_id'] == new_product['id'] and i['amount'] == 1 for i in shopping)
         assert (await client.post('/api/mealplan/from-cook-event',
-            json=dict(suggested, uses=[{'day':'2026-10-14','slot':'brunch','portions':2,'twist':''}]))).status_code == 422
+            json=dict(batch_request, uses=[{'day':'2026-10-14','slot':'brunch','portions':2,'twist':''}]))).status_code == 422
         (await client.post('/api/auth/logout'))
         assert (await client.get('/api/stock')).status_code == 401
         r = (await client.post('/api/auth/login', json={'username': 'render-test', 'password': 'temporary-test-password'}))

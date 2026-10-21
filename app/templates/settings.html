@@ -12,7 +12,7 @@
         <option value="regular">Regular</option>
         <option value="large">Large</option>
       </select>
-      <span class="muted small">Used for working out servings in the meal plan and for meal ideas.</span>
+      <span class="muted small">Used for working out servings in the meal plan.</span>
     </div>
     <div class="grid2">
       <div><label for="date-format">Date format</label><select id="date-format" x-model="dateFormat" @change="savePortion()">
@@ -20,7 +20,7 @@
       </select><p class="muted small">DD/MM/YYYY is the Australian default.</p></div>
       <div><label for="measurement-system">Measurements</label><select id="measurement-system" x-model="measurementSystem" @change="savePortion()">
         <option value="metric">Metric</option><option value="imperial">Imperial (US volume)</option>
-      </select><p class="muted small">Suggests units and formats quantities. Counts and stored amounts stay as entered.</p></div>
+      </select><p class="muted small">Selects units and formats quantities. Counts and stored amounts stay as entered.</p></div>
     </div>
     <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="showPrices" @change="savePortion()"> Show prices</label>
     <p class="muted small">Price is always optional when adding or scanning stock. This just controls whether it's shown back to you afterward.</p>
@@ -58,7 +58,7 @@
 
   <h2>Food preferences</h2>
   <div class="card">
-    <p class="muted small">Shared by the whole household. These rules are sent with every suggestion request. Check the suggested ingredients before using them.</p>
+    <p class="muted small">Shared by the whole household. Keep diet tags, dislikes and other food preferences here.</p>
     <label>Diet</label>
     <div class="tag-grid">
       <template x-for="t in prefs.diet_tags" :key="t">
@@ -77,46 +77,6 @@
     <div class="row" style="margin-top: .8rem">
       <button class="primary" @click="savePreferences()">Save</button>
     </div>
-  </div>
-
-  <h2>Suggestions</h2>
-  <div class="card">
-    <p class="muted small">Connect a provider for draft meal and ingredient suggestions. Keys stay on this server. Saved recipes and manual ingredients work without a connection.</p>
-    <form @submit.prevent="saveSuggest()">
-      <div class="grid2">
-        <div>
-          <label class="field">Provider<select x-ref="providerSelect" x-model="sg.provider" @change="onProviderChange()">
-            <template x-for="p in (sg.providers || [])" :key="p.slug"><option :value="p.slug" x-text="p.label"></option></template>
-          </select></label>
-        </div>
-        <div>
-          <label class="field">Model
-          <select x-ref="modelSelect" x-model="modelChoice" @change="onModelChoice()">
-            <template x-for="m in modelOptions()" :key="m"><option :value="m" x-text="m"></option></template>
-          </select></label>
-        </div>
-      </div>
-      <p class="muted small" x-text="selectedProvider().setup"></p>
-<p class="small" role="status" x-text="sg.state || 'Setup required'"></p>
-      <p class="muted small" x-text="connectionRoute"></p>
-      <label class="field"><span x-text="sg.provider == 'ollama' ? 'API key (usually not needed)' : 'API key'"></span>
-      <input x-show="!editingKey" type="text" readonly
-             :value="sg.has_key ? (sg.key_hint || '??????') + '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : ''"
-             :placeholder="sg.provider == 'ollama' ? '(usually not needed)' : 'no key saved yet'"
-             @focus="editingKey = true; $nextTick(() => $refs.keyInput.focus())"
-             @click="editingKey = true; $nextTick(() => $refs.keyInput.focus())">
-      <input x-show="editingKey" x-ref="keyInput" type="password" x-model="sg.api_key" autocomplete="off"
-             @blur="if (!sg.api_key && sg.has_key) editingKey = false"
-             placeholder="paste a new key"></label>
-      <p class="muted small" style="margin-top: -.5rem" x-show="editingKey && sg.has_key && !sg.api_key">Leave blank to keep the saved key.</p>
-      <label class="field">Base URL (optional)<input x-model="sg.base_url" :placeholder="sg.provider == 'ollama' ? 'http://localhost:11434' : 'leave blank for the default'"></label>
-      <label class="inline" style="margin-top: .6rem"><input type="checkbox" x-model="sg.shared"> Let everyone in the house use this</label>
-      <div class="row" style="margin-top: .8rem">
-        <button class="primary">Save</button>
-        <button type="button" @click="testSuggest()" :disabled="testing" x-text="testing ? 'Testing...' : 'Test it'"></button>
-        <button type="button" class="danger" x-show="sg.has_key || sg.provider == 'ollama'" @click="clearSuggest()">Remove</button>
-      </div>
-    </form>
   </div>
 
   {% if user.is_admin %}
@@ -153,54 +113,13 @@ function settingsPage() {
     dateFormat: preferences().date_format, measurementSystem: preferences().measurement_system,
     portion: '{{ user.portion_size }}', showPrices: !!preferences().show_prices, pw: { old: '', new: '' },
     keys: [], keyName: '', newKey: '',
-    sg: {}, testing: false, connectionRoute: '', modelChoice: '', savedProviderState: null, editingKey: false,
     prefs: { diet: [], dislikes: [], other: '', diet_tags: [] }, newDislike: '',
     users: [], nu: { username: '', password: '', portion_size: 'regular' },
     isAdmin: {{ 'true' if user.is_admin else 'false' }},
 
     async init() {
-      [this.keys, this.sg, this.prefs] = await Promise.all([api('/api/me/keys'), api('/api/me/suggestions'), api('/api/household/preferences')]);
-      this.sg.api_key = '';
-      this.savedProviderState = { ...this.sg };
-      this.editingKey = !this.sg.has_key;
-      this.syncModelChoice();
-      await this.resyncSelects();
+      [this.keys, this.prefs] = await Promise.all([api('/api/me/keys'), api('/api/household/preferences')]);
       if (this.isAdmin) this.users = await api('/api/users');
-    },
-    async resyncSelects() {
-      // the <option> lists only exist after a render, so the native selects need
-      // re-syncing to the real values now - otherwise a select can silently sit on
-      // whatever its first option happens to be instead of what's actually saved
-      await this.$nextTick();
-      if (this.$refs.providerSelect) this.$refs.providerSelect.value = this.sg.provider;
-      if (this.$refs.modelSelect) this.$refs.modelSelect.value = this.modelChoice;
-    },
-    syncModelChoice() {
-      const options = this.modelOptions();
-      this.modelChoice = options.includes(this.sg.model) ? this.sg.model : (options[0] || '');
-      this.sg.model = this.modelChoice;
-    },
-    modelOptions() {
-      const p = this.selectedProvider();
-      if (p.models && p.models.length) return p.models;
-      return p.default_model ? [p.default_model] : [];
-    },
-    onProviderChange() {
-      // switching back to the provider that's actually saved should restore its
-      // connection state, not wipe it - only a genuinely different provider needs fresh setup
-      if (this.savedProviderState && this.sg.provider === this.savedProviderState.provider) {
-        this.sg = { ...this.savedProviderState, api_key: '' };
-      } else {
-        this.sg.api_key = ''; this.sg.has_key = false; this.sg.key_hint = '';
-        this.sg.state = 'Setup required'; this.sg.base_url = ''; this.sg.model = '';
-        this.sg.shared = false; this.connectionRoute = '';
-      }
-      this.editingKey = !this.sg.has_key;
-      this.syncModelChoice();
-      this.resyncSelects();
-    },
-    onModelChoice() {
-      this.sg.model = this.modelChoice;
     },
     addDislike() {
       const v = this.newDislike.trim().replace(/,$/, '');
@@ -235,50 +154,6 @@ function settingsPage() {
     async deleteKey(k) {
       if (!confirm('Revoke this key? Anything using it will stop working.')) return;
       try { await api('/api/me/keys/' + k.id, { method: 'DELETE' }); this.keys = await api('/api/me/keys'); } catch (e) { oops(e); }
-    },
-    selectedProvider() { return (this.sg.providers || []).find(p => p.slug === this.sg.provider) || {}; },
-    async saveSuggest() {
-      try {
-        await this.persistSuggest();
-        toast('Saved');
-      } catch (e) { oops(e); }
-    },
-    async persistSuggest() {
-      this.sg = await api('/api/me/suggestions', { method: 'PUT', body: {
-        provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
-        model: this.sg.model || '', base_url: this.sg.base_url || '', shared: !!this.sg.shared } });
-      this.sg.api_key = '';
-      this.savedProviderState = { ...this.sg };
-      this.editingKey = !this.sg.has_key;
-      this.syncModelChoice();
-      await this.resyncSelects();
-    },
-    async testSuggest() {
-      this.testing = true;
-      try {
-        const r = await api('/api/me/suggestions/test', { method: 'POST', body: {
-          provider: this.sg.provider, api_key: this.sg.api_key ? this.sg.api_key : null,
-          model: this.sg.model || '', base_url: this.sg.base_url || '' } });
-        this.connectionRoute = r.provenance ? 'Requested ' + r.provenance.requested_provider + ' / ' + r.provenance.requested_model + '; served ' + r.provenance.served_provider + ' / ' + r.provenance.served_model : '';
-        // a test that actually worked is a connection worth keeping - save it so people
-        // don't have to click a second button to make a working key stick
-        await this.persistSuggest();
-        this.sg.state = 'Working';
-        toast(r.reply + ' - saved');
-      } catch (e) { oops(e); }
-      this.testing = false;
-    },
-    async clearSuggest() {
-      if (!confirm('Remove the saved key and settings?')) return;
-      try {
-        await api('/api/me/suggestions', { method: 'DELETE' });
-        this.sg = await api('/api/me/suggestions');
-        this.sg.api_key = '';
-        this.savedProviderState = { ...this.sg };
-        this.editingKey = !this.sg.has_key;
-        this.syncModelChoice();
-        await this.resyncSelects();
-      } catch (e) { oops(e); }
     },
     async addUser() {
       try {

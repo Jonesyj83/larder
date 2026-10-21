@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import threading
 import time
@@ -235,3 +236,42 @@ def delete_user(user_id: int, user=Depends(admin_user), db=Depends(get_db)):
     db.execute("DELETE FROM users WHERE id = ?", (user_id,))
     db.commit()
     return {"ok": True}
+
+
+DIET_TAGS = [
+    "Vegetarian", "Vegan", "Pescatarian", "No seafood", "No pork", "No red meat",
+    "No shellfish", "Halal", "Kosher", "Gluten-free", "Dairy-free", "Lactose-free",
+    "Nut-free", "Egg-free", "Low-carb", "Keto", "No added sugar",
+    "Gastric sleeve", "Gastric bypass", "High protein", "Low sugar",
+]
+
+
+def _preferences(db):
+    p = row(db.execute("SELECT * FROM household_preferences WHERE id = 1"))
+    return dict(diet=json.loads(p["diet"]) if p else [], dislikes=json.loads(p["dislikes"]) if p else [],
+                other=p["other"] if p else "")
+
+
+
+class PreferencesIn(BaseModel):
+    diet: list[str] = Field(default_factory=list, max_length=30)
+    dislikes: list[str] = Field(default_factory=list, max_length=50)
+    other: str = Field(default="", max_length=2000)
+
+
+@router.get("/household/preferences")
+def get_preferences(db=Depends(get_db), user=Depends(current_user)):
+    p = _preferences(db)
+    p["diet_tags"] = DIET_TAGS
+    return p
+
+
+@router.put("/household/preferences")
+def save_preferences(data: PreferencesIn, db=Depends(get_db), user=Depends(current_user)):
+    diet = [t.strip() for t in data.diet if t.strip()][:30]
+    dislikes = [t.strip()[:60] for t in data.dislikes if t.strip()][:50]
+    db.execute("""INSERT INTO household_preferences (id, diet, dislikes, other) VALUES (1, ?, ?, ?)
+                  ON CONFLICT(id) DO UPDATE SET diet = excluded.diet, dislikes = excluded.dislikes, other = excluded.other""",
+               (json.dumps(diet), json.dumps(dislikes), data.other.strip()))
+    db.commit()
+    return get_preferences(db, user)

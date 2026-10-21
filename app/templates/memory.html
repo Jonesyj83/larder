@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div x-data="memoryPage()">
+  <div class="row page-head"><h1 class="grow">Memory</h1></div>
+  <p class="muted">Household food preferences, habits and notes.</p>
+  <template x-for="group in kinds" :key="group.kind">
+    <section>
+      <h2 x-text="group.label"></h2>
+      <div class="card">
+        <p class="muted small" x-show="loaded && !notesFor(group.kind).length">No notes yet.</p>
+        <template x-for="note in notesFor(group.kind)" :key="note.id">
+          <div class="list-item">
+            <template x-if="editing !== note.id">
+              <button class="grow" style="text-align: left; white-space: pre-wrap" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="note.content"></button>
+            </template>
+            <template x-if="editing === note.id">
+              <form class="grow" @submit.prevent="save(note)">
+                <label class="field">Note<textarea x-model="draft" required></textarea></label>
+                <div class="row">
+                  <button class="primary small" :disabled="busy">Save</button>
+                  <button type="button" class="small" :disabled="busy" @click="editing = null">Cancel</button>
+                </div>
+              </form>
+            </template>
+            <button class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
+          </div>
+        </template>
+        <form class="row" @submit.prevent="add(group.kind)">
+          <label class="field grow"><span x-text="'Add ' + group.label.toLowerCase() + ' note'"></span><input x-model="newNotes[group.kind]" required></label>
+          <button class="small" :disabled="busy">Add</button>
+        </form>
+      </div>
+    </section>
+  </template>
+</div>
+<script>
+function memoryPage() {
+  return {
+    notes: [], loaded: false, editing: null, draft: '', busy: false, newNotes: {},
+    kinds: [
+      {kind: 'like', label: 'Likes'}, {kind: 'dislike', label: 'Dislikes'},
+      {kind: 'maybe', label: 'Maybes'}, {kind: 'condition', label: 'Conditions'},
+      {kind: 'habit', label: 'Habits'}, {kind: 'buying_pattern', label: 'Buying patterns'},
+      {kind: 'recipe_note', label: 'Recipe notes'}, {kind: 'cost_note', label: 'Cost notes'},
+    ],
+    async init() {
+      this.newNotes = Object.fromEntries(this.kinds.map(group => [group.kind, '']));
+      await this.load();
+    },
+    async load() {
+      try { this.notes = await api('/api/memory'); this.loaded = true; } catch (e) { oops(e); }
+    },
+    notesFor(kind) { return this.notes.filter(note => note.kind === kind); },
+    edit(note) { if (!this.busy) { this.editing = note.id; this.draft = note.content; } },
+    async add(kind) {
+      if (this.busy) return;
+      const content = (this.newNotes[kind] || '').trim();
+      if (!content) return;
+      this.busy = true;
+      try {
+        const note = await api('/api/memory', {method: 'POST', body: {kind, content, source: 'manual'}});
+        this.notes.unshift(note); this.newNotes[kind] = ''; toast('Added');
+      } catch (e) { oops(e); }
+      finally { this.busy = false; }
+    },
+    async save(note) {
+      if (this.busy || !this.draft.trim()) return;
+      this.busy = true;
+      try {
+        const saved = await api('/api/memory/' + note.id, {method: 'PUT', body: {content: this.draft.trim()}});
+        this.notes = this.notes.map(item => item.id === note.id ? saved : item);
+        this.editing = null; toast('Saved');
+      } catch (e) { oops(e); }
+      finally { this.busy = false; }
+    },
+    async remove(note) {
+      if (this.busy || !confirm('Delete this note?')) return;
+      this.busy = true;
+      try {
+        await api('/api/memory/' + note.id, {method: 'DELETE'});
+        this.notes = this.notes.filter(item => item.id !== note.id);
+        if (this.editing === note.id) this.editing = null;
+        toast('Deleted');
+      } catch (e) { oops(e); }
+      finally { this.busy = false; }
+    },
+  };
+}
+</script>
+{% endblock %}

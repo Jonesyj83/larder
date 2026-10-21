@@ -110,11 +110,11 @@ class Planning(unittest.TestCase):
         missing_to_shopping(r['id'], None, self.db, self.user)
         self.assertEqual(self.db.execute('SELECT amount FROM shopping_list').fetchone()[0], 4)
 
-    def test_from_suggestion_only_existing_products_and_retry(self):
+    def test_from_cook_event_only_existing_products_and_retry(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
         self.db.commit()
-        data = CookEventIn(request_id='suggestion-retry',
+        data = CookEventIn(request_id='cook_event-retry',
             name='Toast',servings=2,instructions='Toast the bread.',ingredients=[
                 {'name':'BREAD','amount':4,'unit':'slice'},
                 {'name':'Butter','amount':1,'unit':'piece'}],
@@ -156,7 +156,7 @@ class Planning(unittest.TestCase):
         self.assertEqual(len(event_ids),1)
         self.assertIsNotNone(next(iter(event_ids)))
 
-    def test_suggestion_does_not_reuse_different_recipe_just_by_name(self):
+    def test_cook_event_does_not_reuse_different_recipe_just_by_name(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Beef Mince',2)")
         self.db.commit()
@@ -191,7 +191,7 @@ class Planning(unittest.TestCase):
                          ('2026-10-22', 'lunch', 'as jaffles (Chilli con carne)', 1))
         self.assertEqual(fresh['recipe_id'], twist['recipe_id'])  # same dish, same batch
 
-    def test_from_suggestion_unknown_and_invalid_units_are_reported(self):
+    def test_from_cook_event_unknown_and_invalid_units_are_reported(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
         self.db.commit()
@@ -208,11 +208,11 @@ class Planning(unittest.TestCase):
         self.assertIsNotNone(result['meals'][0]['recipe_id'])
         self.assertEqual((self.count('products'),self.count('recipe_ingredients')),(2,1))
 
-    def test_from_suggestion_failure_rolls_back(self):
+    def test_from_cook_event_failure_rolls_back(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")
         self.db.commit()
-        self.db.execute("CREATE TRIGGER fail_suggestion BEFORE INSERT ON meal_plan BEGIN SELECT RAISE(ABORT,'failed'); END")
+        self.db.execute("CREATE TRIGGER fail_cook_event BEFORE INSERT ON meal_plan BEGIN SELECT RAISE(ABORT,'failed'); END")
         with self.assertRaises(sqlite3.IntegrityError):
             meal_from_cook_event(CookEventIn(name='Toast',servings=1,
                 ingredients=[{'name':'Bread','amount':1,'unit':'slice'}],

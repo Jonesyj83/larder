@@ -1,4 +1,4 @@
-"""Edge cases and abuse cases: bad numbers, races, unit maths, provider and
+"""Edge cases and abuse cases: bad numbers, races, unit maths and
 picture address checks. Scratch SQLite only (memory or a temp dir), no network."""
 import json
 import math
@@ -17,7 +17,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app import db as dbmodule
-from app import netcheck, pictures, providers
+from app import netcheck, pictures
 from app import stock as st
 from app.db import BUILTIN_CONVERSIONS, SCHEMA
 
@@ -451,198 +451,6 @@ HOSTS = {'metadata.internal': '169.254.169.254', 'intranet.example': '192.168.1.
          'ollama.example.com': '93.184.216.35', 'sneaky.example.com': '127.0.0.1'}
 
 
-class ProviderSafety(unittest.TestCase):
-    def setUp(self):
-        p = patch.object(netcheck.socket, 'getaddrinfo', side_effect=resolver(HOSTS))
-        p.start()
-        self.addCleanup(p.stop)
-
-    def no_requests(self):
-        def handler(request):
-            raise AssertionError('no request should be made to ' + str(request.url))
-        return patch.object(providers, '_transport', httpx.MockTransport(handler))
-
-    def test_base_urls_that_point_inside(self):
-        for provider, url in [
-                ('openai', 'https://169.254.169.254/v1'), ('openai', 'https://127.0.0.1/v1'),
-                ('openai', 'https://localhost:8443'), ('openai', 'https://foo.localhost'),
-                ('anthropic', 'https://10.0.0.5'), ('gemini', 'https://[::1]/'),
-                ('openrouter', 'https://[::ffff:169.254.169.254]/'), ('openrouter', 'https://[fe80::1]/'),
-                ('opencode-go', 'https://0.0.0.0/'), ('openai', 'http://localhost:1234/v1'),
-                ('openai', 'https://metadata.internal/'), ('openai', 'https://intranet.example/'),
-                ('openai', 'https://sneaky.example.com/'), ('openai', 'https://100.100.100.100/'),
-                ('ollama', 'http://169.254.169.254'), ('ollama', 'https://169.254.169.254'),
-                ('ollama', 'http://metadata.internal:11434'), ('ollama', 'http://ollama.example.com:11434'),
-                ('ollama', 'http://224.0.0.1'), ('openai', 'ftp://api.example.com'),
-                ('openai', 'https://user:pw@api.example.com'), ('openai', 'https://api.example.com/?x=1'),
-                ('openai', 'https://api.example.com:99999')]:
-            with self.subTest(provider=provider, url=url), self.assertRaises(providers.ProviderError):
-                providers.validate_settings(provider, '', url)
-
-    def test_base_urls_that_are_fine(self):
-        for provider, url in [
-                ('ollama', 'http://localhost:11434'), ('ollama', 'http://127.0.0.1:11434'),
-                ('ollama', 'http://192.168.1.20:11434'), ('ollama', 'http://gpu-box.lan:11434'),
-                ('ollama', 'https://ollama.example.com'), ('openai', 'https://api.example.com/v1'),
-                ('openai', ''), ('openai', 'https://not-resolvable.example')]:
-            with self.subTest(provider=provider, url=url):
-                providers.validate_settings(provider, '', url)
-
-    def test_saved_bad_url_is_checked_again_before_sending(self):
-        settings = {'provider': 'openai', 'api_key': 'sk-test-0123456789', 'model': '', 'base_url': 'https://169.254.169.254/v1'}
-        with self.no_requests(), self.assertRaises(providers.ProviderError):
-            providers.ask(settings, 'hello')
-
-    def test_model_names_and_keys(self):
-        for good in ('', 'gpt-4o-mini', 'openai/gpt-4o-mini', 'llama3.1:8b', 'hf.co/user/model:Q4_K_M'):
-            providers.validate_settings('openai', good, '')
-        for bad in ('../../v1/files', 'a?b', 'a#b', 'a b', '/abs', 'x' * 201, 'a\nb', 'emoji🍮'):
-            with self.subTest(model=bad), self.assertRaises(providers.ProviderError):
-                providers.validate_settings('gemini', bad, '')
-        providers.validate_key('sk-ant-api03-abc_DEF-123')
-        providers.validate_key('')
-        for bad in ('sk abc', 'sk\nabc', 'sk\x00', 'é' * 3, 'k' * 1001):
-            with self.assertRaises(providers.ProviderError):
-                providers.validate_key(bad)
-
-    def test_gemini_key_goes_in_a_header(self):
-        seen = {}
-
-        def handler(request):
-            seen['url'] = str(request.url)
-            seen['key'] = request.headers.get('x-goog-api-key')
-            return httpx.Response(200, json={'candidates': [{'content': {'parts': [{'text': 'ok'}]}}]})
-        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
-            self.assertEqual(providers.gemini('hi', 'AIza-secret-key-123', '', None), 'ok')
-        self.assertNotIn('AIza', seen['url'])
-        self.assertEqual(seen['key'], 'AIza-secret-key-123')
-
-    def test_errors_never_carry_the_key(self):
-        def handler(request):
-            raise httpx.ConnectError('failed for ' + str(request.url) + ' key=AIza-secret-key-123')
-        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
-            with self.assertRaises(providers.ProviderError) as e:
-                providers.gemini('hi', 'AIza-secret-key-123', '', None)
-        self.assertNotIn('AIza', str(e.exception))
-        self.assertIsNone(e.exception.__cause__)
-        self.assertTrue(e.exception.__suppress_context__)
-        for status in (400, 401, 500):
-            transport = httpx.MockTransport(lambda r, s=status: httpx.Response(s, text='bad key sk-test-0123456789'))
-            with patch.object(providers, '_transport', transport), self.assertRaises(providers.ProviderError) as e:
-                providers.openai('hi', 'sk-test-0123456789', '', None)
-            self.assertNotIn('sk-test', str(e.exception))
-
-    def test_key_echoed_by_the_provider_is_redacted(self):
-        reply = {'choices': [{'message': {'content': 'your key is sk-test-0123456789'}}]}
-        settings = {'provider': 'openai', 'api_key': 'sk-test-0123456789', 'model': '', 'base_url': ''}
-        with patch.object(providers, '_transport', httpx.MockTransport(lambda r: httpx.Response(200, json=reply))):
-            self.assertNotIn('sk-test', providers.ask(settings, 'hello'))
-
-    def test_slow_and_oversized_replies_are_cut_off(self):
-        reply = {'choices': [{'message': {'content': 'x' * 5000}}]}
-        transport = httpx.MockTransport(lambda r: httpx.Response(200, json=reply))
-        with patch.object(providers, '_transport', transport), patch.object(providers, 'DEADLINE', -1):
-            with self.assertRaises(providers.ProviderError) as e:
-                providers.openai('hi', 'key', '', None)
-        self.assertIn('too long', str(e.exception))
-        with patch.object(providers, '_transport', transport), patch.object(providers, 'MAX_REPLY', 100):
-            with self.assertRaises(providers.ProviderError) as e:
-                providers.openai('hi', 'key', '', None)
-        self.assertIn('too large', str(e.exception))
-        self.assertEqual(providers.TIMEOUT.connect, 10)
-        self.assertLessEqual(providers.TIMEOUT.read, 200)
-
-    def test_redirects_are_not_followed(self):
-        transport = httpx.MockTransport(lambda r: httpx.Response(307, headers={'location': 'http://169.254.169.254/'}))
-        with patch.object(providers, '_transport', transport), self.assertRaises(providers.ProviderError):
-            providers.openai('hi', 'key', '', None)
-
-    def test_provider_error_surfaces_the_real_reason_and_redacts_the_key(self):
-        secret_key = 'sk-test-abcdef123456'
-        transport = httpx.MockTransport(lambda r: httpx.Response(400, json={
-            'type': 'error', 'error': {'type': 'ModelProtocolUnsupported',
-                                        'message': f'Model does not support this protocol, key {secret_key}'}}))
-        with patch.object(providers, '_transport', transport):
-            with self.assertRaises(providers.ProviderError) as e:
-                providers.openai('hi', secret_key, 'some-model', None)
-        self.assertIn('Model does not support this protocol', str(e.exception))
-        self.assertIn('HTTP 400', str(e.exception))
-        self.assertNotIn(secret_key, str(e.exception))
-        # a plain-text (non-json) error body is never echoed back - it's not a deliberate
-        # structured error message, could be anything, stays generic instead
-        transport2 = httpx.MockTransport(lambda r: httpx.Response(429, text='Too many requests, slow down'))
-        with patch.object(providers, '_transport', transport2):
-            with self.assertRaises(providers.ProviderError) as e:
-                providers.openai('hi', 'key', '', None)
-        self.assertNotIn('Too many requests', str(e.exception))
-        self.assertIn('HTTP 429', str(e.exception))
-
-    def test_models_known_to_be_rejected_by_the_relay_are_not_offered(self):
-        # gpt-6-luna and gpt-5.6-luna were confirmed (21 Oct 2026) to 400 on every request -
-        # they shouldn't be in the picker where someone could pick them and hit a dead end
-        models = providers.PROVIDER_MODELS.get('opencode-go', [])
-        self.assertNotIn('gpt-6-luna', models)
-        self.assertNotIn('gpt-5.6-luna', models)
-        self.assertIn('deepseek-v4.1-flash', models)
-
-    def test_opencode_session_header_on_every_call(self):
-        sessions = []
-
-        def handler(request):
-            sessions.append(request.headers['x-opencode-session'])
-            return httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
-        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
-            providers.opencode_go('hi', 'key', '', None)
-            providers.opencode_go('hi', 'key', '', None)
-        self.assertEqual(len(set(sessions)), 2)
-        self.assertTrue(all(s.startswith('larder-') for s in sessions))
-
-
-class SuggestionSettings(MemoryDB):
-    def test_keys_stay_private(self):
-        from app.routes import suggestions as sg
-        secret = 'sk-test-SECRET-0123456789'
-        with self.assertRaises(HTTPException):
-            sg.save_settings(sg.SettingsIn(provider='openai', api_key='sk-test\nInjected: yes'), self.db, USER)
-        with self.assertRaises(HTTPException):
-            sg.save_settings(sg.SettingsIn(provider='openai', api_key=secret, base_url='https://169.254.169.254'), self.db, USER)
-        saved = sg.save_settings(sg.SettingsIn(provider='openai', api_key=secret, shared=True), self.db, USER)
-        self.assertTrue(saved['has_key'])
-        other = {'id': 2, 'username': 'small', 'portion_size': 'small'}
-        for response in (saved, sg.get_settings(self.db, USER), sg.get_settings(self.db, other),
-                         sg.status(self.db, other)):
-            self.assertNotIn(secret, json.dumps(response))
-        self.assertFalse(sg.get_settings(self.db, other)['has_key'])
-        self.assertTrue(sg.status(self.db, other)['enabled'])  # shared, but only usable, not readable
-        # pointing a saved key at a new address drops the key
-        moved = sg.save_settings(sg.SettingsIn(provider='openai', base_url='https://93.184.216.34/v1'), self.db, USER)
-        self.assertFalse(moved['has_key'])
-
-    def test_can_test_a_key_before_saving_it(self):
-        from app.routes import suggestions as sg
-        import httpx
-        # nothing saved yet, and nothing is sent in the test body either
-        with self.assertRaises(HTTPException) as e:
-            sg.test_settings(sg.TestIn(), self.db, USER)
-        self.assertEqual(e.exception.status_code, 400)
-        # a key typed into the form but never saved should still be testable
-        handler = lambda request: httpx.Response(200, json={'choices': [{'message': {'content': 'ok'}}]})
-        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
-            result = sg.test_settings(sg.TestIn(provider='openai', api_key='sk-unsaved'), self.db, USER)
-        self.assertEqual(result['reply'], 'It really answered: "ok"')
-        self.assertIsNone(sg.get_settings(self.db, USER).get('api_key'))  # still never saved
-        self.assertFalse(sg.get_settings(self.db, USER)['has_key'])
-        # a bad base_url in the test body is rejected the same as on save
-        with self.assertRaises(HTTPException) as e:
-            sg.test_settings(sg.TestIn(provider='openai', api_key='sk-x', base_url='https://127.0.0.1'), self.db, USER)
-        self.assertEqual(e.exception.status_code, 400)
-        # re-testing a saved provider without retyping the key reuses the saved one
-        sg.save_settings(sg.SettingsIn(provider='openai', api_key='sk-saved'), self.db, USER)
-        with patch.object(providers, '_transport', httpx.MockTransport(handler)):
-            result = sg.test_settings(sg.TestIn(provider='openai'), self.db, USER)
-        self.assertEqual(result['reply'], 'It really answered: "ok"')
-
-
 class Pictures(unittest.TestCase):
     PNG = b'\x89PNG\r\n\x1a\n' + b'\x00' * 32
     JPEG = b'\xff\xd8\xff\xe0' + b'\x00' * 32
@@ -785,7 +593,7 @@ class Migrations(unittest.TestCase):
                 db = dbmodule.connect()
                 after = [db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('units', 'locations', 'unit_conversions')]
                 self.assertEqual(before, after)
-                self.assertEqual(before[1], 3)
+                self.assertEqual(before[1], 4)
                 self.assertEqual(db.execute('SELECT username, date_format, measurement_system FROM users').fetchone()[:],
                                  ('old', 'DD/MM/YYYY', 'metric'))
                 db.close()

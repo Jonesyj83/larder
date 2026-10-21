@@ -1,3 +1,4 @@
+import math
 from datetime import date, timedelta
 from typing import Literal, Optional
 
@@ -121,13 +122,74 @@ def _create_meal(data, db, user):
     return row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (cur.lastrowid,)))
 
 
-class SuggestedIngredientIn(BaseModel):
+def review_cook_recipe(db, parsed, wanted=None):
+    def positive(value):
+        if isinstance(value,bool) or not isinstance(value,(float,int)) or not math.isfinite(value) or value <= 0 or value > 1000000:
+            raise HTTPException(502, 'Recipe has invalid amounts or servings; nothing was saved')
+        return value
+    if not isinstance(parsed,dict):
+        raise HTTPException(502, 'Invalid recipe; nothing was saved')
+    servings = positive(parsed.get('servings'))
+    items = parsed.get('ingredients')
+    if not isinstance(items,list) or not 1 <= len(items) <= 50:
+        raise HTTPException(502, 'Recipe needs 1–50 ingredients; nothing was saved')
+    units = {}
+    for u in rows(db.execute('SELECT * FROM units')):
+        for name in (u['name'],u['name_plural']):
+            if name: units[name.casefold()] = u['id']
+    products = rows(db.execute('SELECT * FROM products'))
+    stock_units = {u['id']: u for u in rows(db.execute('SELECT * FROM units'))}
+    ingredients = []
+    remaining = {}
+    for item in items:
+        if not isinstance(item,dict) or not isinstance(item.get('name'),str) or not 1 <= len(item['name'].strip()) <= 200:
+            raise HTTPException(502, 'Invalid ingredient name; nothing was saved')
+        amount = positive(item.get('amount')) * (wanted / servings if wanted else 1)
+        if not math.isfinite(amount):
+            raise HTTPException(502, 'Invalid ingredient amount')
+        unit = item.get('unit')
+        if not isinstance(unit,str) or len(unit) > 80:
+            raise HTTPException(502, 'Invalid ingredient unit; nothing was saved')
+        name = item['name'].strip()
+        match = next((p for p in products if p['name'].casefold() == name.casefold()),None)
+        unit_id = units.get(unit.strip().casefold())
+        have = short = short_unit_id = short_unit = None
+        if name.casefold() in {'water', 'tap water', 'iced water', 'ice', 'ice cubes', 'ice cube'}:
+            ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=unit_id,
+                                    product_id=None, product='always on hand', matched_product_id=None,
+                                    have=None, short=0, short_unit=unit, short_unit_id=unit_id, note=''))
+            continue
+        if match and unit_id is not None:
+            try:
+                need = st.to_stock_units(db, match, amount, unit_id)
+                have = st.in_stock(db, match['id'])
+                available = remaining.get(match['id'], have)
+                short = max(0.0, need - available)
+                remaining[match['id']] = max(0.0, available - need)
+                short_unit_id = match['unit_id']  # short is in the product's own stock unit
+                short_unit = stock_units.get(short_unit_id, {}).get('name')
+            except st.StockError:
+                pass  # a unit we can't convert just skips the have/short hint
+        ingredients.append(dict(name=name, amount=amount, unit=unit, unit_id=unit_id,
+                                product_id=None, product=match['name'] if match else None,
+                                matched_product_id=match['id'] if match else None,
+                                have=have, short=short if match else amount,
+                                short_unit=short_unit if match else unit,
+                                short_unit_id=short_unit_id if match else unit_id,
+                                note='' if unit.strip().casefold() in units else 'Proposed unit: ' + unit + '. Choose a valid unit.'))
+    return dict(name=str(parsed.get('name') or 'Proposed recipe')[:200],
+                description=str(parsed.get('description') or '')[:300],
+                servings=wanted or servings,
+                ingredients=ingredients, instructions=str(parsed.get('instructions') or '')[:20000])
+
+
+class CookIngredientIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     amount: float = Field(gt=0, le=1000000, allow_inf_nan=False)
     unit: str = Field(max_length=80)
 
 
-class SuggestedUseIn(BaseModel):
+class CookUseIn(BaseModel):
     day: str
     slot: Slot
     portions: float = Field(gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
@@ -138,9 +200,9 @@ class CookEventIn(BaseModel):
     request_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=200)
     servings: float = Field(gt=0, le=MAX_SERVINGS, allow_inf_nan=False)
-    ingredients: list[SuggestedIngredientIn] = Field(min_length=1, max_length=50)
+    ingredients: list[CookIngredientIn] = Field(min_length=1, max_length=50)
     instructions: str = Field(default="", max_length=20000)
-    uses: list[SuggestedUseIn] = Field(min_length=1, max_length=10)
+    uses: list[CookUseIn] = Field(min_length=1, max_length=10)
 
 
 def _shop_for_needed_ingredients(db, needed, user, source_label):
@@ -155,7 +217,7 @@ def _shop_for_needed_ingredients(db, needed, user, source_label):
             pid = p["id"] if p else None
         if pid and item["amount"] > 1e-9:
             add_item(db, pid, item["amount"], item["unit_id"], user_id=user["id"],
-                     source="suggestion", source_label=source_label)
+                     source="meal_plan", source_label=source_label)
 
 
 @router.post("/mealplan/from-cook-event", status_code=201)
@@ -163,23 +225,22 @@ def _shop_for_needed_ingredients(db, needed, user, source_label):
 def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(current_user)):
     """Save one cook event - a whole batch - across every slot it covers: one recipe,
     several meal plan entries, each eating a share of the same batch."""
-    from .suggestions import review_recipe
     for u in data.uses:
         _day(u.day)
-    reviewed = review_recipe(db, dict(name=data.name, servings=data.servings,
+    reviewed = review_cook_recipe(db, dict(name=data.name, servings=data.servings,
                                        ingredients=[i.model_dump() for i in data.ingredients],
                                        instructions=data.instructions))
     ingredients, not_added, needed = [], [], []
     for item in reviewed["ingredients"]:
         reason = None
-        if item["suggested_product_id"]:
+        if item["matched_product_id"]:
             if item["short"] is None:
                 reason = "not added - choose a valid unit that converts to the product's stock unit"
             else:
-                ingredients.append(IngredientIn(product_id=item["suggested_product_id"],
+                ingredients.append(IngredientIn(product_id=item["matched_product_id"],
                                                 amount=item["amount"], unit_id=item["unit_id"]))
                 if item["short"] > 0:
-                    needed.append(dict(product_id=item["suggested_product_id"],
+                    needed.append(dict(product_id=item["matched_product_id"],
                                        amount=item["short"], unit_id=item["short_unit_id"]))
         elif item["unit_id"]:
             # no product for this one yet, but the unit is real - create the product so the

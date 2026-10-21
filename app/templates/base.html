@@ -28,6 +28,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
   <a class="nav {{ 'on' if here.startswith(base_path + '/recipes') }}" aria-current="{{ 'page' if here.startswith(base_path + '/recipes') else 'false' }}" href="{{ base_path }}/recipes">Recipes</a>
   <a class="nav {{ 'on' if here == base_path + '/mealplan' }}" aria-current="{{ 'page' if here == base_path + '/mealplan' else 'false' }}" href="{{ base_path }}/mealplan">Meal plan</a>
   <a class="nav {{ 'on' if here == base_path + '/manage' }}" aria-current="{{ 'page' if here == base_path + '/manage' else 'false' }}" href="{{ base_path }}/manage">Locations &amp; units</a>
+  <a class="nav {{ 'on' if here == base_path + '/memory' }}" aria-current="{{ 'page' if here == base_path + '/memory' else 'false' }}" href="{{ base_path }}/memory">Memory</a>
   </nav>
   <div class="account">
   <a class="nav {{ 'on' if here == base_path + '/settings' }}" aria-current="{{ 'page' if here == base_path + '/settings' else 'false' }}" href="{{ base_path }}/settings" aria-label="Settings for {{ user.username }}">Settings</a>
