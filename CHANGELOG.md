@@ -4,6 +4,12 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
 
 ## 2026-10-21
 
+- Added a receipts table. A receipt now has its own total recorded, separate
+  from the sum of its line items - a whole-receipt discount or a combo deal
+  doesn't force the two numbers to match. `purchase` can tag a stock entry
+  with the receipt it came from; deleting a receipt leaves the purchase
+  history exactly where it was.
+
 - Rough edges knocked off the whole look - softer depth, a real type scale,
   numbers that actually stand out when they matter, nicer buttons and
   tables. Dialled the biggest numbers back down after the first pass ran

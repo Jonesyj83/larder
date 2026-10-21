@@ -117,7 +117,10 @@ how an assistant actually keeps the Memory page useful day to day - reading what
 in stock, writing down a new household preference, planning meals - rather than
 something you fill in by hand once and forget about.
 Purchase prices stay in the stock log after stock is consumed; the API provides
-product price history and spending totals. Work is included in the default locations.
+product price history and spending totals. A receipt has its own record too
+(`/api/receipts`) - its own total, store and date, separate from the individual
+items bought on it, since whole-receipt discounts don't split evenly per product.
+Work is included in the default locations.
 
 ## API
 
