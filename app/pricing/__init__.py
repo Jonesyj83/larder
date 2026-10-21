@@ -2,6 +2,7 @@
 import logging
 import math
 import re
+import time
 import unicodedata
 
 from . import stores
@@ -49,18 +50,75 @@ def normalized_name(name):
     return "".join(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold()))
 
 
-def auto_match(db, product_id, name):
-    for setting in db.execute("SELECT * FROM store_settings WHERE enabled=1").fetchall():
+def name_words(name):
+    # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
+    name = re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name)
+    return set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold()))
+
+
+def strongest_match(name, candidates):
+    words = name_words(name)
+    if not words:
+        return None
+    first = re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())[0]
+    brands = {normalized_name(p.get("brand") or "") for p in candidates}
+    required_brand = first if first in brands else None
+    scored = {}
+    for candidate in candidates:
+        if required_brand and normalized_name(candidate.get("brand") or "") != required_brand:
+            continue
+        other = name_words(candidate["name"])
+        score = len(words & other) / len(words | other)
+        scored[str(candidate["store_item_id"])] = (score, candidate)
+    ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
+    if not ranked or ranked[0][0] < .5:
+        return None
+    if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < .15:
+        return None
+    return ranked[0][1]
+
+
+def auto_match(db, product_id, name, before_search=None):
+    matched = []
+    settings = db.execute("""SELECT * FROM store_settings s WHERE enabled=1
+        AND NOT EXISTS (SELECT 1 FROM product_store_links l
+            WHERE l.product_id=? AND l.store=s.store) ORDER BY store""", (product_id,)).fetchall()
+    for setting in settings:
         try:
+            if before_search:
+                before_search()
             candidates = search(setting["store"], name, setting["postcode"])
-            matches = {str(p["store_item_id"]): p for p in candidates
-                       if normalized_name(p["name"]) == normalized_name(name)}
-            if len(matches) != 1:
+            candidate = strongest_match(name, candidates)
+            if candidate is None:
                 continue
-            candidate = next(iter(matches.values()))
             with db:
                 link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"])
                 record_price(db, link_id, candidate)
+            matched.append({"product_id": product_id, "name": name, "store": setting["store"]})
         except Exception:
             db.rollback()
-            log.warning("New product lookup failed for %s", setting["store"], exc_info=True)
+            log.warning("Product lookup failed for %s", setting["store"], exc_info=True)
+    return matched
+
+
+def auto_match_all(db):
+    requested = False
+
+    def pace():
+        nonlocal requested
+        if requested:
+            time.sleep(1.5)
+        requested = True
+
+    result = {"matched": [], "unmatched": []}
+    products = db.execute("""SELECT id,name FROM products p WHERE EXISTS (
+        SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
+            SELECT 1 FROM product_store_links l WHERE l.product_id=p.id AND l.store=s.store))
+        ORDER BY p.id""").fetchall()
+    for product in products:
+        result["matched"].extend(auto_match(db, product["id"], product["name"], pace))
+        if db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
+                SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
+                (product["id"],)).fetchone():
+            result["unmatched"].append({"product_id": product["id"], "name": product["name"]})
+    return result

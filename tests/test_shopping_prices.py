@@ -1,4 +1,6 @@
 import re
+import json
+import sqlite3
 import subprocess
 import unittest
 from pathlib import Path
@@ -32,7 +34,7 @@ const api = async (path, options) => {
   if (path === '/api/pricing/stores') return [{store:'coles', enabled:1}, {store:'iga', enabled:0}];
   if (path === '/api/pricing/products/11') throw Error('offline');
   if (path.endsWith('/link/coles')) { linked = false; return {}; }
-  if (path.endsWith('/link')) { assert.deepEqual(options.body, {store:'coles', store_item_id:'123', store_name:'Milk 2L'}); linked = true; return {}; }
+  if (path.endsWith('/link')) { assert.equal(options.body.price, 3); assert.equal(options.body.store_name, 'Milk 2L'); assert.equal(options.body.store, 'coles'); linked = true; return {}; }
   if (path === '/api/pricing/products/10') {
     if (fail) throw Error('offline');
     return linked ? [{store:'coles', latest_check:{price:3, on_special:1}}, {store:'iga', latest_check:{price:1}}] : [];
@@ -102,6 +104,71 @@ const api = async (path, options) => {
   const reloaded = shoppingPage();
   await reloaded.init();
   assert.equal(reloaded.list_id, 1);
+})().catch(e => {console.error(e); process.exit(1);});
+''')
+
+    def test_stock_context_and_purchase_size_with_real_units(self):
+        from app import db as database
+        from app.routes import shopping
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO units(id,name) VALUES(1,'mL'),(2,'bottle'),(3,'L'),(4,'piece');
+            INSERT INTO unit_conversions(from_unit_id,to_unit_id,factor) VALUES(3,1,1000);
+            INSERT INTO products(id,name,unit_id,purchase_unit_id,purchase_factor)
+                VALUES(1,'Milk',1,2,2000),(2,'Apples',4,4,1);
+            INSERT INTO shopping_lists(id,name) VALUES(1,'Home'),(2,'Work');
+            INSERT INTO stock(product_id,amount) VALUES(1,30),(1,70),(2,2);
+            INSERT INTO shopping_list(id,list_id,product_id,amount,unit_id) VALUES
+                (1,1,1,60,1),(2,1,1,1,2),(3,1,1,0.05,3),(4,1,2,1,4),(5,2,1,60,1);
+            INSERT INTO shopping_list(id,list_id,name,amount) VALUES(6,1,'Loose item',1);
+        """)
+        items = shopping.list_items(db=db, user={'id':1}, list_id=1)
+        by_id = {i['id']:i for i in items}
+        self.assertNotIn(5, by_id)
+        self.assertTrue(by_id[1]['stock_covers_need'])
+        self.assertFalse(by_id[2]['stock_covers_need'])
+        self.assertTrue(by_id[3]['stock_covers_need'])
+        self.assertEqual(by_id[1]['purchase_size'], {'amount':2000,'unit':'mL'})
+        for number in (2,3,4,6):
+            self.assertIsNone(by_id[number]['purchase_size'])
+        self.assertFalse(by_id[6]['stock_covers_need'])
+        template = (ROOT / 'app/templates/shopping.html').read_text()
+        self.assertIn('x-show="i.stock_covers_need">Already have enough in stock', template)
+        self.assertIn("'/products?id=' + i.product_id", template)
+        helpers = (ROOT / 'app/static/app.js').read_text()
+        helpers = helpers[helpers.index('function num('):helpers.index('function shelfLabel(')] + helpers[helpers.index('const MASS ='):]
+        self.run_logic('shopping.html', "const window = {}; const preferences = () => ({measurement_system:'metric'});\n" + helpers +
+            "\nconst items = " + json.dumps(by_id) + ";\n" + r'''
+const page = shoppingPage();
+assert.equal(page.amountText(items[1]), '60 ml needed (sold as 2 l)');
+assert.equal(page.amountText(items[2]), '1 bottle');
+assert.equal(page.amountText(items[4]), '1 piece');
+''')
+
+    def test_bulk_action_summary_and_recovery(self):
+        self.run_logic('shopping.html', r'''
+let fail = false;
+const api = async (path, opts) => {
+  assert.equal(path, '/api/pricing/products/auto-match');
+  assert.equal(opts.method, 'POST');
+  if (fail) throw Error('offline');
+  return {matched:[{product_id:1, name:'Milk', store:'coles'}], unmatched:[{product_id:2, name:'Blue Cheese'}]};
+};
+(async () => {
+  const page = shoppingPage();
+  let refreshed = 0;
+  page.loadPrices = async () => {refreshed++;};
+  await page.autoMatchAll();
+  assert.equal(page.matchSummary, 'Matched 1, couldn’t match 1: Blue Cheese');
+  assert.equal(page.matching, false);
+  assert.equal(refreshed, 1);
+  fail = true;
+  await page.autoMatchAll();
+  assert.match(page.matchSummary, /unavailable/);
+  assert.equal(page.matching, false);
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
 

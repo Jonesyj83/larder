@@ -148,6 +148,19 @@ def delete_list(list_id: int, db=Depends(get_db), user=Depends(current_user)):
 def list_items(db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     items = rows(db.execute(ITEM_SQL + " WHERE i.list_id = ? ORDER BY i.done, label COLLATE NOCASE", (resolve_list(db, list_id),)))
     for item in items:
+        item['stock_covers_need'] = False
+        item['purchase_size'] = None
+        if item['product_id']:
+            product = st.get_product(db, item['product_id'])
+            try:
+                needed = st.to_stock_units(db, product, item['amount'], item['unit_id'])
+                item['stock_covers_need'] = st.in_stock(db, item['product_id']) + 1e-9 >= needed
+            except st.StockError:
+                pass
+            if (item['unit_id'] == product['unit_id'] and product['purchase_unit_id']
+                    and product['purchase_unit_id'] != product['unit_id']
+                    and product['purchase_factor'] > item['amount']):
+                item['purchase_size'] = {'amount': product['purchase_factor'], 'unit': item['unit']}
         item['sources'] = rows(db.execute('SELECT kind,source_ref,label,amount,created_at FROM shopping_sources WHERE item_id=? ORDER BY id', (item['id'],)))
         recorded = sum(s['amount'] for s in item['sources'])
         item['origin_unknown'] = not item['sources'] or abs(recorded - item['amount']) > 1e-9

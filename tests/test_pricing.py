@@ -181,12 +181,42 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         await self.client.post(url, json=dict(body, store_item_id='different'))
         links = (await self.client.get('/api/pricing/products/1')).json()
         self.assertEqual(len(links), 1)
-        self.assertIsNone(links[0]['latest_check'])
+        self.assertIsNone(links[0]['latest_check']['price'])
         self.assertEqual((await self.client.delete(url + '/coles')).status_code, 200)
         self.assertEqual((await self.client.get('/api/pricing/products/1')).json(), [])
         self.assertEqual((await self.client.get('/api/pricing/products/999')).status_code, 404)
         self.assertEqual((await self.client.post('/api/pricing/products/999/link', json=body)).status_code, 404)
         self.assertEqual((await self.client.post(url, json=dict(body, store='unknown'))).status_code, 404)
+
+    async def test_manual_link_records_candidate_and_rejects_invalid_prices(self):
+        body = dict(CANDIDATE, store='coles', store_name=CANDIDATE['name'])
+        response = await self.client.post('/api/pricing/products/1/link', json=body)
+        self.assertEqual(response.status_code, 200)
+        check = (await self.client.get('/api/pricing/products/1')).json()[0]['latest_check']
+        for field in ('price', 'was_price', 'unit_price', 'unit_measure', 'on_special'):
+            self.assertEqual(check[field], CANDIDATE[field])
+        response = await self.client.post('/api/pricing/products/1/link', json=dict(body, price=-1))
+        self.assertEqual(response.status_code, 422)
+
+    async def test_bulk_missing_links_results_pacing_and_failure_isolation(self):
+        self.db.execute("UPDATE store_settings SET enabled=0 WHERE store NOT IN ('coles','iga')")
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(2,'Capsicum',1),(3,'Bread',1)")
+        pricing.link_product(self.db, 1, 'coles', 'kept', 'Existing milk')
+        self.db.commit()
+        self.searches['coles'].side_effect = [[dict(CANDIDATE, name='Red Capsicum')], []]
+        self.searches['iga'].side_effect = [RuntimeError('offline'), [], [dict(CANDIDATE, name='Bread')]]
+        with patch.object(pricing.time, 'sleep') as sleep, self.assertLogs(level='WARNING'):
+            response = await self.client.post('/api/pricing/products/auto-match')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            'matched': [{'product_id':2,'name':'Capsicum','store':'coles'},
+                        {'product_id':3,'name':'Bread','store':'iga'}],
+            'unmatched': [{'product_id':1,'name':'Milk 2L'}, {'product_id':2,'name':'Capsicum'},
+                          {'product_id':3,'name':'Bread'}]})
+        self.assertEqual(sleep.call_count, 4)
+        sleep.assert_called_with(1.5)
+        self.assertEqual(self.db.execute("SELECT store_item_id FROM product_store_links WHERE product_id=1").fetchone()[0], 'kept')
+        self.searches['aldi'].assert_not_called()
 
     async def test_product_history_medians_specials_and_purchases(self):
         url = '/api/pricing/products/1/history'
@@ -227,7 +257,7 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.db.commit()
         self.searches['coles'].return_value = [dict(CANDIDATE, name='MILK 2 L')]
         self.searches['woolworths'].return_value = [CANDIDATE, dict(CANDIDATE, store_item_id='456')]
-        self.searches['aldi'].return_value = [dict(CANDIDATE, name='Milk Chocolate 2L')]
+        self.searches['aldi'].return_value = [dict(CANDIDATE, name='Dark Chocolate Block')]
         response = await self.client.post('/api/products', json={'name': 'Milk 2L', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
         product_id = response.json()['id']
@@ -247,6 +277,29 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')), self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Bread', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
+
+
+class ScoredMatching(unittest.TestCase):
+    def candidate(self, name, item='1', brand=''):
+        return dict(CANDIDATE, name=name, store_item_id=item, brand=brand)
+
+    def test_generic_staples_and_size_normalization(self):
+        for name, candidate in [('Pork Chops','Pork Loin Chops'), ('Capsicum','Red Capsicum'),
+                                ('Milk','Full Milk'), ('Milk 2L','MILK 2 L')]:
+            with self.subTest(name=name):
+                self.assertIsNotNone(pricing.strongest_match(name, [self.candidate(candidate)]))
+
+    def test_brand_guard_and_ambiguous_candidates(self):
+        own = self.candidate('Vegemite Spread Jar', brand='Vegemite')
+        other = self.candidate('Vegemite', '2', 'Home Brand')
+        self.assertIsNone(pricing.strongest_match('Vegemite', [own, other]))
+        own = self.candidate('Vegemite Spread', brand='Vegemite')
+        self.assertEqual(pricing.strongest_match('Vegemite', [own, other]), own)
+        self.assertIsNone(pricing.strongest_match('Capsicum', [self.candidate('Red Capsicum'),
+            self.candidate('Green Capsicum', '2')]))
+        self.assertIsNone(pricing.strongest_match('Milk', [self.candidate('Dark Chocolate')]))
+        self.assertIsNone(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
+            self.candidate('Pork Loin Chops Boneless', '2')]))
 
 
 class StoreParsers(unittest.TestCase):

@@ -20,6 +20,11 @@ class StoreIn(BaseModel):
 
 
 class LinkIn(BaseModel):
+    price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    was_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    unit_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    unit_measure: str | None = Field(default=None, max_length=100)
+    on_special: bool | None = None
     store: str
     store_item_id: str = Field(min_length=1, max_length=200)
     store_name: str = Field(min_length=1, max_length=500)
@@ -63,6 +68,11 @@ def search_store(store: str, q: str = Query(min_length=1, max_length=200), db=De
         raise HTTPException(502, "Store search unavailable")
 
 
+@router.post("/products/auto-match")
+def auto_match_all(db=Depends(get_db)):
+    return pricing.auto_match_all(db)
+
+
 @router.post("/products/{product_id}/link")
 def set_link(product_id: int, data: LinkIn, db=Depends(get_db), user=Depends(current_user)):
     check_store(data.store)
@@ -72,6 +82,7 @@ def set_link(product_id: int, data: LinkIn, db=Depends(get_db), user=Depends(cur
     with db:
         link_id = pricing.link_product(db, product_id, data.store, data.store_item_id.strip(),
                                        data.store_name.strip(), user["id"])
+        pricing.record_price(db, link_id, data.model_dump())
     return row(db.execute("SELECT * FROM product_store_links WHERE id=?", (link_id,)))
 
 

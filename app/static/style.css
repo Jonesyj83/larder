@@ -510,3 +510,9 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .price-history-chart { display: block; width: 100%; height: auto; margin-top: var(--space-3); }
 .price-history-chart text { fill: var(--muted); font-size: 11px; }
 .price-history-chart circle:focus { outline: none; stroke: var(--text); stroke-width: 3; }
+
+.shopping-prices { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-left: var(--space-2); max-width: 100%; }
+.shopping-price-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
+.price-chip { display: inline-block; border: 1px solid var(--line); border-radius: var(--radius-small); padding: 2px 6px; }
+.shopping-prices > .card { flex-basis: 100%; margin-left: 0; }
+.price-chip.pill { background: var(--control); border-color: var(--accent); color: var(--text); }

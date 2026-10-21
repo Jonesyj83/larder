@@ -10,10 +10,13 @@
     <label class="field grow">List<select x-ref="listSelect" x-model.number="list_id" @change="selectList()">
       <template x-for="list in lists" :key="list.id"><option :value="list.id" x-text="list.name + ' (' + list.item_count + ')'"></option></template>
     </select></label>
+    <button @click="autoMatchAll()" :disabled="matching" x-text="matching ? 'Matching…' : 'Auto-match all'"></button>
     <button @click="newList()">New list</button>
     <button @click="renameList()">Rename</button>
     <button class="danger" @click="deleteList()">Delete list</button>
   </div>
+
+  <p class="muted small" role="status" x-show="matchSummary" x-text="matchSummary"></p>
 
   <form class="card" @submit.prevent="add()">
     <div class="ingredient-row">
@@ -38,21 +41,25 @@
         <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
         <div class="grow">
           <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
-          <span class="shopping-amount" x-text="i.unit ? qty(i.amount, i.unit) : num(i.amount)"></span>
+          <span class="shopping-amount" x-text="amountText(i)"></span>
+          <span class="small muted" x-show="i.stock_covers_need">Already have enough in stock</span>
           <span class="pill" x-show="!i.product_id">not a product</span>
           <select class="small" x-show="!i.product_id" x-model="i.unitChoice" :disabled="!!i.unit_id" aria-label="Unit for new product">
             <option value="">Choose a stock unit</option>
             <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
           </select>
           <template x-if="i.product_id">
-            <div class="small space-top-small">
+            <div class="shopping-prices small">
               <template x-for="link in priceLinks(i)" :key="link.store">
-                <div class="row small">
-                  <span :class="cheapest(i, link) ? 'pill' : 'muted'" x-text="storeName(link.store) + ': ' + priceText(link.latest_check?.price)"></span>
-                  <span class="small" x-show="link.latest_check?.on_special">special</span>
+                <span class="shopping-price-group">
+                  <span class="price-chip" :class="cheapest(i, link) ? 'pill' : 'muted'">
+                    <span x-text="storeName(link.store) + ': ' + priceText(link.latest_check?.price)"></span>
+                    <span class="small" x-show="link.latest_check?.on_special"> · special</span>
+                  </span>
                   <button class="small" @click="redoMatch(i, link)">Change match</button>
-                </div>
+                </span>
               </template>
+              <a class="small" x-show="priceLinks(i).length" :href="'/products?id=' + i.product_id">Price history</a>
               <button class="small" x-show="i.pricingLoaded && !priceLinks(i).length && enabledStores.length" @click="openMatch(i)">Match this item</button>
               <span class="muted" x-show="i.pricingError" x-text="i.pricingError"></span>
               <button class="small" x-show="i.pricingError" @click="loadPrices(items)">Retry prices</button>
@@ -91,6 +98,7 @@
 <script>
 function shoppingPage() {
   return {
+    matching: false, matchSummary: '',
     lists: [], list_id: null, loadVersion: 0, stores: [], items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
     async init() {
       [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
@@ -144,6 +152,21 @@ function shoppingPage() {
         this.loadPrices(this.items);
       } catch (e) { oops(e); }
     },
+    amountText(i) {
+      const amount = i.unit ? qty(i.amount, i.unit) : num(i.amount);
+      return i.purchase_size ? amount + ' needed (sold as ' + qty(i.purchase_size.amount, i.purchase_size.unit) + ')' : amount;
+    },
+    async autoMatchAll() {
+      if (this.matching) return;
+      this.matching = true; this.matchSummary = '';
+      try {
+        const result = await api('/api/pricing/products/auto-match', {method: 'POST'});
+        this.matchSummary = 'Matched ' + result.matched.length + ', couldn’t match ' + result.unmatched.length
+          + (result.unmatched.length ? ': ' + result.unmatched.map(p => p.name).join(', ') : '');
+        await this.loadPrices(this.items);
+      } catch (e) { this.matchSummary = 'Auto-match unavailable. Try again.'; }
+      finally { this.matching = false; }
+    },
     storeName(store) { return {woolworths: 'Woolworths', coles: 'Coles', aldi: 'Aldi', iga: 'IGA'}[store] || store; },
     get enabledStores() { return this.stores.filter(s => s.enabled); },
     priceLinks(i) { return (i.links || []).filter(link => this.enabledStores.some(s => s.store === link.store)); },
@@ -184,7 +207,7 @@ function shoppingPage() {
       picker.busy = true;
       try {
         await api('/api/pricing/products/' + i.product_id + '/link', {method: 'POST', body: {
-          store: picker.store, store_item_id: candidate.store_item_id, store_name: candidate.name}});
+          ...candidate, store: picker.store, store_item_id: candidate.store_item_id, store_name: candidate.name}});
         i.picker = null;
         await this.loadPrice(i);
       } catch (e) { picker.message = 'Could not save match. Try again.'; }
