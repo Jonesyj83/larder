@@ -139,6 +139,14 @@ async def check():
         r = (await client.post('/api/shopping', json={'product_id': pid}))
         assert r.status_code == 201, r.text
         assert (await client.get('/api/shopping')).json()[0]['product_id'] == pid
+        loose = await client.post('/api/shopping', json={'name':'Paper towels', 'amount':2, 'unit_id':units[0]['id']})
+        assert loose.status_code == 201
+        made = await client.post(f"/api/shopping/{loose.json()['id']}/make-product", json={'unit_id':units[0]['id']})
+        assert made.status_code == 200, made.text
+        assert made.json()['product']['name'] == 'Paper towels'
+        assert not any(i['name'] == 'Paper towels' for i in (await client.get('/api/shopping')).json())
+        paper = next(p for p in (await client.get('/api/products')).json() if p['name'] == 'Paper towels')
+        assert (await client.get('/api/products/' + str(paper['id']))).json()['in_stock'] == 2
         meal = await client.post('/api/mealplan', json={'day':'2026-10-12','slot':'breakfast','note':'Simple breakfast'})
         assert meal.status_code == 201
         mid = meal.json()['id']
@@ -164,7 +172,7 @@ async def check():
         assert result['not_added'] == []
         assert (await client.post('/api/mealplan/from-cook-event', json=suggested)).json() == result
         products = (await client.get('/api/products')).json()
-        assert len(products) == 2
+        assert len(products) == 3
         new_product = next(p for p in products if p['name'] == 'Unlisted ingredient')
         recipe = (await client.get('/api/recipes/' + str(result['meals'][0]['recipe_id']))).json()
         assert len(recipe['ingredients']) == 2

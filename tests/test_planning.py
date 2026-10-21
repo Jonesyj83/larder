@@ -138,34 +138,42 @@ class Planning(unittest.TestCase):
         # it starts at zero stock, so the full amount landed straight on the shopping list
         self.assertEqual(tuple(self.db.execute('SELECT amount FROM shopping_list WHERE product_id=?',(butter[0],)).fetchone()),(1,))
 
-    def test_suggestion_reuses_an_existing_recipe_by_name_instead_of_duplicating(self):
+    def test_single_slot_cook_event_keeps_batch_servings_separate_from_portions(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
-        from app.routes.recipes import RecipeIn, add_recipe
+        self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Eggs',2)")
+        self.db.commit()
+        data = CookEventIn(name='Omelette', servings=4, instructions='Cook four servings.',
+            ingredients=[{'name':'Eggs','amount':8,'unit':'piece'}],
+            uses=[{'day':'2026-10-21','slot':'lunch','portions':0.5,'twist':''}])
+        result = meal_from_cook_event(data,self.db,self.user)
+        meal = result['meals'][0]
+        recipe = self.db.execute('SELECT servings FROM recipes WHERE id=?',(meal['recipe_id'],)).fetchone()
+        need = needs('2026-10-21','2026-10-21',self.db,self.user)['items'][0]['need']
+        self.assertEqual(recipe['servings'],4)
+        self.assertEqual(meal['servings'],0.5)
+        self.assertEqual(need,8)
+        event_ids = {r['cook_event_id'] for r in self.db.execute('SELECT cook_event_id FROM meal_plan')}
+        self.assertEqual(len(event_ids),1)
+        self.assertIsNotNone(next(iter(event_ids)))
+
+    def test_suggestion_does_not_reuse_different_recipe_just_by_name(self):
+        from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Beef Mince',2)")
         self.db.commit()
         saved = add_recipe(RecipeIn(name='Chilli con carne', servings=4,
-            ingredients=[{'product_id': 1, 'amount': 500, 'unit_id': 2}]), self.db, self.user)
-        self.assertEqual(self.count('recipes'), 1)
-        data = CookEventIn(name='Chilli con carne',
-            servings=2, instructions='Brown the mince.',
-            ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}],
-            uses=[{'day': '2026-10-20', 'slot': 'dinner', 'portions': 2, 'twist': ''}])
-        result = meal_from_cook_event(data, self.db, self.user)
-        self.assertTrue(result['reused_recipe'])
-        self.assertEqual(result['meals'][0]['recipe_id'], saved['id'])
-        self.assertEqual(self.count('recipes'), 1)  # no duplicate created
-        # the existing recipe's own ingredients are untouched, not overwritten by the suggestion
+            ingredients=[{'product_id':1,'amount':500,'unit_id':2}]),self.db,self.user)
+        data = CookEventIn(name='Chilli con carne',servings=2,instructions='Brown the mince.',
+            ingredients=[{'name':'Beef Mince','amount':2,'unit':'piece'}],
+            uses=[{'day':'2026-10-20','slot':'dinner','portions':2,'twist':''}])
+        result = meal_from_cook_event(data,self.db,self.user)
+        self.assertFalse(result['reused_recipe'])
+        self.assertNotEqual(result['meals'][0]['recipe_id'],saved['id'])
+        self.assertEqual(self.count('recipes'),2)
         self.assertEqual(self.db.execute('SELECT amount FROM recipe_ingredients WHERE recipe_id=?',
-                                          (saved['id'],)).fetchone()[0], 500)
-        # a name that doesn't match anything saved still creates a new recipe as before
-        data2 = CookEventIn(name='Spaghetti bolognese',
-            servings=2, instructions='', ingredients=[{'name': 'Beef Mince', 'amount': 2, 'unit': 'piece'}],
-            uses=[{'day': '2026-10-21', 'slot': 'dinner', 'portions': 2, 'twist': ''}])
-        result2 = meal_from_cook_event(data2, self.db, self.user)
-        self.assertFalse(result2['reused_recipe'])
-        self.assertEqual(self.count('recipes'), 2)
+                         (result['meals'][0]['recipe_id'],)).fetchone()[0],2)
 
     def test_cook_event_covers_several_uses_from_one_recipe(self):
+
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Beef Mince',2)")
         self.db.commit()

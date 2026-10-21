@@ -85,8 +85,9 @@ def week(start: Optional[str] = None, days: int = 7, db=Depends(get_db), user=De
     except OverflowError:
         raise HTTPException(400, "That week is past the end of the calendar")
     meals = rows(db.execute("""
-        SELECT m.*, r.name AS recipe, r.servings AS recipe_servings, u.username
+        SELECT m.*, r.name AS recipe, r.servings AS recipe_servings, u.username, pc.servings AS cook_servings
         FROM meal_plan m LEFT JOIN recipes r ON r.id = m.recipe_id LEFT JOIN users u ON u.id = m.user_id
+        LEFT JOIN planned_cooks pc ON pc.id = m.cook_event_id
         WHERE m.day BETWEEN ? AND ? ORDER BY m.day, m.id""", (first.isoformat(), last.isoformat())))
     return {"start": first.isoformat(), "end": last.isoformat(), "slots": SLOTS, "meals": meals}
 
@@ -190,27 +191,24 @@ def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(cur
             reason = "not added - no matching product, and the unit isn't one we track; add it by hand"
         if reason:
             not_added.append(dict(item, reason=reason))
-    # same dish already saved - reuse it so ratings/edits build up on one recipe, not several
-    existing = row(db.execute("SELECT id FROM recipes WHERE name = ? COLLATE NOCASE", (data.name.strip(),)))
-    if not existing and len(data.uses) == 1 and ingredients:
-        # exactly one slot eating this batch - same as a single suggested meal, the recipe
-        # belongs to that slot and its ingredients can be edited in place
-        u = data.uses[0]
-        label = f"{u.twist.strip()} ({data.name.strip()})" if u.twist.strip() else data.name.strip()
-        meal = _create_meal(MealIn(day=u.day, slot=u.slot, note=label, servings=u.portions,
-                                   ingredients=ingredients), db, user)
-        if meal["recipe_id"]:
-            db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, meal["recipe_id"]))
-        _shop_for_needed_ingredients(db, needed, user, data.name)
-        return {"meals": [meal], "not_added": not_added, "reused_recipe": False}
-    if existing:
-        recipe_id = existing["id"]
-    elif ingredients:
+    # Always save the proposed recipe rather than matching by name alone. A same-name
+    # recipe can have different ingredients or amounts; silently reusing it loses the
+    # meal idea and its shopping needs.
+    recipe_id = None
+    if ingredients:
         recipe_id = simple_recipe(db, data.name, data.servings, ingredients, user)
         db.execute("UPDATE recipes SET instructions=? WHERE id=?", (data.instructions, recipe_id))
         _shop_for_needed_ingredients(db, needed, user, data.name)
-    else:
-        recipe_id = None  # nothing we could actually match - just a named placeholder, no recipe yet
+    cook_event_id = None
+    if recipe_id:
+        cur = db.execute("INSERT INTO planned_cooks(recipe_id,servings,created_by) VALUES(?,?,?)",
+                         (recipe_id, data.servings, user["id"]))
+        cook_event_id = cur.lastrowid
+    # a single-use batch is "owned" by its one meal, same as any other simple meal, so
+    # editing it updates the recipe in place. A multi-use batch's recipe is shared, so
+    # its meals stay plain recipe-linked meals - editing one (e.g. moving the day) must
+    # not fork or touch the shared recipe the other uses still depend on.
+    owns_recipe = bool(recipe_id) and len(data.uses) == 1
     meals = []
     for u in data.uses:
         label = f"{u.twist.strip()} ({data.name.strip()})" if u.twist.strip() else data.name.strip()
@@ -220,7 +218,12 @@ def meal_from_cook_event(data: CookEventIn, db=Depends(get_db), user=Depends(cur
         else:
             meal = _create_meal(MealIn(day=u.day, slot=u.slot, note=label, servings=u.portions), db, user)
         meals.append(meal)
-    return {"meals": meals, "not_added": not_added, "reused_recipe": bool(existing)}
+        if recipe_id:
+            db.execute("UPDATE meal_plan SET simple_meal=?, cook_event_id=? WHERE id=?",
+                       (1 if owns_recipe else 0, cook_event_id, meal["id"]))
+            meal["simple_meal"] = 1 if owns_recipe else 0
+            meal["cook_event_id"] = cook_event_id
+    return {"meals": meals, "not_added": not_added, "reused_recipe": False}
 
 
 @router.put("/mealplan/{meal_id}")
@@ -229,6 +232,7 @@ def edit_meal(meal_id: int, data: MealEdit, db=Depends(get_db), user=Depends(cur
     m = row(db.execute("SELECT * FROM meal_plan WHERE id = ?", (meal_id,)))
     if not m:
         raise HTTPException(404, "Not in the plan")
+    original_recipe_id = m["recipe_id"]
     if data.day is not None:
         _day(data.day)
         m["day"] = data.day
@@ -269,8 +273,12 @@ def edit_meal(meal_id: int, data: MealEdit, db=Depends(get_db), user=Depends(cur
         m["simple_meal"] = 0
     if not m["recipe_id"] and not m["note"].strip():
         raise HTTPException(400, "Name the meal or choose a recipe")
-    db.execute("UPDATE meal_plan SET day=?, slot=?, note=?, servings=?, recipe_id=?, simple_meal=? WHERE id=?",
-               (m["day"], m["slot"], m["note"].strip(), m["servings"], m["recipe_id"], m["simple_meal"], meal_id))
+    # the recipe actually changed (forked, switched, or cleared) - this meal no longer
+    # eats from whatever batch it used to, so needs() must stop grouping it with one
+    if m["recipe_id"] != original_recipe_id:
+        m["cook_event_id"] = None
+    db.execute("UPDATE meal_plan SET day=?, slot=?, note=?, servings=?, recipe_id=?, simple_meal=?, cook_event_id=? WHERE id=?",
+               (m["day"], m["slot"], m["note"].strip(), m["servings"], m["recipe_id"], m["simple_meal"], m["cook_event_id"], meal_id))
     return row(db.execute("SELECT * FROM meal_plan WHERE id=?", (meal_id,)))
 
 
@@ -313,10 +321,26 @@ def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
     """Add up every ingredient for the planned meals between two dates and compare with stock."""
     _day(start), _day(end)
     meals = rows(db.execute("""
-        SELECT m.id, m.day, m.slot, m.note, m.servings, r.id AS recipe_id, r.name AS recipe, r.servings AS recipe_servings
-        FROM meal_plan m LEFT JOIN recipes r ON r.id = m.recipe_id WHERE m.day BETWEEN ? AND ?""", (start, end)))
+        SELECT m.id, m.day, m.slot, m.note, m.servings, m.cook_event_id,
+               r.id AS recipe_id, r.name AS recipe, r.servings AS recipe_servings,
+               pc.servings AS cook_servings
+        FROM meal_plan m LEFT JOIN recipes r ON r.id = m.recipe_id
+        LEFT JOIN planned_cooks pc ON pc.id = m.cook_event_id
+        WHERE m.day BETWEEN ? AND ?""", (start, end)))
     totals, problems, unmapped = {}, [], []
+    processed_cooks = set()
     for m in meals:
+        if m["cook_event_id"]:
+            if m["cook_event_id"] in processed_cooks:
+                continue
+            processed_cooks.add(m["cook_event_id"])
+            # a batch spread across two needs windows (e.g. Sunday dinner, Monday
+            # lunch next week) must only be counted once - attribute it to whichever
+            # window holds its earliest use, so the other window skips it entirely
+            first_day = row(db.execute(
+                "SELECT MIN(day) AS d FROM meal_plan WHERE cook_event_id = ?", (m["cook_event_id"],)))["d"]
+            if not (start <= first_day <= end):
+                continue
         ingredients = rows(db.execute("SELECT * FROM recipe_ingredients WHERE recipe_id = ?", (m["recipe_id"],)))
         if not ingredients:
             unmapped.append({"id": m["id"], "day": m["day"], "slot": m["slot"],
@@ -324,7 +348,8 @@ def needs(start: str, end: str, db=Depends(get_db), user=Depends(current_user)):
             continue
         # older rows can have 0 servings on the recipe; treat that as "as written"
         base = m["recipe_servings"] if m["recipe_servings"] and m["recipe_servings"] > 0 else None
-        scale = (m["servings"] or base) / base if base else 1
+        scale = (m["cook_servings"] / base if m["cook_servings"] else
+                 (m["servings"] or base) / base) if base else 1
         for i in ingredients:
             p = st.get_product(db, i["product_id"])
             try:

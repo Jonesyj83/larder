@@ -150,6 +150,14 @@ CREATE TABLE IF NOT EXISTS recipe_ingredients (
     note TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS planned_cooks (
+    id INTEGER PRIMARY KEY,
+    recipe_id INTEGER REFERENCES recipes(id) ON DELETE SET NULL,
+    servings REAL NOT NULL,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS meal_plan (
     id INTEGER PRIMARY KEY,
     day TEXT NOT NULL,
@@ -159,7 +167,8 @@ CREATE TABLE IF NOT EXISTS meal_plan (
     note TEXT NOT NULL DEFAULT '',
     servings REAL,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    batch_id INTEGER REFERENCES cooked_batches(id) ON DELETE SET NULL
+    batch_id INTEGER REFERENCES cooked_batches(id) ON DELETE SET NULL,
+    cook_event_id INTEGER REFERENCES planned_cooks(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS meal_plan_day ON meal_plan(day);
 CREATE TABLE IF NOT EXISTS cooked_batches (
@@ -251,6 +260,8 @@ def init_db():
         conn.execute("ALTER TABLE recipes ADD COLUMN rating INTEGER NOT NULL DEFAULT 0")
     if "batch_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(meal_plan)")}:
         conn.execute("ALTER TABLE meal_plan ADD COLUMN batch_id INTEGER REFERENCES cooked_batches(id) ON DELETE SET NULL")
+    if "cook_event_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(meal_plan)")}:
+        conn.execute("ALTER TABLE meal_plan ADD COLUMN cook_event_id INTEGER REFERENCES planned_cooks(id) ON DELETE SET NULL")
     conn.executemany("INSERT OR IGNORE INTO units(name, name_plural) VALUES (?, ?)",
                      DEFAULT_UNITS + [("oz", "oz"), ("lb", "lb"), ("fl oz (US)", "fl oz (US)")])
     ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}

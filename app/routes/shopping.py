@@ -144,6 +144,46 @@ def edit(item_id: int, data: ItemEdit, db=Depends(get_db), user=Depends(current_
     return row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
 
 
+class MakeProductIn(BaseModel):
+    unit_id: int
+
+
+@router.post("/{item_id}/make-product")
+def make_product(item_id: int, data: MakeProductIn, db=Depends(get_db), user=Depends(current_user)):
+    """Turn a freeform shopping entry into a product and add the purchase to stock."""
+    _check_unit(db, data.unit_id)
+    begin(db)
+    item = row(db.execute("SELECT * FROM shopping_list WHERE id=?", (item_id,)))
+    if not item:
+        db.rollback()
+        raise HTTPException(404, "Not on the list")
+    if item["product_id"]:
+        db.rollback()
+        raise HTTPException(409, "This item is already linked to a product")
+    unit_id = item["unit_id"] or data.unit_id
+    name = item["name"].strip()
+    product = row(db.execute("SELECT id FROM products WHERE name=? COLLATE NOCASE", (name,)))
+    if product:
+        product_id = product["id"]
+        try:
+            st.to_stock_units(db, st.get_product(db, product_id), item["amount"], unit_id)
+        except st.StockError as e:
+            db.rollback()
+            raise HTTPException(400, str(e))
+    else:
+        cur = db.execute("INSERT INTO products(name,unit_id) VALUES(?,?)", (name, unit_id))
+        product_id = cur.lastrowid
+    try:
+        stock = st.purchase(db, product_id, item["amount"], unit_id, user_id=user["id"], commit=False)
+    except st.StockError as e:
+        db.rollback()
+        raise HTTPException(400, str(e))
+    db.execute("DELETE FROM shopping_list WHERE id=?", (item_id,))
+    db.commit()
+    from .products import load_product
+    return {"product": load_product(db, product_id), "stock": stock}
+
+
 @router.post("/{item_id}/bought")
 def bought(item_id: int, data: BoughtIn | None = None, db=Depends(get_db), user=Depends(current_user)):
     """Tick it off and put it straight into stock."""

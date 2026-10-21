@@ -15,14 +15,14 @@
       <div class="seg" role="group" aria-label="Filter recipes">
         <button type="button" :class="{on: filter == 'all'}" @click="filter = 'all'">All</button>
         <button type="button" :class="{on: filter == 'ready'}" @click="filter = 'ready'">Can make</button>
-        <button type="button" :class="{on: filter == 'missing'}" @click="filter = 'missing'">Missing a few</button>
+        <button type="button" :class="{on: filter == 'missing'}" @click="filter = 'missing'">Missing ingredients</button>
       </div>
     </div>
     <p class="muted" x-show="loaded && !recipes.length" x-cloak>No recipes yet.</p>
     <p class="muted" x-show="loaded && recipes.length && !shown().length" x-cloak>No saved recipes match that filter.</p>
     <div class="recipe-grid">
       <template x-for="r in shown()" :key="r.id">
-        <div class="recipe-card" @click="open(r.id)">
+        <a class="recipe-card" :href="BASE + '/recipes?id=' + r.id" @click.prevent="open(r.id)">
           <div class="recipe-thumb" :class="{empty: !r.picture}">
             <img x-show="r.picture" :src="pic(r.picture)" alt="">
           </div>
@@ -34,7 +34,7 @@
             <span x-show="r.can_make" class="ok small">can make it</span>
             <span x-show="!r.can_make && r.ingredient_count" class="warn small" x-text="r.missing_count + ' missing'"></span>
           </div>
-        </div>
+        </a>
       </template>
     </div>
   </div>
@@ -67,7 +67,7 @@
           <tr><th>Ingredient</th><th>Needs</th><th class="hide-small">Have</th><th></th></tr>
           <template x-for="i in current.ingredients" :key="i.id">
             <tr>
-              <td><span x-text="i.name"></span> <span class="muted small" x-text="i.note"></span></td>
+              <td><span x-text="i.name"></span> <span class="muted small" x-text="i.note"></span><span class="only-small small muted" x-text="'Have ' + qty(i.have, i.stock_unit)"></span></td>
               <td x-text="qty(i.amount_scaled, i.unit)"></td>
               <td class="hide-small" x-text="qty(i.have, i.stock_unit)"></td>
               <td>
@@ -248,8 +248,12 @@ function recipesPage() {
       [this.products, this.units, this.locations] = await Promise.all([api('/api/products'), api('/api/units'), api('/api/locations')]);
       api('/api/suggestions/status').then(s => this.suggest = s.enabled).catch(() => {});
       await this.load();
-      const id = new URLSearchParams(location.search).get('id');
-      if (id) this.open(id);
+      const params = new URLSearchParams(location.search);
+      const id = params.get('id');
+      const planned = Number(params.get('servings'));
+      if (id) {
+        await this.open(id, Number.isFinite(planned) && planned > 0 ? planned : null);
+      }
     },
     async load() {
       try { this.recipes = await api('/api/recipes/makeable'); this.loaded = true; } catch (e) { oops(e); }
@@ -260,14 +264,15 @@ function recipesPage() {
       return this.recipes;
     },
     stars(n) { return '★'.repeat(n || 0); },
-    async open(id) {
+    async open(id, wanted = null) {
       try {
         const same = this.current && this.current.id == id;
-        const q = (same && this.servings) ? '?servings=' + this.servings : '';
+        const servingsWanted = wanted || (same ? this.servings : null);
+        const q = servingsWanted ? '?servings=' + servingsWanted : '';
         this.current = await api('/api/recipes/' + id + q);
         this.servings = this.current.servings_wanted;
         this.plan.servings = this.servings;
-        history.replaceState(null, '', BASE + '/recipes?id=' + id);
+        history.replaceState(null, '', BASE + '/recipes?id=' + id + (servingsWanted ? '&servings=' + servingsWanted : ''));
       } catch (e) { oops(e); }
     },
     close() {

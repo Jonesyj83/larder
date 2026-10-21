@@ -97,22 +97,23 @@ assert.equal(label({kind: 'suggestion', label: 'Toast', amount: 2}), 'Suggested 
     def test_meal_ideas_grid_lengths_toggles_and_incomplete_range(self):
         self.run_js(page_script('mealplan') + """
 const p = planPage(); p.openIdeas();
+const eligible = () => p.ideasDays().filter(d => d >= today());
 for (const [length, days] of [['week', 7], ['2weeks', 14], ['4weeks', 28]]) {
   p.ideas.length = length; p.buildIdeasGrid();
-  assert.equal(p.ideasDays().length, days); assert.equal(p.ideasCells().length, days);
+  assert.equal(p.ideasDays().length, days); assert.equal(p.ideasCells().length, eligible().length);
 }
-p.toggleSlotColumn('lunch'); assert.equal(p.ideasCells().length, 56);
-p.toggleSlotColumn('lunch'); assert.equal(p.ideasCells().length, 28);
-const first = p.ideasDays()[0]; p.toggleDay(first);
-assert.equal(p.ideasCells().length, 32); p.toggleDay(first);
-assert.equal(p.ideasCells().length, 27);
+const current = eligible().length;
+p.toggleSlotColumn('lunch'); assert.equal(p.ideasCells().length, current + current);
+p.toggleSlotColumn('lunch'); assert.equal(p.ideasCells().length, current);
+const first = eligible()[0]; const before = p.ideasCells().length; p.toggleDay(first);
+assert.equal(p.ideasCells().length, before + 4);
 p.ideas.length = 'custom';
-for (const [from, to] of [['', '2026-10-14'], ['2026-10-12', ''],
-                         ['2026-10-14', '2026-10-12']]) {
+for (const [from, to] of [['', addDays(today(), 2)], [addDays(today(), 1), ''],
+                         [addDays(today(), 2), addDays(today(), 1)]]) {
   p.ideas.rangeFrom = from; p.ideas.rangeTo = to; p.buildIdeasGrid();
   assert.deepEqual(p.ideasDays(), []); assert.deepEqual(p.ideasCells(), []);
 }
-p.ideas.rangeFrom = '2026-10-12'; p.ideas.rangeTo = '2026-10-14'; p.buildIdeasGrid();
+p.ideas.rangeFrom = addDays(today(), 1); p.ideas.rangeTo = addDays(today(), 3); p.buildIdeasGrid();
 assert.equal(p.ideasCells().length, 3);
 """)
 
@@ -120,7 +121,8 @@ assert.equal(p.ideasCells().length, 3);
         self.run_js(page_script('mealplan') + """
 async function api() { throw new Error('Provider request failed or timed out'); }
 const p = planPage(); p.openIdeas();
-p.toggleDay(p.ideasDays()[0]); p.toggleSlotColumn('dinner');
+p.ideas.grid = {}; p.ideas.rangeFrom = today(); p.ideas.rangeTo = addDays(today(), 1); p.ideas.length = 'custom'; p.buildIdeasGrid();
+p.ideas.grid[today()].dinner = false; p.toggleSlotColumn('dinner');
 p.getIdeas().catch(() => {}).then(() => {
   assert.match(p.ideas.error, /Provider request failed or timed out/);
   assert.match(p.ideas.error, /try again/);

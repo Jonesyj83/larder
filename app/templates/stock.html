@@ -167,8 +167,12 @@ function stockPage() {
       } catch (err) { oops(err); }
     },
     async toShopping(s) {
+      const raw = prompt('How much ' + s.name + ' do you want on the list? Enter the amount in ' + s.unit + '.', '1');
+      if (raw === null) return;
+      const amount = Number(raw);
+      if (!Number.isFinite(amount) || amount <= 0) { toast('Enter an amount above zero'); return; }
       try {
-        await api('/api/shopping', { method: 'POST', body: { product_id: s.product_id } });
+        await api('/api/shopping', { method: 'POST', body: { product_id: s.product_id, amount, unit_id: s.unit_id } });
         toast(s.name + ' added to the shopping list');
       } catch (e) { oops(e); }
     },

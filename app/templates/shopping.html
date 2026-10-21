@@ -31,10 +31,15 @@
           <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
           <span class="muted small" x-text="i.unit ? qty(i.amount, i.unit) : num(i.amount)"></span>
           <span class="pill" x-show="!i.product_id">not a product</span>
+          <select class="small" x-show="!i.product_id" x-model="i.unitChoice" :disabled="!!i.unit_id" aria-label="Unit for new product">
+            <option value="">Choose a stock unit</option>
+            <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+          </select>
           <div class="small muted" x-show="i.note" x-text="i.note"></div>
             <div class="small muted"><span x-show="i.origin_unknown">Origin not recorded. </span><template x-for="(source, idx) in (i.sources || [])" :key="idx"><span x-text="({manual: 'Manual addition', meal_plan: 'Meal plan', recipe: 'Recipe', low_stock: 'Low stock', suggestion: 'Suggested recipe'})[source.kind] + (source.label ? ': ' + source.label : '') + ' (' + num(source.amount) + ') '"></span></template></div>
         </div>
         <button class="small" x-show="i.product_id" @click="bought(i)" title="Add to stock and remove from list">Got it</button>
+        <button class="small" x-show="!i.product_id" @click="makeProduct(i)">Create product &amp; add to stock</button>
         <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>
       </div>
     </template>
@@ -53,7 +58,7 @@ function shoppingPage() {
       this.load();
     },
     async load() {
-      try { this.items = await api('/api/shopping'); } catch (e) { oops(e); }
+      try { this.items = (await api('/api/shopping')).map(i => ({...i, unitChoice: i.unit_id || ''})); } catch (e) { oops(e); }
     },
     async add() {
       const name = this.text.trim();
@@ -80,6 +85,18 @@ function shoppingPage() {
         toast(i.label + ' added to stock');
         this.load();
       } catch (e) { oops(e); }
+    },
+    async makeProduct(i) {
+      const unit_id = Number(i.unitChoice || i.unit_id);
+      if (!unit_id) { toast('Choose a stock unit first'); return; }
+      const unit = i.unit || this.units.find(u => u.id == unit_id)?.name || 'unit';
+      if (!confirm('Create ' + i.label + ' as a product and add ' + qty(i.amount, unit) + ' to stock?')) return;
+      try {
+        await api('/api/shopping/' + i.id + '/make-product', {method: 'POST', body: {unit_id}});
+      } catch (e) { oops(e); return; }
+      toast(i.label + ' is now in stock');
+      try { this.products = await api('/api/products'); } catch (e) {}
+      this.load();
     },
     async remove(i) {
       try { await api('/api/shopping/' + i.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }

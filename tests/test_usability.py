@@ -249,6 +249,12 @@ assert.equal(portionFactor(), 1.0);
         r = subprocess.run(['node'], input=pre+script+'\n'+body, text=True, capture_output=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_stock_shortcut_asks_for_quantity_in_the_stock_unit(self):
+        text = (ROOT / 'app/templates/stock.html').read_text()
+        self.assertIn('How much ' + "' + s.name", text)
+        self.assertIn('unit_id: s.unit_id', text)
+        self.assertIn('Number.isFinite(amount)', text)
+
     def test_stock_page_counts_and_colour_coding_javascript(self):
         script = (ROOT/'app/static/app.js').read_text()
         stock = (ROOT/'app/templates/stock.html').read_text().split('<script>')[1].split('</script>')[0]
