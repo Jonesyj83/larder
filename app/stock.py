@@ -8,6 +8,11 @@ class StockError(Exception):
     pass
 
 
+def purchase_history(db, product_id):
+    return rows(db.execute("""SELECT * FROM stock_log WHERE product_id=? AND kind='purchase'
+        ORDER BY at, id""", (product_id,)))
+
+
 def get_product(db, product_id):
     p = row(db.execute("SELECT * FROM products WHERE id = ?", (product_id,)))
     if not p:

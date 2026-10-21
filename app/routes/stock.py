@@ -161,8 +161,7 @@ def edit_entry(entry_id: int, data: EntryEdit, db=Depends(get_db), user=Depends(
 
 @router.get("/price-history/{product_id}")
 def price_history(product_id: int, db=Depends(get_db), user=Depends(current_user)):
-    return rows(db.execute("""SELECT * FROM stock_log WHERE product_id=? AND kind='purchase'
-        ORDER BY at, id""", (product_id,)))
+    return st.purchase_history(db, product_id)
 
 
 @router.get("/spending")

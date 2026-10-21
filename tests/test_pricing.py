@@ -188,6 +188,40 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.post('/api/pricing/products/999/link', json=body)).status_code, 404)
         self.assertEqual((await self.client.post(url, json=dict(body, store='unknown'))).status_code, 404)
 
+    async def test_product_history_medians_specials_and_purchases(self):
+        url = '/api/pricing/products/1/history'
+        self.assertEqual((await self.client.get(url)).json(), {'stores': [], 'purchases': []})
+        self.assertEqual((await self.client.get('/api/pricing/products/999/history')).status_code, 404)
+        link = pricing.link_product(self.db, 1, 'coles', '123', 'Milk', 1)
+        empty = pricing.link_product(self.db, 1, 'iga', '456', 'Milk', 1)
+        self.db.execute("UPDATE store_settings SET enabled=0 WHERE store='iga'")
+        # Insert out of chronological order, including a raised 'was' price,
+        # a real saving, an ordinary price, and an unavailable check.
+        for day, price, special, was in [(5, 10, True, 14), (1, 10, False, None),
+                (2, 10, False, None), (3, 7, True, 10), (4, None, True, 10),
+                (6, 9.5, True, 12), (7, 9.49, True, 12), (8, 10, False, None)]:
+            pricing.record_price(self.db, link, dict(CANDIDATE, price=price, on_special=special, was_price=was))
+            self.db.execute("UPDATE store_price_checks SET checked_at=? WHERE id=(SELECT MAX(id) FROM store_price_checks)",
+                            (f'2026-10-{day:02d} 12:00:00',))
+        self.db.execute("INSERT INTO stock_log(product_id,kind,amount,price,at) VALUES(1,'purchase',2,20,'2026-10-03')")
+        self.db.execute("INSERT INTO stock_log(product_id,kind,amount,price,at) VALUES(1,'purchase',1,0,'2026-10-01')")
+        self.db.execute("INSERT INTO stock_log(product_id,kind,amount,price) VALUES(1,'consume',-1,10)")
+        self.db.commit()
+        response = await self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        coles, iga = data['stores']
+        self.assertEqual(coles['typical_price'], 10)
+        self.assertEqual([c['price'] for c in coles['history']], [10, 10, 7, None, 10, 9.5, 9.49, 10])
+        self.assertEqual([c['fake_special'] for c in coles['history']], [False, False, False, False, True, True, False, False])
+        self.assertTrue(coles['history'][4]['on_special'])
+        self.assertEqual(coles['history'][4]['was_price'], 14)
+        self.assertEqual(iga['id'], empty)
+        self.assertFalse(iga['enabled'])
+        self.assertIsNone(iga['typical_price'])
+        self.assertEqual(iga['history'], [])
+        self.assertEqual([p['price'] for p in data['purchases']], [0, 20])
+
     async def test_creation_matches_only_unambiguous_names_and_enabled_stores(self):
         self.db.execute("UPDATE store_settings SET enabled=0 WHERE store='iga'")
         self.db.commit()
@@ -281,3 +315,82 @@ class StoreParsers(unittest.TestCase):
                 self.assertTrue(stores.search_aldi('Dairy Milk').failed)
         with self.assertLogs(level='WARNING'):
             self.assertTrue(stores.search_iga('Milk', postcode='6000').failed)
+
+
+class ProductsHistoryLogic(unittest.TestCase):
+    def test_lazy_history_empty_chart_and_plotting(self):
+        import re
+        import subprocess
+        template = (Path(__file__).resolve().parents[1] / 'app/templates/products.html').read_text()
+        self.assertIn('<template x-if="historyChart">', template)
+        script = re.findall(r'<script>(.*?)</script>', template, re.S)[0]
+        program = r'''
+const assert = require('node:assert/strict');
+const calls = [];
+let history = {stores:[], purchases:[]};
+let resolveHistory;
+let delayed = false;
+const api = async path => {
+  calls.push(path);
+  if (path.endsWith('/history')) {
+    if (delayed) return new Promise(resolve => {resolveHistory = resolve;});
+    return history;
+  }
+  if (path === '/api/products/1') return {id:1, barcodes:[]};
+  return [];
+};
+const oops = e => {throw e;};
+(async () => {
+  const page = productsPage();
+  await page.load();
+  await page.edit(null);
+  assert.ok(!calls.some(p => p.endsWith('/history')));
+  assert.equal(page.historyChart, null);
+  await page.edit({id:1});
+  assert.equal(calls.filter(p => p.endsWith('/history')).length, 1);
+  assert.equal(page.historyChart, null);
+  const check = {id:1, price:10, checked_at:'2026-10-01 12:00:00', fake_special:true};
+  history = {stores:[{store:'coles', enabled:1, history:[check]},
+    {store:'iga', enabled:0, history:[{...check, price:100}]}],
+    purchases:[{id:2, price:0, at:'2026-10-02'}, {id:3, price:null, at:'2026-10-02'}]};
+  await page.edit({id:1});
+  const chart = page.historyChart;
+  assert.equal(chart.stores.length, 1);
+  assert.equal(chart.purchases.length, 1);
+  assert.equal(chart.low, '$0.00');
+  assert.equal(chart.high, '$10.00');
+  assert.match(chart.stores[0].points[0].label, /not really cheaper than usual/);
+  assert.ok(Number.isFinite(chart.purchases[0].x));
+  const element = tag => ({tag, children:[], attrs:{},
+    setAttribute(key, value) {this.attrs[key] = value;},
+    appendChild(child) {this.children.push(child);},
+    replaceChildren() {this.children = [];}});
+  global.document = {createElementNS: (namespace, tag) => {
+    assert.equal(namespace, 'http://www.w3.org/2000/svg');
+    return element(tag);
+  }};
+  const svg = element('svg');
+  page.drawHistory(svg, chart);
+  assert.equal(svg.children.filter(e => e.tag === 'polyline').length, 1);
+  const circles = svg.children.filter(e => e.tag === 'circle');
+  assert.equal(circles.length, 2);
+  assert.equal(circles[0].attrs.fill, 'var(--card)');
+  assert.match(circles[0].children[0].textContent, /not really cheaper than usual/);
+  page.drawHistory(svg, null);
+  assert.equal(svg.children.length, 0);
+  const single = page.buildHistoryChart({stores:[], purchases:[{id:1, price:0, at:'2026-10-01'}]});
+  assert.equal(single.purchases[0].x, 298);
+  assert.equal(single.purchases[0].y, 95);
+  assert.equal(page.buildHistoryChart({stores:[], purchases:[{price:null, at:'2026-10-01'}]}), null);
+  delayed = true;
+  const pending = page.edit({id:1});
+  await new Promise(resolve => setImmediate(resolve));
+  await page.edit(null);
+  resolveHistory(history);
+  await pending;
+  assert.equal(page.form.id, null);
+  assert.equal(page.historyChart, null);
+})().catch(e => {console.error(e); process.exit(1);});
+'''
+        result = subprocess.run(['node'], input=script + program, text=True, capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)

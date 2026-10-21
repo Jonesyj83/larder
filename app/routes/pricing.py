@@ -1,4 +1,5 @@
 import logging
+from statistics import median
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -7,6 +8,7 @@ from ..auth import current_user
 from ..db import get_db, row, rows
 from .. import pricing
 from ..pricing.stores import STORES
+from ..stock import purchase_history
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pricing", tags=["pricing"], dependencies=[Depends(current_user)])
@@ -90,3 +92,22 @@ def product_prices(product_id: int, db=Depends(get_db)):
         link["latest_check"] = row(db.execute("""SELECT * FROM store_price_checks WHERE link_id=?
             ORDER BY checked_at DESC,id DESC LIMIT 1""", (link["id"],)))
     return links
+
+
+@router.get("/products/{product_id}/history")
+def product_history(product_id: int, db=Depends(get_db)):
+    check_product(db, product_id)
+    links = rows(db.execute("""SELECT l.*, COALESCE(s.enabled,0) AS enabled
+        FROM product_store_links l LEFT JOIN store_settings s ON s.store=l.store
+        WHERE l.product_id=? ORDER BY l.store""", (product_id,)))
+    for link in links:
+        checks = rows(db.execute("""SELECT * FROM store_price_checks WHERE link_id=?
+            ORDER BY checked_at,id""", (link["id"],)))
+        prices = [check["price"] for check in checks if check["price"] is not None]
+        typical = median(prices) if prices else None
+        link["typical_price"] = typical
+        for check in checks:
+            check["fake_special"] = bool(check["on_special"] and check["price"] is not None
+                and typical is not None and abs(check["price"] - typical) <= typical * .05 + 1e-9)
+        link["history"] = checks
+    return {"stores": links, "purchases": purchase_history(db, product_id)}
