@@ -15,10 +15,10 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
 <script src="{{ base_path }}/static/app.js?v=2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
-<body>
+<body{% if user %} class="with-sidebar"{% endif %}>
 {% if user %}
 {% set here = request.url.path %}
-<header class="top">
+<header class="sidebar">
   <a class="brand" href="{{ base_path }}/">Larder</a>
   <nav aria-label="Main navigation">
   <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" aria-current="{{ 'page' if here == base_path + '/' or here == base_path else 'false' }}" href="{{ base_path }}/">Overview</a>
@@ -29,7 +29,22 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
   <a class="nav {{ 'on' if here.startswith(base_path + '/recipes') }}" aria-current="{{ 'page' if here.startswith(base_path + '/recipes') else 'false' }}" href="{{ base_path }}/recipes">Recipes</a>
   <a class="nav {{ 'on' if here == base_path + '/mealplan' }}" aria-current="{{ 'page' if here == base_path + '/mealplan' else 'false' }}" href="{{ base_path }}/mealplan">Meal plan</a>
   <a class="nav {{ 'on' if here == base_path + '/manage' }}" aria-current="{{ 'page' if here == base_path + '/manage' else 'false' }}" href="{{ base_path }}/manage">Locations &amp; units</a>
+  <div class="memory-nav">
   <a class="nav {{ 'on' if here == base_path + '/memory' }}" aria-current="{{ 'page' if here == base_path + '/memory' else 'false' }}" href="{{ base_path }}/memory">Memory</a>
+  <details class="memory-kinds" {{ 'open' if here == base_path + '/memory' }}>
+    <summary aria-label="Memory categories" title="Memory categories">Categories</summary>
+    <div class="memory-links">
+      <a href="{{ base_path }}/memory?kind=like">Likes</a>
+      <a href="{{ base_path }}/memory?kind=dislike">Dislikes</a>
+      <a href="{{ base_path }}/memory?kind=maybe">Maybes</a>
+      <a href="{{ base_path }}/memory?kind=condition">Conditions</a>
+      <a href="{{ base_path }}/memory?kind=habit">Habits</a>
+      <a href="{{ base_path }}/memory?kind=buying_pattern">Buying patterns</a>
+      <a href="{{ base_path }}/memory?kind=recipe_note">Recipe notes</a>
+      <a href="{{ base_path }}/memory?kind=cost_note">Cost notes</a>
+    </div>
+  </details>
+  </div>
   </nav>
   <div class="account">
   <a class="nav {{ 'on' if here == base_path + '/settings' }}" aria-current="{{ 'page' if here == base_path + '/settings' else 'false' }}" href="{{ base_path }}/settings" aria-label="Settings for {{ user.username }}">Settings</a>

@@ -79,6 +79,8 @@ function memoryPage() {
     ],
     async init() {
       this.newNotes = Object.fromEntries(this.kinds.map(group => [group.kind, '']));
+      const kind = new URLSearchParams(location.search).get('kind');
+      if (this.kinds.some(group => group.kind === kind)) this.expanded = {[kind]: true};
       await this.load();
     },
     async load() {

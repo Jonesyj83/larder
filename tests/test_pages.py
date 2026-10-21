@@ -94,6 +94,13 @@ async def check():
             html = templates.env.get_template(template).render(request=request, title=title,
                 user={'id': 1, 'username': 'render-test', 'portion_size': 'regular', 'is_admin': True})
             tags = inspect(html)
+            links = {a.get('href') for t, a in tags if t == 'a'}
+            for destination in ('/', '/stock', '/expiring', '/scan', '/shopping', '/recipes',
+                                '/mealplan', '/manage', '/memory', '/settings'):
+                assert BASE_PATH + destination in links, (route, destination)
+            for kind in ('like', 'dislike', 'maybe', 'condition', 'habit', 'buying_pattern',
+                         'recipe_note', 'cost_note'):
+                assert BASE_PATH + '/memory?kind=' + kind in links, (route, kind)
             selected = [a for t, a in tags if t == 'a' and 'on' in a.get('class', '').split()]
             # Products isn't one of the main tabs any more - reached via a link from Stock -
             # so visiting it leaves nothing highlighted in the top nav, unlike every other page.
@@ -101,6 +108,8 @@ async def check():
                 assert selected == [], (route, selected)
             else:
                 assert len(selected) == 1 and selected[0]['href'] == BASE_PATH + route, (route, selected)
+            current = [a for t, a in tags if t == 'a' and a.get('aria-current') == 'page']
+            assert current == selected, (route, current, selected)
             if template == 'settings.html':
                 regular = templates.env.get_template(template).render(request=request, title=title,
                     user={'id': 2, 'username': 'member', 'portion_size': 'small', 'is_admin': False})
