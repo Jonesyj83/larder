@@ -3,7 +3,7 @@
 <div class="expiry-page" x-data="expiringPage()" x-init="load()">
   <div class="row page-head">
     <h1 class="grow">Use by</h1>
-    <a href="{{ base_path }}/stock">Back to stock</a>
+    <a href="{{ base_path }}/">Back to stock</a>
   </div>
 
   <div class="card inventory">
@@ -60,7 +60,7 @@
         <p class="inset-note muted small">Open an item's stock entry to add a best by / use by date.</p>
         <template x-for="s in undated" :key="s.product_id">
           <div class="stock-item">
-            <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><a :href="'{{ base_path }}/stock?q=' + encodeURIComponent(s.name)" x-text="s.name"></a></div>
+            <div class="stock-food"><img x-show="s.picture" :src="pic(s.picture)" class="thumb" alt=""><a :href="'{{ base_path }}/?q=' + encodeURIComponent(s.name)" x-text="s.name"></a></div>
             <span class="stock-quantity" x-text="qty(s.amount, s.unit, s.unit_plural)"></span>
             <span class="stock-place" x-text="s.locations || '—'"></span>
             <span class="muted small">no date set</span>

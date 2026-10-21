@@ -11,27 +11,26 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
 <meta name="theme-color" content="#171d25">
 <link rel="icon" href="{{ base_path }}/static/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ base_path }}/icon-192.png">
-<link rel="stylesheet" href="{{ base_path }}/static/style.css?v=8">
+<link rel="stylesheet" href="{{ base_path }}/static/style.css?v=9">
 <script src="{{ base_path }}/static/app.js?v=2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
-<body{% if user %} class="with-sidebar"{% endif %}>
+<body>
 {% if user %}
 {% set here = request.url.path %}
 {% set memory_kind = (request|attr('query_params')|default({})).get('kind') %}
-<header class="sidebar">
+<header class="topbar">
   <a class="brand" href="{{ base_path }}/">Larder<small>The household kitchen</small></a>
   <nav aria-label="Main navigation">
-  <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" aria-current="{{ 'page' if here == base_path + '/' or here == base_path else 'false' }}" href="{{ base_path }}/">Overview</a>
-  <a class="nav {{ 'on' if here == base_path + '/stock' }}" aria-current="{{ 'page' if here == base_path + '/stock' else 'false' }}" href="{{ base_path }}/stock">Stock</a>
+  <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" aria-current="{{ 'page' if here == base_path + '/' or here == base_path else 'false' }}" href="{{ base_path }}/">Stock</a>
   <a class="nav {{ 'on' if here == base_path + '/expiring' }}" aria-current="{{ 'page' if here == base_path + '/expiring' else 'false' }}" href="{{ base_path }}/expiring">Use by</a>
   <a class="nav {{ 'on' if here == base_path + '/scan' }}" aria-current="{{ 'page' if here == base_path + '/scan' else 'false' }}" href="{{ base_path }}/scan">Scan</a>
   <a class="nav {{ 'on' if here == base_path + '/shopping' }}" aria-current="{{ 'page' if here == base_path + '/shopping' else 'false' }}" href="{{ base_path }}/shopping">Shopping</a>
   <a class="nav {{ 'on' if here.startswith(base_path + '/recipes') }}" aria-current="{{ 'page' if here.startswith(base_path + '/recipes') else 'false' }}" href="{{ base_path }}/recipes">Recipes</a>
   <a class="nav {{ 'on' if here == base_path + '/mealplan' }}" aria-current="{{ 'page' if here == base_path + '/mealplan' else 'false' }}" href="{{ base_path }}/mealplan">Meal plan</a>
   <a class="nav {{ 'on' if here == base_path + '/manage' }}" aria-current="{{ 'page' if here == base_path + '/manage' else 'false' }}" href="{{ base_path }}/manage">Locations &amp; units</a>
-  <div class="memory-nav">
-    <a class="nav {{ 'on' if here == base_path + '/memory' and not memory_kind }}" aria-current="{{ 'page' if here == base_path + '/memory' and not memory_kind else 'false' }}" href="{{ base_path }}/memory">Memory</a>
+  <details class="memory-nav" x-data @click.outside="$el.open = false" @keydown.escape.window="$el.open = false">
+    <summary class="nav {{ 'on' if here == base_path + '/memory' }}">Memory</summary>
     <div class="memory-links" aria-label="Memory categories">
       <a class="{{ 'on' if memory_kind == 'like' }}" aria-current="{{ 'page' if memory_kind == 'like' else 'false' }}" href="{{ base_path }}/memory?kind=like">Likes</a>
       <a class="{{ 'on' if memory_kind == 'dislike' }}" aria-current="{{ 'page' if memory_kind == 'dislike' else 'false' }}" href="{{ base_path }}/memory?kind=dislike">Dislikes</a>
@@ -42,7 +41,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
       <a class="{{ 'on' if memory_kind == 'recipe_note' }}" aria-current="{{ 'page' if memory_kind == 'recipe_note' else 'false' }}" href="{{ base_path }}/memory?kind=recipe_note">Recipe notes</a>
       <a class="{{ 'on' if memory_kind == 'cost_note' }}" aria-current="{{ 'page' if memory_kind == 'cost_note' else 'false' }}" href="{{ base_path }}/memory?kind=cost_note">Cost notes</a>
     </div>
-  </div>
+  </details>
   </nav>
   <div class="account">
   <span class="account-name">{{ user.username }}</span>

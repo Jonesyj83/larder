@@ -30,8 +30,8 @@ async def check():
     from starlette.requests import Request
     from app.main import app, templates, PAGES, BASE_PATH
 
-    assert PAGES['/'] == ('overview.html', 'Overview')
-    assert PAGES['/stock'] == ('stock.html', 'Stock')
+    assert PAGES['/'] == ('stock.html', 'Stock')
+    assert '/stock' not in PAGES
 
     class Tags(HTMLParser):
         def __init__(self):
@@ -94,17 +94,23 @@ async def check():
             html = templates.env.get_template(template).render(request=request, title=title,
                 user={'id': 1, 'username': 'render-test', 'portion_size': 'regular', 'is_admin': True})
             tags = inspect(html)
+            assert any(t == 'header' and a.get('class') == 'topbar' for t, a in tags)
+            dropdown = next(a for t, a in tags if t == 'details' and a.get('class') == 'memory-nav')
+            assert 'open' not in dropdown
+            assert dropdown['@click.outside'] == '$el.open = false'
+            memory_summary = next(a for t, a in tags if t == 'summary' and 'nav' in a.get('class', '').split())
+            assert ('on' in memory_summary['class'].split()) == (route == '/memory')
             links = {a.get('href') for t, a in tags if t == 'a'}
-            for destination in ('/', '/stock', '/expiring', '/scan', '/shopping', '/recipes',
-                                '/mealplan', '/manage', '/memory', '/settings'):
+            assert BASE_PATH + '/stock' not in links
+            for destination in ('/', '/expiring', '/scan', '/shopping', '/recipes',
+                                '/mealplan', '/manage', '/settings'):
                 assert BASE_PATH + destination in links, (route, destination)
             for kind in ('like', 'dislike', 'maybe', 'condition', 'habit', 'buying_pattern',
                          'recipe_note', 'cost_note'):
                 assert BASE_PATH + '/memory?kind=' + kind in links, (route, kind)
             selected = [a for t, a in tags if t == 'a' and 'on' in a.get('class', '').split()]
-            # Products isn't one of the main tabs any more - reached via a link from Stock -
-            # so visiting it leaves nothing highlighted in the top nav, unlike every other page.
-            if route == '/products':
+            # Products is reached from Stock; Memory uses a dropdown summary.
+            if route in ('/products', '/memory'):
                 assert selected == [], (route, selected)
             else:
                 assert len(selected) == 1 and selected[0]['href'] == BASE_PATH + route, (route, selected)
@@ -124,6 +130,15 @@ async def check():
                                   ('x-data', 'x-init', 'x-show', 'x-if', 'x-text', 'x-model', 'x-model.number')):
                         expressions.append('new Function(' + json.dumps(value) + ');')
             subprocess.run(['node'], input='\n'.join(expressions), text=True, check=True, capture_output=True)
+        assert (await client.get('/stock')).status_code == 404
+        landing = (await client.get('/')).text
+        assert 'stockPage()' in landing and '<title>Stock - Larder</title>' in landing
+        for kind in ('like', 'dislike', 'maybe', 'condition', 'habit', 'buying_pattern',
+                     'recipe_note', 'cost_note'):
+            response = await client.get('/memory?kind=' + kind)
+            active = [a['href'] for t, a in inspect(response.text)
+                      if t == 'a' and a.get('aria-current') == 'page']
+            assert active == [BASE_PATH + '/memory?kind=' + kind], (kind, active)
         manifest = (await client.get('/manifest.webmanifest')).json()
         assert manifest['scope'] == BASE_PATH + '/'
         assert manifest['start_url'] == BASE_PATH + '/'
@@ -207,61 +222,6 @@ async def check():
         await client.post('/api/auth/login', json={'username':'member-test','password':'temporary-test-password'})
         me = (await client.get('/api/me')).json()
         assert me['date_format'] == 'DD/MM/YYYY' and me['measurement_system'] == 'metric'
-        from datetime import date, timedelta
-        start = date.today().isoformat()
-        seeded = await client.post('/api/products', json={'name': 'Dashboard milk', 'unit_id': units[0]['id'], 'min_stock': 5})
-        assert seeded.status_code == 201, seeded.text
-        seeded_id = seeded.json()['id']
-        for offset in (-1, 1, 8):
-            r = await client.post('/api/stock/purchase', json={'product_id': seeded_id, 'amount': 1,
-                'expires_on': (date.today() + timedelta(days=offset)).isoformat()})
-            assert r.status_code == 200, r.text
-        r = await client.post('/api/mealplan', json={'day': start, 'slot': 'lunch', 'note': 'Dashboard lunch'})
-        assert r.status_code == 201, r.text
-        await client.post('/api/shopping', json={'name': 'Dashboard bread'})
-        await client.post('/api/memory', json={'kind': 'like', 'content': 'Dashboard crunchy toast'})
-        paths = ['/api/stock/expiring?days=-1', '/api/stock/expiring', '/api/stock/missing',
-                 '/api/mealplan?start=' + start + '&days=2', '/api/shopping', '/api/memory']
-        payloads = {path: (await client.get(path)).json() for path in paths}
-        html = (await client.get('/')).text
-        tags = inspect(html)
-        assert sum(t == 'section' and a.get('class') == 'card' for t, a in tags) == 5
-        content_tags = inspect(html.split('<main id="main">')[1].split('</main>')[0])
-        texts = [a['x-text'] for _, a in content_tags if 'x-text' in a]
-        script = re.findall(r'<script[^>]*>(.*?)</script>', html, re.S)[-1]
-        helpers = (ROOT / 'app/static/app.js').read_text()
-        compact = helpers[helpers.index('function compactNote'):]
-        program = "const assert = require('node:assert/strict');\n"
-        program += 'const payloads = ' + json.dumps(payloads) + ';\n'
-        program += 'const today = () => ' + json.dumps(start) + ';\n'
-        program += "const addDays = (day,n) => new Date(Date.parse(day)+n*86400000).toISOString().slice(0,10);\n"
-        program += "const api = async path => {assert.ok(path in payloads, path); return payloads[path];}; const oops = e => {throw e;};\n"
-        program += compact + script
-        program += 'const expressions = ' + json.dumps(texts) + ';\n'
-        program += """
-(async () => {
- const p = overviewPage(); await p.init(); assert.equal(p.loaded, true);
- const render = (expr, extra={}) => Function('p','extra','with(p) {with(extra) {return (' + expr + ');}}')(p,extra);
- const rendered = expressions.map(expr => {
-   if (expr.includes('meal.slot')) return render(expr, {meal: p.meals.find(m => m.note === 'Dashboard lunch')});
-   if (expr.includes('note.content')) return render(expr, {note: p.notes[0]});
-   if (expr.includes('day.label')) return render(expr, {day: p.mealDays[0]});
-   return render(expr);
- });
- assert.ok(rendered.includes('1 overdue · 1 going off soon'));
- assert.ok(rendered.includes(p.lowStock + ' products below minimum stock')); assert.equal(p.lowStock, 1);
- assert.ok(rendered.includes('lunch: Dashboard lunch'));
- assert.ok(rendered.includes(payloads['/api/shopping'].filter(i => !i.done).length + ' items still to buy'));
- assert.ok(rendered.includes('Dashboard crunchy toast'));
- assert.equal(p.mealsFor(today()).some(m => m.note === 'Dashboard lunch'), true);
- payloads['/api/memory'] = Array.from({length: 8}, (_, id) => ({id, content: 'note'}));
- payloads[Object.keys(payloads).find(k => k.startsWith('/api/mealplan'))] = {meals: []};
- await p.init(); assert.equal(p.notes.length, 5); assert.equal(p.mealsFor(today()).length, 0);
-})().catch(e => {console.error(e); process.exit(1)});
-"""
-        assert 'Nothing planned yet' in html
-        result = subprocess.run(['node'], input=program, text=True, capture_output=True, timeout=15)
-        assert result.returncode == 0, result.stderr
     print('Page rendering, bindings, auth, stock, shopping and prefix checks passed')
 
 
