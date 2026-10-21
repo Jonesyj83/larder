@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="expiringPage()" x-init="load()">
+<div class="expiry-page" x-data="expiringPage()" x-init="load()">
   <div class="row page-head">
     <h1 class="grow">Use by</h1>
     <a href="{{ base_path }}/stock">Back to stock</a>
   </div>
 
   <div class="card inventory">
+    <div class="stock-head" aria-hidden="true"><span>Food</span><span>On hand</span><span>Location</span><span>Date</span><span></span></div>
     <p class="muted" x-show="loaded && !past.length && !soon.length && !fresh.length && !undated.length" x-cloak>
       Nothing with a date set is overdue or going off soon.
     </p>

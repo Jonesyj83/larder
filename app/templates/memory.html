@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="memoryPage()">
+<div class="configure memory-page" x-data="memoryPage()">
   <div class="row page-head"><h1 class="grow" x-text="activeGroup ? activeGroup.label : 'Memory'"></h1></div>
   <p class="muted" x-show="!activeGroup">Household food preferences, habits and notes.</p>
   <label class="field">Search notes<input type="search" x-model="query" @input.debounce.250ms="load()" placeholder="Search all notes"></label>
@@ -25,10 +25,10 @@
       </div>
     </template>
     <button class="link-head small" x-show="!searching && !showAll && notesForCurrent.length > 5" @click="showAll = true" x-text="'Show all ' + notesForCurrent.length"></button>
-    <form class="row" @submit.prevent="add(activeKind || newKind)">
+    <form class="row space-top" @submit.prevent="add(activeKind || newKind)">
       <label class="field" x-show="!activeKind"><span>Category</span><select x-model="newKind"><template x-for="group in kinds" :key="group.kind"><option :value="group.kind" x-text="group.label"></option></template></select></label>
       <label class="field grow"><span x-text="activeGroup ? 'Add ' + activeGroup.label.toLowerCase() + ' note' : 'Add a note'"></span><input x-model="newContent" required></label>
-      <button class="small" :disabled="busy">Add</button>
+      <button class="primary small" :disabled="busy">Add</button>
     </form>
   </div>
 </div>

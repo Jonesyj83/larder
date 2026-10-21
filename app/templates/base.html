@@ -11,7 +11,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
 <meta name="theme-color" content="#171d25">
 <link rel="icon" href="{{ base_path }}/static/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ base_path }}/icon-192.png">
-<link rel="stylesheet" href="{{ base_path }}/static/style.css?v=3">
+<link rel="stylesheet" href="{{ base_path }}/static/style.css?v=7">
 <script src="{{ base_path }}/static/app.js?v=2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
@@ -20,7 +20,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
 {% set here = request.url.path %}
 {% set memory_kind = (request|attr('query_params')|default({})).get('kind') %}
 <header class="sidebar">
-  <a class="brand" href="{{ base_path }}/">Larder</a>
+  <a class="brand" href="{{ base_path }}/">Larder<small>The household kitchen</small></a>
   <nav aria-label="Main navigation">
   <a class="nav {{ 'on' if here == base_path + '/' or here == base_path }}" aria-current="{{ 'page' if here == base_path + '/' or here == base_path else 'false' }}" href="{{ base_path }}/">Overview</a>
   <a class="nav {{ 'on' if here == base_path + '/stock' }}" aria-current="{{ 'page' if here == base_path + '/stock' else 'false' }}" href="{{ base_path }}/stock">Stock</a>
@@ -45,6 +45,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
   </div>
   </nav>
   <div class="account">
+  <span class="account-name">{{ user.username }}</span>
   <a class="nav {{ 'on' if here == base_path + '/settings' }}" aria-current="{{ 'page' if here == base_path + '/settings' else 'false' }}" href="{{ base_path }}/settings" aria-label="Settings for {{ user.username }}">Settings</a>
   <a class="nav" href="#" onclick="logout(); return false">Log out</a>
   </div>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div x-data="loginPage()" class="login">
-  <div class="page-head"><h1>Larder</h1></div>
+  <div class="page-head"><h1>Larder</h1><p class="login-intro">Your kitchen, in order.</p></div>
   <div class="card">
     <p x-show="setup" x-cloak class="muted">First run. Make an account, it'll be the admin one.</p>
     <form @submit.prevent="go()">
@@ -9,7 +9,7 @@
       <input id="login-username" x-model="username" autocomplete="username" autofocus required>
       <label for="login-password">Password</label>
       <input id="login-password" type="password" x-model="password" :autocomplete="setup ? 'new-password' : 'current-password'" required>
-      <p class="bad small" x-text="err"></p>
+      <p class="bad small" role="alert" x-text="err"></p>
       <button class="primary" :disabled="busy" x-text="setup ? 'Create account' : 'Log in'"></button>
     </form>
   </div>

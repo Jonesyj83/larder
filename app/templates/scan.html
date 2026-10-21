@@ -1,7 +1,7 @@
 {% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
-<div x-data="scanPage()">
+<div class="configure scan-page" x-data="scanPage()">
   <div class="row page-head">
     <h1 class="grow">Scan</h1>
     <div class="tabs">
@@ -10,7 +10,7 @@
     </div>
   </div>
 
-  <div class="scanner">
+  <div class="scanner" aria-label="Barcode camera preview">
     <video x-ref="video" playsinline muted x-show="!picture"></video>
     <img class="found" x-show="picture" :src="picture" x-cloak>
     <div class="aim" x-show="scanning && !picture"></div>

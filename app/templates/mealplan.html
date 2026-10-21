@@ -1,7 +1,7 @@
 {% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
-<div x-data="planPage()">
+<div class="plan-page" x-data="planPage()">
   <div class="row page-head">
     <h1 class="grow">Meal plan</h1>
   </div>
@@ -20,8 +20,9 @@
       <div class="day" :class="d == today() && 'today'">
         <div class="row">
           <b class="grow small" x-text="dayName(d)"></b>
-          <button class="small" @click="openAdd(d)">+</button>
+          <button class="small" @click="openAdd(d)" :aria-label="'Add meal for ' + dayName(d)">+</button>
         </div>
+        <p class="empty-state" x-show="!meals.some(m => m.day === d)">Nothing planned yet</p>
         <template x-for="s in slots" :key="s">
           <div class="slot" x-show="mealsFor(d, s).length">
             <b x-text="s"></b>

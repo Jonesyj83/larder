@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="managePage()" x-init="load()">
+<div class="configure manage-page" x-data="managePage()" x-init="load()">
   <div class="row page-head"><h1>Locations &amp; units</h1></div>
 
   <h2>Locations</h2>
   <p class="muted small">Locations tell you where food is stored, such as Pantry, Fridge or Freezer. Dates come from each packet or the product’s usual shelf life.</p>
-  <div class="card">
+  <div class="card locations-form">
     <template x-for="l in locations" :key="l.id">
       <div class="manage-row">
         <label class="field">Location name<input class="grow" x-model="l.name"></label>

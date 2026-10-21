@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="shoppingPage()">
+<div class="shopping-page" x-data="shoppingPage()">
   <div class="row page-head">
     <h1 class="grow">Shopping list</h1>
     <button @click="addMissing()">Add what's running low</button>
@@ -21,7 +21,7 @@
     </datalist>
   </form>
 
-  <div class="card">
+  <div class="card list-surface">
     <p class="muted" x-show="!items.length">The list is empty.</p>
     <template x-for="i in items" :key="i.id">
       <div class="list-item" :style="i.done && 'opacity: .55'">
@@ -29,7 +29,7 @@
         <img x-show="i.picture" :src="pic(i.picture)" class="thumb">
         <div class="grow">
           <span x-text="i.label" :style="i.done && 'text-decoration: line-through'"></span>
-          <span class="muted small" x-text="i.unit ? qty(i.amount, i.unit) : num(i.amount)"></span>
+          <span class="shopping-amount" x-text="i.unit ? qty(i.amount, i.unit) : num(i.amount)"></span>
           <span class="pill" x-show="!i.product_id">not a product</span>
           <select class="small" x-show="!i.product_id" x-model="i.unitChoice" :disabled="!!i.unit_id" aria-label="Unit for new product">
             <option value="">Choose a stock unit</option>

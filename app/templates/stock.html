@@ -1,7 +1,7 @@
 {% from '_date_field.html' import date_field %}
 {% extends "base.html" %}
 {% block content %}
-<div x-data="stockPage()" x-init="load()" @stock-changed.window="load()">
+<div class="stock-page" x-data="stockPage()" x-init="load()" @stock-changed.window="load()">
   <div class="row page-head">
     <h1 class="grow">What’s in the kitchen</h1>
     <button class="primary" @click="adding = true">Add stock</button>
@@ -93,7 +93,7 @@
   <p class="small"><a href="{{ base_path }}/products">Manage products</a> · <a href="{{ base_path }}/scan">Scan an item</a></p>
 
   <h2>Recent</h2>
-  <div class="card small">
+  <div class="card small history-surface">
     <template x-for="g in history" :key="g.id">
       <div>
         <span class="muted" x-text="formatDate(g.at.slice(0, 10)) + ' ' + g.at.slice(11, 16)"></span>

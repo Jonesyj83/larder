@@ -20,7 +20,7 @@
     <p class="muted" x-show="loaded && recipes.length && !shown().length" x-cloak>No saved recipes match that filter.</p>
     <div class="recipe-grid">
       <template x-for="r in shown()" :key="r.id">
-        <a class="recipe-card" :href="BASE + '/recipes?id=' + r.id" @click.prevent="open(r.id)">
+        <a class="recipe-card" :class="r.can_make ? 'ready' : (r.missing_count >= 5 ? 'missing-many' : '')" :href="BASE + '/recipes?id=' + r.id" @click.prevent="open(r.id)">
           <div class="recipe-thumb" :class="{empty: !r.picture}">
             <img x-show="r.picture" :src="pic(r.picture)" alt="">
           </div>
@@ -41,7 +41,7 @@
   <template x-if="current">
     <div>
       <p><a href="{{ base_path }}/recipes" @click.prevent="close()">&larr; all recipes</a></p>
-      <div class="card">
+      <div class="card recipe-detail">
         <div class="recipe-banner" x-show="current.picture"><img :src="pic(current.picture)" alt=""></div>
         <div class="row">
           <h2 class="no-margin grow" x-text="current.name"></h2>
@@ -78,7 +78,7 @@
         </table>
         <div class="space-top row">
           <button x-show="!current.can_make" @click="toShopping()">Put missing on shopping list</button>
-          <button @click="cookOpen = true; cook.leftover = Math.max(0, Math.round((servings - portionFactor()) * 100) / 100) || ''; cook.location_id = ''">Cooked it (take from stock)</button>
+          <button class="primary" @click="cookOpen = true; cook.leftover = Math.max(0, Math.round((servings - portionFactor()) * 100) / 100) || ''; cook.location_id = ''">Cooked it (take from stock)</button>
           <button @click="planOpen = true">Add to meal plan</button>
           <span class="spacer grow"></span>
           <button @click="edit(current)">Edit</button>

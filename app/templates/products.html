@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div x-data="productsPage()" @stock-changed.window="load()">
+<div class="products-page" x-data="productsPage()" @stock-changed.window="load()">
   <div class="row page-head">
     <h1 class="grow">Products</h1>
     <button class="primary" @click="edit(null)">New product</button>
@@ -8,7 +8,7 @@
   <p class="muted small">The product catalogue includes food with no stock. Add or Use changes what is on hand; meal planning only records what you need.</p>
   <div class="toolbar"><label for="product-search">Find a product</label><input id="product-search" type="search" placeholder="Name of a product" x-model="q"></div>
 
-  <div class="card">
+  <div class="card list-surface">
     <p class="muted" x-show="loaded && !products.length" x-cloak>No products yet.</p>
     <p class="muted" x-show="loaded && products.length && !filtered().length" x-cloak>No products match. Try another name or clear the search.</p>
     <template x-for="p in filtered()" :key="p.id">
