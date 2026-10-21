@@ -17,6 +17,9 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
   a postcode, for when that part's finished.
 - Multiple shopping lists - Work, Home, Picnic, whatever's useful. Each one
   remembers its own items and its own matched prices.
+- A price history chart on each product - every store's price over time
+  plus what you actually paid. A special that's just the normal price
+  dressed up shows up as a hollow point instead of a loud warning.
 
 ## 2026-10-21
 
