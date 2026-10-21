@@ -4,8 +4,23 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
 
 ## 2026-10-21
 
-- Memory now opens one category at a time from the sidebar instead of showing
+- Rough edges knocked off the whole look - softer depth, a real type scale,
+  numbers that actually stand out when they matter, nicer buttons and
+  tables. Dialled the biggest numbers back down after the first pass ran
+  a bit large.
+- Moved the whole app's navigation into a sidebar, then settled on a plain
+  top bar instead - the sidebar looked flashier but a horizontal bar suits
+  this app better day to day. Memory's eight categories are a dropdown off
+  the top bar now.
+- Took the Overview page back out. It looked nice but added a whole extra
+  page between opening the app and seeing what's actually in the kitchen.
+  Stock is the front page again, with its own quiet "N past date" line at
+  the top doing the same job Overview was trying to do.
+- Memory can open one category at a time from the nav instead of showing
   every category section together. Search still covers all notes.
+- Straightened out a batch of shopping list rows that were showing
+  "undefined" instead of where they came from - leftover labelling from
+  the old suggestion feature.
 
 - Taken out the built-in meal-idea and recipe-suggestion feature (the provider
   connections in Settings, the "Meal ideas" and "Suggest a recipe" buttons) -
@@ -13,10 +28,6 @@ What's changed, newest first. Not bothering with version numbers yet, just dates
 - Added a Memory page: likes, dislikes, maybes, conditions, habits, buying
   patterns, recipe notes and cost notes, searchable, grouped and collapsed so
   it doesn't turn into a wall of text as it fills up.
-- Added an Overview page as the new front page - use-by summary, low stock,
-  the next two days' meals, shopping list count and recent memory notes at a
-  glance, each linking through to the real page. Stock moved to its own
-  `/stock` page.
 - Added a "Work" location by default, for things kept away from home.
 - Purchase prices now stick around in the stock log after the stock itself is
   used up, so price history and a spending summary are both possible per

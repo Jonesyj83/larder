@@ -1,16 +1,25 @@
 # Larder
 
-Keeps track of what's in the fridge, freezer and cupboards. I'd been running Grocy for a
-while and it's a genuinely solid piece of software - properly thought out, does a lot, free.
-But it's built to do everything, and I only ever touched about a third of it. The rest of
-the screen was just stuff to work around: chores I wasn't going to track, equipment I don't
-own, a barcode/unit setup that wanted more fiddling than I had patience for on a weeknight.
-So I built Larder to just do the parts I actually use, in a way that fits how my house
-actually runs - small portions matter here more than most households, I'm away from home
-every second week on a rotating roster, and I wanted meal planning that works with what's
-already sitting in the freezer instead of pretending the fridge is empty.
-If your household is different, Grocy's flexibility might suit you better than this will -
-this is deliberately the smaller, opinionated version.
+Keeps track of what's in the fridge, freezer and cupboards, what's on the shopping
+list, the recipes and the meal plan for the week. I'd been running Grocy for a while
+and it's genuinely solid software - properly thought out, does a lot, free. I only
+ever touched about a third of it, and kept working around the rest: chores I wasn't
+going to track, equipment I don't own, a barcode/unit setup that wanted more fiddling
+than I had patience for on a weeknight. So I built Larder to do the parts I actually
+use, in a way that fits how my house actually runs - small portions matter here more
+than most households, I'm away every second week on a rotating roster, and meal
+planning needed to work with what's already sitting in the freezer instead of
+pretending the fridge is empty.
+
+It's grown past "cut-down Grocy" since then. There's a household memory for the
+likes/dislikes/habits/conditions that come up in the kitchen, meal planning that
+thinks in batches (cook once, eat the leftovers across the week), purchase price
+history, and a small MCP server so a chat assistant can read and write the same data
+the web pages use. None of that lives inside a single page you have to go hunting
+for - it's built into the same stock/shopping/recipes/meal plan flow as everything
+else. If your household runs differently, Grocy's flexibility will probably suit you
+better - this is still the smaller, opinionated version, just a bit less small than
+it used to be.
 
 It's a FastAPI app with a single SQLite file. The frontend is plain HTML with Alpine.js,
 so there's no build step. [CHANGELOG.md](CHANGELOG.md) has what's new.
@@ -98,11 +107,15 @@ browser.
 ## Household memory and MCP
 
 The Memory page keeps household likes, dislikes, conditions, habits, buying patterns,
-recipe notes and cost notes. Edit notes inline or add and delete them manually.
-The dashboard supports manual recipes, meal planning and shopping lists.
+recipe notes and cost notes - things worth remembering about how the house eats that
+don't belong on any one product or recipe. Edit notes inline or add and delete them
+manually; search works across every category at once.
 
 A separate stdio MCP server exposes the REST API to your MCP client using a personal
-API key from Settings. See [the server setup guide](mcp_server/README.md).
+API key from Settings. See [the server setup guide](mcp_server/README.md). This is
+how an assistant actually keeps the Memory page useful day to day - reading what's
+in stock, writing down a new household preference, planning meals - rather than
+something you fill in by hand once and forget about.
 Purchase prices stay in the stock log after stock is consumed; the API provides
 product price history and spending totals. Work is included in the default locations.
 
@@ -136,6 +149,13 @@ for it are at `/docs`. Make a key in Settings and send it as `X-API-Key: your-ke
 
 Things I know are missing and might get to:
 
+- A simple page for the spending data that's already being tracked - the API can
+  already tell you what you've spent over the last N days and a product's price
+  history, there's just no screen that shows it to a human yet.
+- A proper receipt importer that actually handles Coles, Woolworths and Aldi
+  PDFs/eReceipts on its own, instead of the one-off script I used to get my own
+  data in. The matching-against-existing-products logic already works, it just
+  needs a real upload page instead of me hand-typing a receipt in.
 - A country and currency setting, with a list of supermarkets that updates based on which
   country you pick (Woolworths, Coles, Aldi for Australia, wherever makes sense elsewhere).
   Pick the ones you actually shop at and it pulls live prices for your shopping list from
