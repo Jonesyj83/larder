@@ -275,7 +275,6 @@
             </template>
             <div class="row" style="margin-top: .6rem">
               <button class="primary" @click="addIdeaToPlan(e)" :disabled="e.added || e.adding" x-text="e.added ? 'Added' : (e.adding ? 'Adding...' : 'Add to plan')"></button>
-              <button type="button" x-show="ideaMissing(e).length" :disabled="e.addingMissing" @click="addIdeaMissing(e)" x-text="e.addingMissing ? 'Adding...' : 'Add what we need to shopping'"></button>
               <button type="button" x-show="!e.added" :disabled="e.retrying" @click="retryIdea(e)" x-text="e.retrying ? 'Trying again...' : 'Try something different'"></button>
             </div>
           </div>
@@ -463,9 +462,6 @@ function planPage() {
       }
       return cells;
     },
-    ideaMissing(e) {
-      return e.added ? e.notAdded.filter(i => !i.product) : e.ingredients.filter(i => !i.product || i.short > 0);
-    },
     leftover(e) {
       const used = e.uses.reduce((sum, u) => sum + u.portions, 0);
       return Math.max(0, e.servings - used);
@@ -483,22 +479,8 @@ function planPage() {
       } catch (ex) { oops(ex); }
       finally { e.adding = false; }
     },
-    async addIdeaMissing(e) {
-      if (e.addingMissing) return;
-      e.addingMissing = true;
-      try {
-        const res = await api('/api/suggestions/add-missing', {method: 'POST', body: {
-          name: e.name, ingredients: this.ideaMissing(e).map(i => ({name: i.name,
-            amount: i.short > 0 ? i.short : i.amount,
-            unit: i.product ? i.short_unit : i.unit,
-            unit_id: (i.product ? i.short_unit_id : i.unit_id) || null,
-            suggested_product_id: i.suggested_product_id || null}))}});
-        toast(res.added ? res.added + ' added to the shopping list' : 'Already on the list');
-      } catch (ex) { oops(ex); }
-      finally { e.addingMissing = false; }
-    },
     wrapCookEvent(e) {
-      return {...e, request_id: saveRequestId(), added: false, adding: false, addingMissing: false, retrying: false, notAdded: [], expanded: false};
+      return {...e, request_id: saveRequestId(), added: false, adding: false, retrying: false, notAdded: [], expanded: false};
     },
     async retryIdea(e) {
       if (e.retrying || e.adding) return;

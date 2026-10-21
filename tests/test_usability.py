@@ -319,9 +319,7 @@ async function api(path,opts={}) {
 (async()=>{
  const p=planPage(); p.load=()=>{}; p.openIdeas(); await p.getIdeas();
  const e=p.ideas.cookEvents[0]; assert.equal(e.added,false);
- await p.addIdeaMissing(e);
- let shop=calls.find(c=>c.path==='/api/suggestions/add-missing');
- assert.equal(shop.body.ingredients[0].amount,3); assert.equal(shop.body.ingredients[0].unit,'slice');
+ assert.equal(p.leftover(e),0);
  await p.addIdeaToPlan(e); assert.equal(e.added,false); assert.equal(e.adding,false);
  await p.addIdeaToPlan(e); assert.equal(e.added,true); assert.equal(e.notAdded[0].name,'Butter');
  const saves=calls.filter(c=>c.path==='/api/mealplan/from-cook-event');
@@ -329,8 +327,6 @@ async function api(path,opts={}) {
  assert.equal(saves[1].body.uses[0].day,'2026-10-12'); assert.equal(saves[1].body.name,'Toast');
  await p.addIdeaToPlan(e); assert.equal(calls.filter(c=>c.path==='/api/mealplan/from-cook-event').length,2);
  assert.equal(p.ideas.cookEvents.length,1);
- await p.addIdeaMissing(e); shop=calls.filter(c=>c.path==='/api/suggestions/add-missing').at(-1);
- assert.deepEqual(shop.body.ingredients.map(i=>i.name),['Butter']);
  p.ideasOpen=false; p.openIdeas(); assert.deepEqual(p.ideas.cookEvents,[]);
  deferIdeas=true; const old=p.ideas; const pending=p.getIdeas();
  p.ideasOpen=false; p.openIdeas(); pendingResolve(response); await pending;

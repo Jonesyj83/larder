@@ -130,10 +130,13 @@ class Planning(unittest.TestCase):
         self.assertEqual(self.db.execute('SELECT product_id,amount,unit_id FROM recipe_ingredients WHERE product_id=1').fetchone()[:],(1,4,1))
         self.assertEqual(self.db.execute('SELECT instructions FROM recipes').fetchone()[0],'Toast the bread.')
         self.assertEqual(result['not_added'],[])
+        # Bread matched but had zero stock, so its shortfall is queued too - not just
+        # the brand-new Butter product; "Add to plan" now covers everything needed
+        self.assertEqual(tuple(self.db.execute('SELECT amount FROM shopping_list WHERE product_id=1').fetchone()),(4,))
         butter = self.db.execute("SELECT id,unit_id FROM products WHERE name='Butter'").fetchone()
         self.assertEqual(tuple(self.db.execute('SELECT amount,unit_id FROM recipe_ingredients WHERE product_id=?',(butter[0],)).fetchone()),(1,butter[1]))
         # it starts at zero stock, so the full amount landed straight on the shopping list
-        self.assertEqual(tuple(self.db.execute('SELECT product_id,amount FROM shopping_list').fetchone()),(butter[0],1))
+        self.assertEqual(tuple(self.db.execute('SELECT amount FROM shopping_list WHERE product_id=?',(butter[0],)).fetchone()),(1,))
 
     def test_suggestion_reuses_an_existing_recipe_by_name_instead_of_duplicating(self):
         from app.routes.mealplan import CookEventIn, meal_from_cook_event
