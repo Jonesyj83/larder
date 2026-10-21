@@ -30,6 +30,7 @@ def prepare(db):
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA foreign_keys=ON')
     db.executescript(SCHEMA)
+    db.execute("INSERT INTO shopping_lists(id,name) VALUES(1,'Shopping')")
     db.execute("INSERT INTO users(id,username,password_hash,portion_size) VALUES(1,'test','unused','regular')")
     db.execute("INSERT INTO users(id,username,password_hash,portion_size) VALUES(2,'small','unused','small')")
     db.execute("INSERT INTO users(id,username,password_hash,portion_size) VALUES(3,'large','unused','large')")
@@ -282,7 +283,7 @@ class Races(unittest.TestCase):
     def test_got_it_pressed_in_two_tabs(self):
         from app.routes.shopping import bought
         db = self.connect()
-        db.execute('INSERT INTO shopping_list(id,product_id,amount,unit_id) VALUES(1,?,2,1)', (self.pid,))
+        db.execute('INSERT INTO shopping_list(id,product_id,amount,unit_id,list_id) VALUES(1,?,2,1,1)', (self.pid,))
         db.commit()
         db.close()
         results = self.twice(lambda db: bought(1, None, db, USER))

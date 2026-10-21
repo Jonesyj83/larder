@@ -27,7 +27,8 @@ let linked = false;
 let fail = false;
 const api = async (path, options) => {
   calls.push([path, options]);
-  if (path === '/api/shopping') return [{id:1, product_id:10, label:'Milk'}, {id:2, label:'Loose'}, {id:3, product_id:11, label:'Bread'}];
+  if (path === '/api/shopping/lists') return [{id: 1, name: 'Shopping', item_count: 1}];
+  if (path === '/api/shopping?list_id=1') return [{id:1, product_id:10, label:'Milk'}, {id:2, label:'Loose'}, {id:3, product_id:11, label:'Bread'}];
   if (path === '/api/pricing/stores') return [{store:'coles', enabled:1}, {store:'iga', enabled:0}];
   if (path === '/api/pricing/products/11') throw Error('offline');
   if (path.endsWith('/link/coles')) { linked = false; return {}; }
@@ -68,6 +69,39 @@ const api = async (path, options) => {
   fail = true;
   await page.loadPrice(item);
   assert.ok(item.pricingError);
+})().catch(e => {console.error(e); process.exit(1);});
+''')
+
+    def test_selected_list_is_remembered_and_used(self):
+        self.run_logic('shopping.html', r'''
+const saved = {'shopping-list': '2'};
+const localStorage = {getItem: key => saved[key], setItem: (key, value) => saved[key] = String(value)};
+const calls = [];
+const oops = e => {throw e;};
+const toast = () => {};
+const api = async (path, options) => {
+  calls.push([path, options]);
+  if (path === '/api/shopping/lists') return [{id:1, name:'Shopping', item_count:0}, {id:2, name:'Work', item_count:0}];
+  if (path.startsWith('/api/shopping/add-missing')) return {added:1};
+  return [];
+};
+(async () => {
+  const page = shoppingPage();
+  await page.init();
+  assert.equal(page.list_id, 2);
+  assert.ok(calls.some(([path]) => path === '/api/shopping?list_id=2'));
+  page.list_id = 1;
+  await page.selectList();
+  assert.equal(saved['shopping-list'], '1');
+  page.text = 'Bread';
+  await page.add();
+  assert.ok(calls.some(([path, opts]) => path === '/api/shopping?list_id=1' && opts?.method === 'POST'));
+  await page.addMissing();
+  assert.ok(calls.some(([path]) => path === '/api/shopping/add-missing?list_id=1'));
+  saved['shopping-list'] = '999';
+  const reloaded = shoppingPage();
+  await reloaded.init();
+  assert.equal(reloaded.list_id, 1);
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
 

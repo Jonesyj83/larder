@@ -9,7 +9,7 @@ class Provenance(unittest.TestCase):
     tearDown = test_planning.Planning.tearDown
     def test_legacy_unknown_and_multiple_sources(self):
         from app.routes.shopping import list_items, add_item
-        self.db.execute("INSERT INTO shopping_list(name,amount) VALUES('Bread',1)")
+        self.db.execute("INSERT INTO shopping_list(name,amount,list_id) VALUES('Bread',1,1)")
         item=list_items(self.db,self.user)[0]
         self.assertTrue(item['origin_unknown']); self.assertEqual(item['sources'],[])
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Egg',2)")

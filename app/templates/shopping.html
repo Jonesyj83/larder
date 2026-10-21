@@ -6,6 +6,15 @@
     <button @click="addMissing()">Add what's running low</button>
   </div>
 
+  <div class="card row">
+    <label class="field grow">List<select x-ref="listSelect" x-model.number="list_id" @change="selectList()">
+      <template x-for="list in lists" :key="list.id"><option :value="list.id" x-text="list.name + ' (' + list.item_count + ')'"></option></template>
+    </select></label>
+    <button @click="newList()">New list</button>
+    <button @click="renameList()">Rename</button>
+    <button class="danger" @click="deleteList()">Delete list</button>
+  </div>
+
   <form class="card" @submit.prevent="add()">
     <div class="ingredient-row">
       <label class="field">Item<input class="grow" aria-label="Item to add" placeholder="Add something" x-model="text" list="product-names" autocomplete="off"></label>
@@ -82,14 +91,56 @@
 <script>
 function shoppingPage() {
   return {
-    stores: [], items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
+    lists: [], list_id: null, loadVersion: 0, stores: [], items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
     async init() {
       [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
-      this.load();
+      try { this.list_id = Number(localStorage.getItem('shopping-list')) || null; } catch (e) {}
+      await this.load();
+    },
+    scoped(path = '') { return '/api/shopping' + path + '?list_id=' + this.list_id; },
+    async selectList() {
+      try { localStorage.setItem('shopping-list', this.list_id); } catch (e) {}
+      await this.load();
+    },
+    async newList() {
+      const name = prompt('List name');
+      if (!name?.trim()) return;
+      try {
+        const list = await api('/api/shopping/lists', {method: 'POST', body: {name}});
+        this.list_id = list.id;
+        await this.selectList();
+      } catch (e) { oops(e); }
+    },
+    async renameList() {
+      const name = prompt('List name', this.lists.find(l => l.id === this.list_id)?.name || '');
+      if (!name?.trim()) return;
+      try {
+        await api('/api/shopping/lists/' + this.list_id, {method: 'PUT', body: {name}});
+        await this.load();
+      } catch (e) { oops(e); }
+    },
+    async deleteList() {
+      if (!confirm('Delete this list? Its items will move to the first remaining list.')) return;
+      try {
+        await api('/api/shopping/lists/' + this.list_id, {method: 'DELETE'});
+        await this.load();
+        await this.selectList();
+      } catch (e) { oops(e); }
     },
     async load() {
       try {
-        this.items = (await api('/api/shopping')).map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', picker: null}));
+        const version = ++this.loadVersion;
+        const lists = await api('/api/shopping/lists');
+        if (version !== this.loadVersion) return;
+        this.lists = lists;
+        if (!lists.some(l => l.id === this.list_id)) this.list_id = lists[0].id;
+        if (typeof this.$nextTick === 'function') {
+          await this.$nextTick();
+          if (this.$refs && this.$refs.listSelect) this.$refs.listSelect.value = this.list_id;
+        }
+        const items = await api(this.scoped());
+        if (version !== this.loadVersion) return;
+        this.items = items.map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', picker: null}));
         this.loadPrices(this.items);
       } catch (e) { oops(e); }
     },
@@ -154,20 +205,20 @@ function shoppingPage() {
       if (p) body.product_id = p.id; else body.name = name;
       if (p && !body.unit_id) body.unit_id = p.purchase_unit_id || p.unit_id;
       try {
-        await api('/api/shopping', { method: 'POST', body });
+        await api(this.scoped(), { method: 'POST', body });
         this.text = ''; this.amount = 1; this.unit_id = '';
         this.load();
       } catch (e) { oops(e); }
     },
     async toggle(i) {
       try {
-        await api('/api/shopping/' + i.id, { method: 'PUT', body: { done: !i.done } });
+        await api(this.scoped('/' + i.id), { method: 'PUT', body: { done: !i.done } });
         this.load();
       } catch (e) { oops(e); }
     },
     async bought(i) {
       try {
-        await api('/api/shopping/' + i.id + '/bought', { method: 'POST', body: {} });
+        await api(this.scoped('/' + i.id + '/bought'), { method: 'POST', body: {} });
         toast(i.label + ' added to stock');
         this.load();
       } catch (e) { oops(e); }
@@ -178,21 +229,21 @@ function shoppingPage() {
       const unit = i.unit || this.units.find(u => u.id == unit_id)?.name || 'unit';
       if (!confirm('Create ' + i.label + ' as a product and add ' + qty(i.amount, unit) + ' to stock?')) return;
       try {
-        await api('/api/shopping/' + i.id + '/make-product', {method: 'POST', body: {unit_id}});
+        await api(this.scoped('/' + i.id + '/make-product'), {method: 'POST', body: {unit_id}});
       } catch (e) { oops(e); return; }
       toast(i.label + ' is now in stock');
       try { this.products = await api('/api/products'); } catch (e) {}
       this.load();
     },
     async remove(i) {
-      try { await api('/api/shopping/' + i.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
+      try { await api(this.scoped('/' + i.id), { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
     },
     async clearDone() {
-      try { await api('/api/shopping/done', { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
+      try { await api(this.scoped('/done'), { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
     },
     async addMissing() {
       try {
-        const r = await api('/api/shopping/add-missing', { method: 'POST' });
+        const r = await api(this.scoped('/add-missing'), { method: 'POST' });
         toast(r.added ? 'Added ' + r.added : 'Nothing new to add');
         this.load();
       } catch (e) { oops(e); }

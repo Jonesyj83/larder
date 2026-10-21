@@ -13,6 +13,7 @@ class Planning(unittest.TestCase):
         self.db.row_factory = sqlite3.Row
         self.db.execute('PRAGMA foreign_keys=ON')
         self.db.executescript(SCHEMA)
+        self.db.execute("INSERT INTO shopping_lists(id,name) VALUES(1,'Shopping')")
         self.db.execute("INSERT INTO users(id,username,password_hash) VALUES(1,'test','unused')")
         self.db.executemany('INSERT INTO units(id,name) VALUES(?,?)', [(1,'slice'),(2,'piece')])
         self.db.commit()

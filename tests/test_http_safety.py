@@ -153,6 +153,20 @@ async def check():
         item = (await admin.post('/api/shopping', json={'product_id': beans['product']['id'], 'amount': 2})).json()
         assert (await admin.post(f"/api/shopping/{item['id']}/bought", json={})).status_code == 200
         assert (await admin.post(f"/api/shopping/{item['id']}/bought", json={})).status_code == 404
+        lists = (await admin.get('/api/shopping/lists')).json()
+        home = await admin.post('/api/shopping/lists', json={'name': 'Home'})
+        assert home.status_code == 201
+        home_id = home.json()['id']
+        loose = (await admin.post(f'/api/shopping?list_id={home_id}', json={'name': 'Home item'})).json()
+        assert loose['id'] not in [i['id'] for i in (await admin.get('/api/shopping')).json()]
+        assert (await admin.post(f"/api/shopping/{loose['id']}/bought", json={})).status_code == 404
+        assert (await admin.post(f"/api/shopping/{loose['id']}/bought?list_id={home_id}", json={})).status_code == 200
+        renamed = await admin.put(f'/api/shopping/lists/{home_id}', json={'name': 'Work'})
+        assert renamed.json()['name'] == 'Work'
+        assert (await admin.delete(f'/api/shopping/lists/{home_id}')).status_code == 200
+        assert (await admin.delete('/api/shopping/lists/' + str(lists[0]['id']))).status_code == 409
+        assert (await admin.post('/api/shopping/lists', json={'name': '  '})).status_code == 400
+
         stock = (await admin.get('/api/stock')).json()
         assert [s['amount'] for s in stock if s['product_id'] == beans['product']['id']] == [2], stock
 

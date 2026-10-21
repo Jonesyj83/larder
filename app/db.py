@@ -159,8 +159,16 @@ CREATE TABLE IF NOT EXISTS stock_log (
     at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS shopping_lists (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS shopping_list (
     id INTEGER PRIMARY KEY,
+    list_id INTEGER NOT NULL REFERENCES shopping_lists(id) ON DELETE CASCADE,
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT '',
     amount REAL NOT NULL DEFAULT 1,
@@ -291,6 +299,22 @@ def init_db():
     # all of it under one write lock: two workers starting at once shouldn't both
     # try to add the same column or seed the same rows
     conn.executescript("BEGIN IMMEDIATE;\n" + SCHEMA)
+    if "list_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(shopping_list)")}:
+        conn.execute("ALTER TABLE shopping_list ADD COLUMN list_id INTEGER REFERENCES shopping_lists(id) ON DELETE CASCADE")
+    needs_backfill = conn.execute("SELECT 1 FROM shopping_list WHERE list_id IS NULL").fetchone()
+    if needs_backfill or not conn.execute("SELECT 1 FROM shopping_lists").fetchone():
+        default = conn.execute("SELECT id FROM shopping_lists WHERE name='Shopping' ORDER BY id LIMIT 1").fetchone()
+        default_id = default["id"] if default else conn.execute(
+            "INSERT INTO shopping_lists(name) VALUES ('Shopping')").lastrowid
+        conn.execute("UPDATE shopping_list SET list_id=? WHERE list_id IS NULL", (default_id,))
+    if conn.execute("SELECT 1 FROM shopping_list WHERE list_id IS NULL").fetchone():
+        raise RuntimeError("Shopping list backfill incomplete")
+    # Older tables retain their shape; guards enforce the same non-null rule.
+    for event in ("INSERT", "UPDATE"):
+        conn.execute(f"""CREATE TRIGGER IF NOT EXISTS shopping_list_list_id_{event.lower()}
+            BEFORE {event} ON shopping_list WHEN NEW.list_id IS NULL
+            BEGIN SELECT RAISE(ABORT, 'shopping_list.list_id must not be null'); END""")
+    conn.execute("CREATE INDEX IF NOT EXISTS shopping_list_by_list ON shopping_list(list_id, done)")
     conn.executemany("INSERT OR IGNORE INTO store_settings(store) VALUES (?)",
                      [(store,) for store in DEFAULT_STORES])
     triggers = {

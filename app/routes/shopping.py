@@ -41,15 +41,16 @@ LEFT JOIN units u ON u.id = i.unit_id
 """
 
 
-def add_item(db, product_id, amount, unit_id=None, name="", note="", user_id=None, source="manual", source_ref="", source_label=""):
+def add_item(db, product_id, amount, unit_id=None, name="", note="", user_id=None, source="manual", source_ref="", source_label="", list_id=None):
     """Adds to the list, or bumps the amount if the product is already on it."""
+    list_id = resolve_list(db, list_id)
     if product_id:
         p = row(db.execute("SELECT unit_id, purchase_unit_id FROM products WHERE id = ?", (product_id,)))
         if not p:
             raise HTTPException(404, "Product not found")
         unit_id = unit_id or p['unit_id']
         existing = row(db.execute(
-            "SELECT id FROM shopping_list WHERE product_id = ? AND unit_id = ? AND done = 0", (product_id,unit_id)))
+            "SELECT id FROM shopping_list WHERE product_id = ? AND unit_id = ? AND done = 0 AND list_id = ?", (product_id,unit_id,list_id)))
         if existing:
             db.execute("UPDATE shopping_list SET amount = amount + ? WHERE id = ?", (amount, existing["id"]))
             record_source(db, existing["id"], source, source_ref, source_label, amount, user_id)
@@ -57,8 +58,8 @@ def add_item(db, product_id, amount, unit_id=None, name="", note="", user_id=Non
     elif not name.strip():
         raise HTTPException(400, "Need a product or a name")
     cur = db.execute(
-        "INSERT INTO shopping_list (product_id, name, amount, unit_id, note, added_by) VALUES (?, ?, ?, ?, ?, ?)",
-        (product_id, name.strip(), amount, unit_id, note, user_id))
+        "INSERT INTO shopping_list (product_id, name, amount, unit_id, note, added_by, list_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (product_id, name.strip(), amount, unit_id, note, user_id, list_id))
     record_source(db, cur.lastrowid, source, source_ref, source_label, amount, user_id)
     return cur.lastrowid
 
@@ -68,13 +69,14 @@ def record_source(db, item_id, kind, ref, label, amount, user_id):
                (item_id,kind,str(ref),label,amount,user_id))
 
 
-def listed_amount(db, product_id):
+def listed_amount(db, product_id, list_id=None):
     """How much of a product is already on the list, in its stock unit. A pack
     on the list counts towards pieces the plan needs, instead of being ignored."""
+    list_id = resolve_list(db, list_id)
     p = st.get_product(db, product_id)
     total = 0.0
-    for item in rows(db.execute("SELECT amount, unit_id FROM shopping_list WHERE product_id = ? AND done = 0",
-                                (product_id,))):
+    for item in rows(db.execute("SELECT amount, unit_id FROM shopping_list WHERE product_id = ? AND done = 0 AND list_id = ?",
+                                (product_id,list_id))):
         try:
             total += st.to_stock_units(db, p, item["amount"], item["unit_id"])
         except st.StockError:
@@ -87,9 +89,64 @@ def _check_unit(db, unit_id):
         raise HTTPException(400, "No such unit")
 
 
+def resolve_list(db, list_id=None):
+    if list_id is None:
+        found = db.execute("SELECT id FROM shopping_lists ORDER BY id LIMIT 1").fetchone()
+    else:
+        found = db.execute("SELECT id FROM shopping_lists WHERE id=?", (list_id,)).fetchone()
+    if not found:
+        raise HTTPException(404, "Shopping list not found")
+    return found["id"]
+
+
+class ListIn(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+def list_name(data):
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(400, "Need a list name")
+    return name
+
+
+@router.get("/lists")
+def lists(db=Depends(get_db), user=Depends(current_user)):
+    return rows(db.execute("""SELECT l.*, (SELECT COUNT(*) FROM shopping_list i
+        WHERE i.list_id=l.id AND i.done=0) AS item_count FROM shopping_lists l ORDER BY l.id"""))
+
+
+@router.post("/lists", status_code=201)
+def create_list(data: ListIn, db=Depends(get_db), user=Depends(current_user)):
+    cur = db.execute("INSERT INTO shopping_lists(name,created_by) VALUES (?,?)", (list_name(data), user["id"]))
+    db.commit()
+    return row(db.execute("SELECT * FROM shopping_lists WHERE id=?", (cur.lastrowid,)))
+
+
+@router.put("/lists/{list_id}")
+def rename_list(list_id: int, data: ListIn, db=Depends(get_db), user=Depends(current_user)):
+    resolve_list(db, list_id)
+    db.execute("UPDATE shopping_lists SET name=? WHERE id=?", (list_name(data), list_id))
+    db.commit()
+    return row(db.execute("SELECT * FROM shopping_lists WHERE id=?", (list_id,)))
+
+
+@router.delete("/lists/{list_id}")
+def delete_list(list_id: int, db=Depends(get_db), user=Depends(current_user)):
+    begin(db)
+    resolve_list(db, list_id)
+    target = db.execute("SELECT id FROM shopping_lists WHERE id!=? ORDER BY id LIMIT 1", (list_id,)).fetchone()
+    if not target:
+        raise HTTPException(409, "Cannot delete the last shopping list")
+    db.execute("UPDATE shopping_list SET list_id=? WHERE list_id=?", (target["id"], list_id))
+    db.execute("DELETE FROM shopping_lists WHERE id=?", (list_id,))
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("")
-def list_items(db=Depends(get_db), user=Depends(current_user)):
-    items = rows(db.execute(ITEM_SQL + " ORDER BY i.done, label COLLATE NOCASE"))
+def list_items(db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+    items = rows(db.execute(ITEM_SQL + " WHERE i.list_id = ? ORDER BY i.done, label COLLATE NOCASE", (resolve_list(db, list_id),)))
     for item in items:
         item['sources'] = rows(db.execute('SELECT kind,source_ref,label,amount,created_at FROM shopping_sources WHERE item_id=? ORDER BY id', (item['id'],)))
         recorded = sum(s['amount'] for s in item['sources'])
@@ -98,35 +155,37 @@ def list_items(db=Depends(get_db), user=Depends(current_user)):
 
 
 @router.post("", status_code=201)
-def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user)):
+def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     _check_unit(db, data.unit_id)
     begin(db)
-    item_id = add_item(db, data.product_id, data.amount, data.unit_id, data.name, data.note, user["id"])
+    item_id = add_item(db, data.product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
     db.commit()
     return row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
 
 
 @router.post("/add-missing")
-def add_missing(db=Depends(get_db), user=Depends(current_user)):
+def add_missing(db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     """Put everything that's below its minimum stock on the list."""
     begin(db)
+    list_id = resolve_list(db, list_id)
     missing = rows(db.execute("""
         SELECT p.id, p.unit_id, p.min_stock - COALESCE((SELECT SUM(amount) FROM stock s WHERE s.product_id = p.id), 0) AS need
         FROM products p WHERE p.min_stock > 0"""))
     added = 0
     for m in missing:
         if m["need"] > 0:
-            on_list = db.execute("SELECT 1 FROM shopping_list WHERE product_id = ? AND done = 0", (m["id"],)).fetchone()
+            on_list = db.execute("SELECT 1 FROM shopping_list WHERE product_id = ? AND done = 0 AND list_id = ?", (m["id"],list_id)).fetchone()
             if not on_list:
-                add_item(db, m["id"], m["need"], m["unit_id"], user_id=user["id"], source="low_stock", source_label="Low stock")
+                add_item(db, m["id"], m["need"], m["unit_id"], user_id=user["id"], source="low_stock", source_label="Low stock", list_id=list_id)
                 added += 1
     db.commit()
     return {"added": added}
 
 
 @router.put("/{item_id}")
-def edit(item_id: int, data: ItemEdit, db=Depends(get_db), user=Depends(current_user)):
-    item = row(db.execute("SELECT * FROM shopping_list WHERE id = ?", (item_id,)))
+def edit(item_id: int, data: ItemEdit, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+    begin(db)
+    item = row(db.execute("SELECT * FROM shopping_list WHERE id = ? AND list_id = ?", (item_id, resolve_list(db, list_id))))
     if not item:
         raise HTTPException(404, "Not on the list")
     _check_unit(db, data.unit_id)
@@ -149,11 +208,11 @@ class MakeProductIn(BaseModel):
 
 
 @router.post("/{item_id}/make-product")
-def make_product(item_id: int, data: MakeProductIn, db=Depends(get_db), user=Depends(current_user)):
+def make_product(item_id: int, data: MakeProductIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     """Turn a freeform shopping entry into a product and add the purchase to stock."""
     _check_unit(db, data.unit_id)
     begin(db)
-    item = row(db.execute("SELECT * FROM shopping_list WHERE id=?", (item_id,)))
+    item = row(db.execute("SELECT * FROM shopping_list WHERE id=? AND list_id=?", (item_id,resolve_list(db, list_id))))
     if not item:
         db.rollback()
         raise HTTPException(404, "Not on the list")
@@ -185,11 +244,11 @@ def make_product(item_id: int, data: MakeProductIn, db=Depends(get_db), user=Dep
 
 
 @router.post("/{item_id}/bought")
-def bought(item_id: int, data: BoughtIn | None = None, db=Depends(get_db), user=Depends(current_user)):
+def bought(item_id: int, data: BoughtIn | None = None, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     """Tick it off and put it straight into stock."""
     # one transaction, so pressing "Got it" in two tabs can't add the stock twice
     begin(db)
-    item = row(db.execute("SELECT * FROM shopping_list WHERE id = ?", (item_id,)))
+    item = row(db.execute("SELECT * FROM shopping_list WHERE id = ? AND list_id = ?", (item_id,resolve_list(db, list_id))))
     if not item:
         db.rollback()
         raise HTTPException(404, "Not on the list")
@@ -208,14 +267,14 @@ def bought(item_id: int, data: BoughtIn | None = None, db=Depends(get_db), user=
 
 
 @router.delete("/done")
-def clear_done(db=Depends(get_db), user=Depends(current_user)):
-    db.execute("DELETE FROM shopping_list WHERE done = 1")
+def clear_done(db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+    db.execute("DELETE FROM shopping_list WHERE done = 1 AND list_id = ?", (resolve_list(db, list_id),))
     db.commit()
     return {"ok": True}
 
 
 @router.delete("/{item_id}")
-def remove(item_id: int, db=Depends(get_db), user=Depends(current_user)):
-    db.execute("DELETE FROM shopping_list WHERE id = ?", (item_id,))
+def remove(item_id: int, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+    db.execute("DELETE FROM shopping_list WHERE id = ? AND list_id = ?", (item_id,resolve_list(db, list_id)))
     db.commit()
     return {"ok": True}
