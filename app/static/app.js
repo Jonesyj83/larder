@@ -244,3 +244,8 @@ function parseOffQuantity(text, units) {
   if (!unit) return null; // this install doesn't have that unit - leave it to the piece default
   return { unit_id: unit.id, amount };
 }
+
+function compactNote(content) {
+  const line = content.replace(/\s+/g, ' ').trim();
+  return line.length > 140 ? line.slice(0, 140) + '…' : line;
+}

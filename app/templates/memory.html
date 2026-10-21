@@ -3,15 +3,15 @@
 <div x-data="memoryPage()">
   <div class="row page-head"><h1 class="grow">Memory</h1></div>
   <p class="muted">Household food preferences, habits and notes.</p>
-  <template x-for="group in kinds" :key="group.kind">
-    <section>
-      <h2 x-text="group.label"></h2>
-      <div class="card">
-        <p class="muted small" x-show="loaded && !notesFor(group.kind).length">No notes yet.</p>
-        <template x-for="note in notesFor(group.kind)" :key="note.id">
+  <label class="field">Search notes<input type="search" x-model="query" @input.debounce.250ms="load()" placeholder="Search all notes"></label>
+  <template x-if="searching">
+    <div class="card">
+      <p class="muted small" x-show="loaded && !notes.length">No matching notes.</p>
+      <template x-for="note in notes" :key="note.id">
           <div class="list-item">
+            <span class="muted small" x-show="searching" x-text="kindLabel(note.kind)"></span>
             <template x-if="editing !== note.id">
-              <button class="grow" style="text-align: left; white-space: pre-wrap" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="note.content"></button>
+              <button class="grow compact-note" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="compactNote(note.content)"></button>
             </template>
             <template x-if="editing === note.id">
               <form class="grow" @submit.prevent="save(note)">
@@ -22,20 +22,54 @@
                 </div>
               </form>
             </template>
-            <button class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
+            <button x-show="editing === note.id" class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
           </div>
-        </template>
-        <form class="row" @submit.prevent="add(group.kind)">
-          <label class="field grow"><span x-text="'Add ' + group.label.toLowerCase() + ' note'"></span><input x-model="newNotes[group.kind]" required></label>
-          <button class="small" :disabled="busy">Add</button>
-        </form>
-      </div>
-    </section>
+
+      </template>
+    </div>
+  </template>
+  <template x-if="!searching">
+    <div>
+      <template x-for="group in kinds" :key="group.kind">
+        <section class="card">
+          <div class="group-head"><button class="link-head" @click="expanded[group.kind] = !expanded[group.kind]" :aria-expanded="!!expanded[group.kind]" x-text="group.label + ' (' + notesFor(group.kind).length + ')'"></button></div>
+          <template x-if="expanded[group.kind]">
+            <div>
+              <p class="muted small" x-show="loaded && !notesFor(group.kind).length">No notes yet.</p>
+              <template x-for="note in visibleNotes(group.kind)" :key="note.id">
+                <div class="list-item">
+                  <template x-if="editing !== note.id">
+                    <button class="grow compact-note" @click="edit(note)" :aria-label="'Edit note: ' + note.content" x-text="compactNote(note.content)"></button>
+                  </template>
+                  <template x-if="editing === note.id">
+                    <form class="grow" @submit.prevent="save(note)">
+                      <label class="field">Note<textarea x-model="draft" required></textarea></label>
+                      <div class="row">
+                        <button class="primary small" :disabled="busy">Save</button>
+                        <button type="button" class="small" :disabled="busy" @click="editing = null">Cancel</button>
+                      </div>
+                    </form>
+                  </template>
+                  <button x-show="editing === note.id" class="small danger" @click="remove(note)" :disabled="busy" :aria-label="'Delete note: ' + note.content">Delete</button>
+                </div>
+              </template>
+              <button class="link-head small" x-show="!showAll[group.kind] && notesFor(group.kind).length > 5" @click="showAll[group.kind] = true" x-text="'Show all ' + notesFor(group.kind).length"></button>
+              <form class="row" @submit.prevent="add(group.kind)">
+                <label class="field grow"><span x-text="'Add ' + group.label.toLowerCase() + ' note'"></span><input x-model="newNotes[group.kind]" required></label>
+                <button class="small" :disabled="busy">Add</button>
+              </form>
+            </div>
+          </template>
+        </section>
+      </template>
+    </div>
   </template>
 </div>
 <script>
 function memoryPage() {
   return {
+    query: '', expanded: {}, showAll: {}, request: 0,
+    get searching() { return !!this.query.trim(); },
     notes: [], loaded: false, editing: null, draft: '', busy: false, newNotes: {},
     kinds: [
       {kind: 'like', label: 'Likes'}, {kind: 'dislike', label: 'Dislikes'},
@@ -48,9 +82,16 @@ function memoryPage() {
       await this.load();
     },
     async load() {
-      try { this.notes = await api('/api/memory'); this.loaded = true; } catch (e) { oops(e); }
+      const request = ++this.request;
+      this.loaded = false;
+      try {
+        const notes = await api('/api/memory' + (this.searching ? '?q=' + encodeURIComponent(this.query.trim()) : ''));
+        if (request === this.request) { this.notes = notes; this.loaded = true; }
+      } catch (e) { if (request === this.request) oops(e); }
     },
     notesFor(kind) { return this.notes.filter(note => note.kind === kind); },
+    visibleNotes(kind) { const notes = this.notesFor(kind); return this.showAll[kind] ? notes : notes.slice(0, 5); },
+    kindLabel(kind) { return this.kinds.find(group => group.kind === kind)?.label || kind; },
     edit(note) { if (!this.busy) { this.editing = note.id; this.draft = note.content; } },
     async add(kind) {
       if (this.busy) return;
@@ -69,7 +110,7 @@ function memoryPage() {
       try {
         const saved = await api('/api/memory/' + note.id, {method: 'PUT', body: {content: this.draft.trim()}});
         this.notes = this.notes.map(item => item.id === note.id ? saved : item);
-        this.editing = null; toast('Saved');
+        this.editing = null; await this.load(); toast('Saved');
       } catch (e) { oops(e); }
       finally { this.busy = false; }
     },

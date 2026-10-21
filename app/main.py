@@ -118,7 +118,8 @@ async def anything_else(request: Request, exc: Exception):
 # --- pages ---
 
 PAGES = {
-    "/": ("stock.html", "Stock"),
+    "/": ("overview.html", "Overview"),
+    "/stock": ("stock.html", "Stock"),
     "/expiring": ("expiring.html", "Use by"),
     "/scan": ("scan.html", "Scan"),
     "/products": ("products.html", "Products"),

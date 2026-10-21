@@ -325,3 +325,5 @@ input[type=checkbox], input[type=radio] { accent-color: var(--accent); flex-shri
   .filter-row { grid-template-columns: 1fr; }
   th, td { padding: 8px 4px; }
 }
+
+.compact-note { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -30,6 +30,9 @@ async def check():
     from starlette.requests import Request
     from app.main import app, templates, PAGES, BASE_PATH
 
+    assert PAGES['/'] == ('overview.html', 'Overview')
+    assert PAGES['/stock'] == ('stock.html', 'Stock')
+
     class Tags(HTMLParser):
         def __init__(self):
             super().__init__()
@@ -195,6 +198,61 @@ async def check():
         await client.post('/api/auth/login', json={'username':'member-test','password':'temporary-test-password'})
         me = (await client.get('/api/me')).json()
         assert me['date_format'] == 'DD/MM/YYYY' and me['measurement_system'] == 'metric'
+        from datetime import date, timedelta
+        start = date.today().isoformat()
+        seeded = await client.post('/api/products', json={'name': 'Dashboard milk', 'unit_id': units[0]['id'], 'min_stock': 5})
+        assert seeded.status_code == 201, seeded.text
+        seeded_id = seeded.json()['id']
+        for offset in (-1, 1, 8):
+            r = await client.post('/api/stock/purchase', json={'product_id': seeded_id, 'amount': 1,
+                'expires_on': (date.today() + timedelta(days=offset)).isoformat()})
+            assert r.status_code == 200, r.text
+        r = await client.post('/api/mealplan', json={'day': start, 'slot': 'lunch', 'note': 'Dashboard lunch'})
+        assert r.status_code == 201, r.text
+        await client.post('/api/shopping', json={'name': 'Dashboard bread'})
+        await client.post('/api/memory', json={'kind': 'like', 'content': 'Dashboard crunchy toast'})
+        paths = ['/api/stock/expiring?days=-1', '/api/stock/expiring', '/api/stock/missing',
+                 '/api/mealplan?start=' + start + '&days=2', '/api/shopping', '/api/memory']
+        payloads = {path: (await client.get(path)).json() for path in paths}
+        html = (await client.get('/')).text
+        tags = inspect(html)
+        assert sum(t == 'section' and a.get('class') == 'card' for t, a in tags) == 5
+        content_tags = inspect(html.split('<main id="main">')[1].split('</main>')[0])
+        texts = [a['x-text'] for _, a in content_tags if 'x-text' in a]
+        script = re.findall(r'<script[^>]*>(.*?)</script>', html, re.S)[-1]
+        helpers = (ROOT / 'app/static/app.js').read_text()
+        compact = helpers[helpers.index('function compactNote'):]
+        program = "const assert = require('node:assert/strict');\n"
+        program += 'const payloads = ' + json.dumps(payloads) + ';\n'
+        program += 'const today = () => ' + json.dumps(start) + ';\n'
+        program += "const addDays = (day,n) => new Date(Date.parse(day)+n*86400000).toISOString().slice(0,10);\n"
+        program += "const api = async path => {assert.ok(path in payloads, path); return payloads[path];}; const oops = e => {throw e;};\n"
+        program += compact + script
+        program += 'const expressions = ' + json.dumps(texts) + ';\n'
+        program += """
+(async () => {
+ const p = overviewPage(); await p.init(); assert.equal(p.loaded, true);
+ const render = (expr, extra={}) => Function('p','extra','with(p) {with(extra) {return (' + expr + ');}}')(p,extra);
+ const rendered = expressions.map(expr => {
+   if (expr.includes('meal.slot')) return render(expr, {meal: p.meals.find(m => m.note === 'Dashboard lunch')});
+   if (expr.includes('note.content')) return render(expr, {note: p.notes[0]});
+   if (expr.includes('day.label')) return render(expr, {day: p.mealDays[0]});
+   return render(expr);
+ });
+ assert.ok(rendered.includes('1 overdue · 1 going off soon'));
+ assert.ok(rendered.includes(p.lowStock + ' products below minimum stock')); assert.equal(p.lowStock, 1);
+ assert.ok(rendered.includes('lunch: Dashboard lunch'));
+ assert.ok(rendered.includes(payloads['/api/shopping'].filter(i => !i.done).length + ' items still to buy'));
+ assert.ok(rendered.includes('Dashboard crunchy toast'));
+ assert.equal(p.mealsFor(today()).some(m => m.note === 'Dashboard lunch'), true);
+ payloads['/api/memory'] = Array.from({length: 8}, (_, id) => ({id, content: 'note'}));
+ payloads[Object.keys(payloads).find(k => k.startsWith('/api/mealplan'))] = {meals: []};
+ await p.init(); assert.equal(p.notes.length, 5); assert.equal(p.mealsFor(today()).length, 0);
+})().catch(e => {console.error(e); process.exit(1)});
+"""
+        assert 'Nothing planned yet' in html
+        result = subprocess.run(['node'], input=program, text=True, capture_output=True, timeout=15)
+        assert result.returncode == 0, result.stderr
     print('Page rendering, bindings, auth, stock, shopping and prefix checks passed')
 
 

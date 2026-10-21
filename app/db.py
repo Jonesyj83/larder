@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
 -- Retained legacy settings.
 CREATE TABLE IF NOT EXISTS suggestion_settings (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    provider TEXT NOT NULL DEFAULT 'openai',
+    provider TEXT NOT NULL DEFAULT '',
     api_key TEXT NOT NULL DEFAULT '',
     model TEXT NOT NULL DEFAULT '',
     base_url TEXT NOT NULL DEFAULT '',
