@@ -161,7 +161,8 @@ async def save_recipe(name: str, servings: float, ingredients: list[dict], instr
     """Save a recipe. Ingredients use amount, product_id or name, unit_id, and optional note.
 
     A textual unit may replace unit_id; it must match an existing unit name.
-    A name without product_id creates a catalogue ingredient without purchasing stock.
+    A name matching an existing catalogue product resolves to its product_id automatically.
+    A name with no catalogue match creates a new catalogue ingredient without purchasing stock.
     """
     prepared = []
     for ingredient in ingredients:
@@ -171,6 +172,10 @@ async def save_recipe(name: str, servings: float, ingredients: list[dict], instr
             if item.get('unit_id') is not None and item['unit_id'] != resolved:
                 raise ValueError('Ingredient unit and unit_id disagree')
             item['unit_id'] = resolved
+        if item.get('product_id') is None and item.get('name'):
+            existing = await product_named(item['name'], required=False)
+            if existing is not None:
+                item['product_id'] = existing['id']
         prepared.append(item)
     return await request('POST', '/api/recipes', body={
         'name': name, 'servings': servings, 'ingredients': prepared, 'instructions': instructions})
