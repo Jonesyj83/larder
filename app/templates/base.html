@@ -18,6 +18,7 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
 <body{% if user %} class="with-sidebar"{% endif %}>
 {% if user %}
 {% set here = request.url.path %}
+{% set memory_kind = (request|attr('query_params')|default({})).get('kind') %}
 <header class="sidebar">
   <a class="brand" href="{{ base_path }}/">Larder</a>
   <nav aria-label="Main navigation">
@@ -30,20 +31,17 @@ window.USER_PREFS = {date_format: {{ (user.date_format | default('DD/MM/YYYY')) 
   <a class="nav {{ 'on' if here == base_path + '/mealplan' }}" aria-current="{{ 'page' if here == base_path + '/mealplan' else 'false' }}" href="{{ base_path }}/mealplan">Meal plan</a>
   <a class="nav {{ 'on' if here == base_path + '/manage' }}" aria-current="{{ 'page' if here == base_path + '/manage' else 'false' }}" href="{{ base_path }}/manage">Locations &amp; units</a>
   <div class="memory-nav">
-  <a class="nav {{ 'on' if here == base_path + '/memory' }}" aria-current="{{ 'page' if here == base_path + '/memory' else 'false' }}" href="{{ base_path }}/memory">Memory</a>
-  <details class="memory-kinds" {{ 'open' if here == base_path + '/memory' }}>
-    <summary aria-label="Memory categories" title="Memory categories">Categories</summary>
-    <div class="memory-links">
-      <a href="{{ base_path }}/memory?kind=like">Likes</a>
-      <a href="{{ base_path }}/memory?kind=dislike">Dislikes</a>
-      <a href="{{ base_path }}/memory?kind=maybe">Maybes</a>
-      <a href="{{ base_path }}/memory?kind=condition">Conditions</a>
-      <a href="{{ base_path }}/memory?kind=habit">Habits</a>
-      <a href="{{ base_path }}/memory?kind=buying_pattern">Buying patterns</a>
-      <a href="{{ base_path }}/memory?kind=recipe_note">Recipe notes</a>
-      <a href="{{ base_path }}/memory?kind=cost_note">Cost notes</a>
+    <a class="nav {{ 'on' if here == base_path + '/memory' and not memory_kind }}" aria-current="{{ 'page' if here == base_path + '/memory' and not memory_kind else 'false' }}" href="{{ base_path }}/memory">Memory</a>
+    <div class="memory-links" aria-label="Memory categories">
+      <a class="{{ 'on' if memory_kind == 'like' }}" aria-current="{{ 'page' if memory_kind == 'like' else 'false' }}" href="{{ base_path }}/memory?kind=like">Likes</a>
+      <a class="{{ 'on' if memory_kind == 'dislike' }}" aria-current="{{ 'page' if memory_kind == 'dislike' else 'false' }}" href="{{ base_path }}/memory?kind=dislike">Dislikes</a>
+      <a class="{{ 'on' if memory_kind == 'maybe' }}" aria-current="{{ 'page' if memory_kind == 'maybe' else 'false' }}" href="{{ base_path }}/memory?kind=maybe">Maybes</a>
+      <a class="{{ 'on' if memory_kind == 'condition' }}" aria-current="{{ 'page' if memory_kind == 'condition' else 'false' }}" href="{{ base_path }}/memory?kind=condition">Conditions</a>
+      <a class="{{ 'on' if memory_kind == 'habit' }}" aria-current="{{ 'page' if memory_kind == 'habit' else 'false' }}" href="{{ base_path }}/memory?kind=habit">Habits</a>
+      <a class="{{ 'on' if memory_kind == 'buying_pattern' }}" aria-current="{{ 'page' if memory_kind == 'buying_pattern' else 'false' }}" href="{{ base_path }}/memory?kind=buying_pattern">Buying patterns</a>
+      <a class="{{ 'on' if memory_kind == 'recipe_note' }}" aria-current="{{ 'page' if memory_kind == 'recipe_note' else 'false' }}" href="{{ base_path }}/memory?kind=recipe_note">Recipe notes</a>
+      <a class="{{ 'on' if memory_kind == 'cost_note' }}" aria-current="{{ 'page' if memory_kind == 'cost_note' else 'false' }}" href="{{ base_path }}/memory?kind=cost_note">Cost notes</a>
     </div>
-  </details>
   </div>
   </nav>
   <div class="account">
