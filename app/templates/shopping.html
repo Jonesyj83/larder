@@ -35,6 +35,36 @@
             <option value="">Choose a stock unit</option>
             <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
           </select>
+          <template x-if="i.product_id">
+            <div class="small space-top-small">
+              <template x-for="link in priceLinks(i)" :key="link.store">
+                <div class="row small">
+                  <span :class="cheapest(i, link) ? 'pill' : 'muted'" x-text="storeName(link.store) + ': ' + priceText(link.latest_check?.price)"></span>
+                  <span class="small" x-show="link.latest_check?.on_special">special</span>
+                  <button class="small" @click="redoMatch(i, link)">Change match</button>
+                </div>
+              </template>
+              <button class="small" x-show="i.pricingLoaded && !priceLinks(i).length && enabledStores.length" @click="openMatch(i)">Match this item</button>
+              <span class="muted" x-show="i.pricingError" x-text="i.pricingError"></span>
+              <button class="small" x-show="i.pricingError" @click="loadPrices(items)">Retry prices</button>
+              <template x-if="i.picker">
+                <div class="card space-top-small">
+                  <form @submit.prevent="searchMatches(i)">
+                    <label class="field">Store<select x-model="i.picker.store" @change="i.picker.candidates = []; i.picker.version++">
+                      <template x-for="store in enabledStores" :key="store.store"><option :value="store.store" x-text="storeName(store.store)"></option></template>
+                    </select></label>
+                    <label class="field">Search<input x-model="i.picker.query" maxlength="200" required></label>
+                    <button class="small" :disabled="i.picker.busy">Search</button>
+                    <button type="button" class="small" @click="i.picker = null">Cancel</button>
+                  </form>
+                  <p class="muted small" x-show="i.picker.message" x-text="i.picker.message"></p>
+                  <template x-for="candidate in i.picker.candidates" :key="candidate.store_item_id">
+                    <button class="small space-top-small" :disabled="i.picker.busy" @click="pickMatch(i, candidate)" x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
           <div class="small muted" x-show="i.note" x-text="i.note"></div>
             <div class="small muted"><span x-show="i.origin_unknown">Origin not recorded. </span><template x-for="(source, idx) in (i.sources || [])" :key="idx"><span x-text="({manual: 'Manual addition', meal_plan: 'Meal plan', recipe: 'Recipe', low_stock: 'Low stock', suggestion: 'Recipe'})[source.kind] || 'Added' + (source.label ? ': ' + source.label : '') + ' (' + num(source.amount) + ') '"></span></template></div>
         </div>
@@ -52,13 +82,69 @@
 <script>
 function shoppingPage() {
   return {
-    items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
+    stores: [], items: [], products: [], units: [], text: '', amount: 1, unit_id: '',
     async init() {
       [this.products, this.units] = await Promise.all([api('/api/products'), api('/api/units')]);
       this.load();
     },
     async load() {
-      try { this.items = (await api('/api/shopping')).map(i => ({...i, unitChoice: i.unit_id || ''})); } catch (e) { oops(e); }
+      try {
+        this.items = (await api('/api/shopping')).map(i => ({...i, unitChoice: i.unit_id || '', links: [], pricingLoaded: false, pricingError: '', picker: null}));
+        this.loadPrices(this.items);
+      } catch (e) { oops(e); }
+    },
+    storeName(store) { return {woolworths: 'Woolworths', coles: 'Coles', aldi: 'Aldi', iga: 'IGA'}[store] || store; },
+    get enabledStores() { return this.stores.filter(s => s.enabled); },
+    priceLinks(i) { return (i.links || []).filter(link => this.enabledStores.some(s => s.store === link.store)); },
+    priceText(price) { return price == null ? 'price not checked yet' : '$' + Number(price).toFixed(2); },
+    cheapest(i, link) {
+      const prices = this.priceLinks(i).map(l => l.latest_check?.price).filter(p => p != null).map(Number);
+      return link.latest_check?.price != null && Number(link.latest_check.price) === Math.min(...prices);
+    },
+    async loadPrices(items) {
+      const lookups = items.filter(i => i.product_id).map(i => this.loadPrice(i));
+      try { this.stores = await api('/api/pricing/stores'); }
+      catch (e) { items.filter(i => i.product_id).forEach(i => { i.pricingError = 'Store settings unavailable.'; }); }
+      await Promise.all(lookups);
+    },
+    async loadPrice(i) {
+      i.pricingError = '';
+      try { i.links = await api('/api/pricing/products/' + i.product_id); i.pricingLoaded = true; }
+      catch (e) { i.pricingError = 'Prices unavailable.'; }
+    },
+    openMatch(i, store = '') {
+      const product = this.products.find(p => p.id === i.product_id);
+      i.picker = {store: store || this.enabledStores[0]?.store || '', query: product?.name || i.label,
+        candidates: [], busy: false, message: '', version: 0};
+    },
+    async searchMatches(i) {
+      const picker = i.picker;
+      if (!picker.query.trim() || !this.enabledStores.some(s => s.store === picker.store)) return;
+      const version = ++picker.version;
+      picker.busy = true; picker.message = ''; picker.candidates = [];
+      try {
+        const candidates = await api('/api/pricing/search?' + new URLSearchParams({store: picker.store, q: picker.query.trim()}));
+        if (picker.version === version) { picker.candidates = candidates; picker.message = candidates.length ? '' : 'No matches found.'; }
+      } catch (e) { if (picker.version === version) picker.message = 'Search unavailable. Try again.'; }
+      finally { picker.busy = false; }
+    },
+    async pickMatch(i, candidate) {
+      const picker = i.picker;
+      picker.busy = true;
+      try {
+        await api('/api/pricing/products/' + i.product_id + '/link', {method: 'POST', body: {
+          store: picker.store, store_item_id: candidate.store_item_id, store_name: candidate.name}});
+        i.picker = null;
+        await this.loadPrice(i);
+      } catch (e) { picker.message = 'Could not save match. Try again.'; }
+      finally { picker.busy = false; }
+    },
+    async redoMatch(i, link) {
+      try {
+        await api('/api/pricing/products/' + i.product_id + '/link/' + link.store, {method: 'DELETE'});
+        await this.loadPrice(i);
+        this.openMatch(i, link.store);
+      } catch (e) { oops(e); }
     },
     async add() {
       const name = this.text.trim();

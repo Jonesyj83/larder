@@ -83,6 +83,23 @@
 
   </details>
 
+  <details class="space-top">
+    <summary>Store prices</summary>
+    <div class="card">
+      <p class="muted small">Turn a store off if you don't shop there - it stops being searched or shown anywhere.</p>
+      <template x-for="store in stores" :key="store.store">
+        <div class="space-bottom-small">
+          <label class="inline"><input type="checkbox" :checked="store.enabled" :disabled="store.saving" @change="saveStore(store, $event.target.checked)"> <span x-text="storeName(store.store)"></span></label>
+          <template x-if="store.store === 'iga'">
+            <label class="field small" :class="!store.enabled && 'muted'">IGA postcode<input aria-label="IGA postcode" maxlength="20" x-model="store.postcode" :disabled="!store.enabled || store.saving" @change="saveStore(store, !!store.enabled)"></label>
+          </template>
+        </div>
+      </template>
+      <p class="small muted" x-show="storesError" x-text="storesError"></p>
+      <button class="small" x-show="storesError" @click="loadStores()">Retry</button>
+    </div>
+  </details>
+
   {% if user.is_admin %}
   <details class="space-top">
     <summary>People</summary>
@@ -118,14 +135,30 @@ function settingsPage() {
   return {
     dateFormat: preferences().date_format, measurementSystem: preferences().measurement_system,
     portion: '{{ user.portion_size }}', showPrices: !!preferences().show_prices, pw: { old: '', new: '' },
-    keys: [], keyName: '', newKey: '',
+    stores: [], storesError: '', keys: [], keyName: '', newKey: '',
     prefs: { diet: [], dislikes: [], other: '', diet_tags: [] }, newDislike: '',
     users: [], nu: { username: '', password: '', portion_size: 'regular' },
     isAdmin: {{ 'true' if user.is_admin else 'false' }},
 
     async init() {
+      this.loadStores();
       [this.keys, this.prefs] = await Promise.all([api('/api/me/keys'), api('/api/household/preferences')]);
       if (this.isAdmin) this.users = await api('/api/users');
+    },
+    storeName(store) { return {woolworths: 'Woolworths', coles: 'Coles', aldi: 'Aldi', iga: 'IGA'}[store] || store; },
+    async loadStores() {
+      this.storesError = '';
+      try { this.stores = await api('/api/pricing/stores'); }
+      catch (e) { this.storesError = 'Store settings unavailable.'; }
+    },
+    async saveStore(store, enabled) {
+      store.saving = true;
+      try {
+        const saved = await api('/api/pricing/stores/' + store.store, {method: 'PUT', body: {enabled, postcode: store.postcode || ''}});
+        Object.assign(store, saved);
+        toast('Saved');
+      } catch (e) { await this.loadStores(); oops(e); }
+      finally { store.saving = false; }
     },
     addDislike() {
       const v = this.newDislike.trim().replace(/,$/, '');
