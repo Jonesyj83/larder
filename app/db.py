@@ -109,6 +109,16 @@ CREATE TABLE IF NOT EXISTS stock (
     opened INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS receipts (
+    id INTEGER PRIMARY KEY,
+    store TEXT NOT NULL DEFAULT '',
+    purchased_on TEXT NOT NULL DEFAULT (date('now')),
+    total REAL,
+    note TEXT NOT NULL DEFAULT '',
+    added_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS stock_log (
     id INTEGER PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -117,6 +127,7 @@ CREATE TABLE IF NOT EXISTS stock_log (
     amount REAL NOT NULL,
     location_id INTEGER,
     price REAL,
+    receipt_id INTEGER REFERENCES receipts(id) ON DELETE SET NULL,
     at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -269,6 +280,8 @@ def init_db():
         conn.execute("INSERT OR IGNORE INTO locations(name,is_freezer,sort) VALUES('Work',0,3)")
     if "price" not in {r["name"] for r in conn.execute("PRAGMA table_info(stock_log)")}:
         conn.execute("ALTER TABLE stock_log ADD COLUMN price REAL")
+    if "receipt_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(stock_log)")}:
+        conn.execute("ALTER TABLE stock_log ADD COLUMN receipt_id INTEGER REFERENCES receipts(id) ON DELETE SET NULL")
     if conn.execute("SELECT COUNT(*) FROM units").fetchone()[0] == 0:
         conn.executemany("INSERT INTO units (name, name_plural) VALUES (?, ?)", DEFAULT_UNITS)
         ids = {r["name"].lower(): r["id"] for r in conn.execute("SELECT id, name FROM units")}

@@ -68,7 +68,7 @@ def _check_amount(amount):
 
 
 def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=None,
-             price=None, user_id=None, commit=True):
+             price=None, user_id=None, commit=True, receipt_id=None):
     begin(db)
     p = get_product(db, product_id)
     _check_amount(amount)
@@ -80,6 +80,8 @@ def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=
     location_id = location_id or p["location_id"]
     if location_id and not db.execute("SELECT 1 FROM locations WHERE id = ?", (location_id,)).fetchone():
         raise StockError("No such location")
+    if receipt_id is not None and not db.execute("SELECT 1 FROM receipts WHERE id = ?", (receipt_id,)).fetchone():
+        raise StockError("No such receipt")
     if not expires_on and p["default_days"] is not None:
         try:
             expires_on = (date.today() + timedelta(days=p["default_days"])).isoformat()
@@ -88,8 +90,9 @@ def purchase(db, product_id, amount, unit_id=None, location_id=None, expires_on=
     cur = db.execute(
         "INSERT INTO stock (product_id, location_id, amount, expires_on, price) VALUES (?, ?, ?, ?, ?)",
         (product_id, location_id, qty, expires_on or None, price))
-    db.execute("INSERT INTO stock_log (product_id, user_id, kind, amount, location_id, price) VALUES (?, ?, 'purchase', ?, ?, ?)",
-               (product_id, user_id, qty, location_id, price))
+    db.execute("""INSERT INTO stock_log (product_id, user_id, kind, amount, location_id, price, receipt_id)
+               VALUES (?, ?, 'purchase', ?, ?, ?, ?)""",
+               (product_id, user_id, qty, location_id, price, receipt_id))
     if commit:
         db.commit()
     return {"stock_id": cur.lastrowid, "added": qty, "in_stock": in_stock(db, product_id)}

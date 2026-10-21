@@ -39,6 +39,7 @@ class PurchaseIn(DatedInput):
     location_id: Optional[int] = None
     expires_on: Optional[str] = None
     price: Optional[float] = Field(default=None, ge=0, le=MAX_AMOUNT, allow_inf_nan=False)
+    receipt_id: Optional[int] = None
 
 
 class ConsumeIn(BaseModel):
@@ -120,7 +121,7 @@ def log(limit: int = 50, product_id: Optional[int] = None, db=Depends(get_db), u
 def purchase(data: PurchaseIn, db=Depends(get_db), user=Depends(current_user)):
     try:
         return st.purchase(db, data.product_id, data.amount, data.unit_id, data.location_id,
-                           data.expires_on, data.price, user["id"])
+                           data.expires_on, data.price, user["id"], receipt_id=data.receipt_id)
     except st.StockError as e:
         db.rollback()
         raise HTTPException(400, str(e))
