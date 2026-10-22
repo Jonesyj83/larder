@@ -699,3 +699,16 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
   .shop-trend svg { max-width: 220px; }
   .shop-actions { grid-area: actions; }
 }
+
+.move-control { position: relative; }
+.move-control > button { white-space: nowrap; }
+.move-picker { left: auto; right: 0; }
+.shopping-page .plain-row { grid-template-columns: 24px minmax(80px, 1fr) 110px auto; }
+@media (max-width: 600px) {
+  .shopping-page .plain-row { grid-template-areas: none; grid-template-columns: 24px minmax(60px, 1fr) 90px; }
+  .plain-row .shop-actions { grid-area: auto; grid-column: 2 / -1; }
+}
+
+@media (min-width: 741px) {
+  .shopping-page .shop-row:not(.plain-row) { grid-template-columns: 56px minmax(100px, 1fr) minmax(180px, 1.6fr) 100px 92px 150px; }
+}

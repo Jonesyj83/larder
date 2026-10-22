@@ -16,7 +16,7 @@ class Usability(unittest.TestCase):
         self.db.row_factory = sqlite3.Row
         self.db.execute('PRAGMA foreign_keys=ON')
         self.db.executescript(SCHEMA)
-        self.db.execute("INSERT INTO shopping_lists(id,name) VALUES(1,'Shopping')")
+        self.db.execute("INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Shopping','order')")
         self.db.execute("INSERT INTO users(id,username,password_hash) VALUES(1,'test','unused')")
         self.db.execute("INSERT INTO units(id,name) VALUES(1,'piece')")
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(1,'Bread',1)")

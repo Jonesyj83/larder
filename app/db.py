@@ -162,6 +162,7 @@ CREATE TABLE IF NOT EXISTS stock_log (
 
 CREATE TABLE IF NOT EXISTS shopping_lists (
     id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL DEFAULT 'plain',
     name TEXT NOT NULL,
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -310,6 +311,13 @@ def init_db():
         default_id = default["id"] if default else conn.execute(
             "INSERT INTO shopping_lists(name) VALUES ('Shopping')").lastrowid
         conn.execute("UPDATE shopping_list SET list_id=? WHERE list_id IS NULL", (default_id,))
+    if "kind" not in {r["name"] for r in conn.execute("PRAGMA table_info(shopping_lists)")}:
+        conn.execute("ALTER TABLE shopping_lists ADD COLUMN kind TEXT NOT NULL DEFAULT 'plain'")
+    if not conn.execute("SELECT 1 FROM shopping_lists WHERE kind='order'").fetchone():
+        chosen = conn.execute("""SELECT l.id FROM shopping_lists l LEFT JOIN shopping_list i ON i.list_id=l.id
+            GROUP BY l.id ORDER BY COUNT(i.id) DESC, l.id LIMIT 1""").fetchone()
+        conn.execute("UPDATE shopping_lists SET kind='order' WHERE id=?", (chosen['id'],))
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS shopping_lists_single_order ON shopping_lists(kind) WHERE kind='order'")
     if conn.execute("SELECT 1 FROM shopping_list WHERE list_id IS NULL").fetchone():
         raise RuntimeError("Shopping list backfill incomplete")
     # Older tables retain their shape; guards enforce the same non-null rule.

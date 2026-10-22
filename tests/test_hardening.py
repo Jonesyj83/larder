@@ -30,7 +30,7 @@ def prepare(db):
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA foreign_keys=ON')
     db.executescript(SCHEMA)
-    db.execute("INSERT INTO shopping_lists(id,name) VALUES(1,'Shopping')")
+    db.execute("INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Shopping','order')")
     db.execute("INSERT INTO users(id,username,password_hash,portion_size) VALUES(1,'test','unused','regular')")
     db.execute("INSERT INTO users(id,username,password_hash,portion_size) VALUES(2,'small','unused','small')")
     db.execute("INSERT INTO users(id,username,password_hash,portion_size) VALUES(3,'large','unused','large')")
