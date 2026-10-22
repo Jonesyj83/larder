@@ -91,8 +91,9 @@
         <div class="space-bottom-small">
           <label class="inline"><input type="checkbox" :checked="store.enabled" :disabled="store.saving" @change="saveStore(store, $event.target.checked)"> <span x-text="storeName(store.store)"></span></label>
           <template x-if="store.store === 'iga'">
-            <label class="field small" :class="!store.enabled && 'muted'">IGA postcode<input aria-label="IGA postcode" maxlength="20" x-model="store.postcode" :disabled="!store.enabled || store.saving" @change="saveStore(store, !!store.enabled)"></label>
+            <label class="field small" :class="!store.enabled && 'muted'">IGA area or postcode<input aria-label="IGA area or postcode" placeholder="e.g. Piara Waters or 6112" maxlength="20" x-model="store.postcode" :disabled="!store.enabled || store.saving" @change="saveStore(store, !!store.enabled)"></label>
           </template>
+          <p class="muted small" x-show="store.store === 'iga' && store.enabled">Prices come from the closest participating IGA to this area.</p>
         </div>
       </template>
       <p class="small muted" x-show="storesError" x-text="storesError"></p>
