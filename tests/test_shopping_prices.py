@@ -23,7 +23,7 @@ class ShoppingPrices(unittest.TestCase):
         template = (ROOT / 'app/templates/shopping.html').read_text()
         for removed in ('Match this item', 'Auto-match all', 'openMatch(', 'redoMatch(', 'i.sources', 'origin_unknown', "'/products?id='"):
             self.assertNotIn(removed, template)
-        self.assertIn('@click="openPicker(i, store.store)"', template)
+        self.assertIn('@click.stop="openPicker(i, store.store)"', template)
         self.assertIn('@submit.prevent="searchMatches(i)"', template)
         self.assertIn('@click="pickMatch(i, store.store, candidate)"', template)
         self.assertIn('x-for="store in enabledStores"', template)
@@ -99,7 +99,7 @@ const api = async (path, options) => {
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
 
-    def test_stock_context_and_purchase_size_with_real_units(self):
+    def test_stock_context_with_legacy_rows(self):
         from app import db as database
         from app.routes import shopping
         db = sqlite3.connect(':memory:')
@@ -123,22 +123,15 @@ const api = async (path, options) => {
         self.assertTrue(by_id[1]['stock_covers_need'])
         self.assertFalse(by_id[2]['stock_covers_need'])
         self.assertTrue(by_id[3]['stock_covers_need'])
-        self.assertEqual(by_id[1]['purchase_size'], {'amount':2000,'unit':'mL'})
-        for number in (2,3,4,6):
-            self.assertIsNone(by_id[number]['purchase_size'])
+        for item in items:
+            self.assertNotIn('stock_per_amount', item)
+            self.assertNotIn('purchase_size', item)
         self.assertFalse(by_id[6]['stock_covers_need'])
         template = (ROOT / 'app/templates/shopping.html').read_text()
         self.assertIn('x-show="i.stock_covers_need">Already have enough in stock', template)
         self.assertIn('x-model.number="i.amount"', template)
-        helpers = (ROOT / 'app/static/app.js').read_text()
-        helpers = helpers[helpers.index('function num('):helpers.index('function shelfLabel(')] + helpers[helpers.index('const MASS ='):]
-        self.run_logic('shopping.html', "const window = {}; const preferences = () => ({measurement_system:'metric'});\n" + helpers +
-            "\nconst items = " + json.dumps(by_id) + ";\n" + r'''
-const page = shoppingPage();
-assert.equal(page.amountText(items[1]), '60 ml needed (sold as 2 l)');
-assert.equal(page.amountText(items[2]), '1 bottle');
-assert.equal(page.amountText(items[4]), '1 piece');
-''')
+        for removed in ('unitChoice', 'unit-mini', 'unit-choice', 'qty-unit', 'amountText', '/api/units'):
+            self.assertNotIn(removed, template)
 
     def test_add_matches_only_added_product_and_keeps_item_on_failure(self):
         from app import db as database, pricing
@@ -166,71 +159,41 @@ assert.equal(page.amountText(items[4]), '1 piece');
             shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
             match.assert_not_called()
 
-    def test_estimates_convert_units_round_packs_and_scale_loose_produce(self):
-        from app import db as database
-        from app.routes import shopping, pricing
-        db = sqlite3.connect(':memory:')
-        self.addCleanup(db.close)
-        db.row_factory = sqlite3.Row
-        db.executescript(database.SCHEMA)
-        db.executescript("""
-            INSERT INTO units(id,name) VALUES(1,'mL'),(2,'bottle'),(3,'L'),(4,'kg'),(5,'g');
-            INSERT INTO unit_conversions(from_unit_id,to_unit_id,factor) VALUES(3,1,1000),(4,5,1000);
-            INSERT INTO products(id,name,unit_id,purchase_unit_id,purchase_factor)
-                VALUES(1,'Stock',1,2,1000),(2,'Onions',4,NULL,1);
-            INSERT INTO shopping_lists(id,name) VALUES(1,'Home');
-            INSERT INTO shopping_list(id,list_id,product_id,amount,unit_id)
-                VALUES(1,1,1,100,1),(2,1,2,1.5,4);
-        """)
-        items = shopping.list_items(db=db, user={'id':1}, list_id=1)
-        links = []
-        for product_id, name, size, price, measure in [(1,'Stock 1L','1L',1.9,'1L'),(2,'Brown Onions per kg','',2,'kg')]:
-            link_id = pricing.pricing.link_product(db, product_id, 'aldi', str(product_id), name, size=size)
-            pricing.pricing.record_price(db, link_id, {'price':price,'unit_price':price,'unit_measure':measure})
-            links.append(pricing.product_prices(product_id, db=db))
-        self.assertEqual(links[0][0]['price_quantity'], {'stock_units':1000, 'whole_packs':True})
-        self.assertEqual(links[1][0]['price_quantity'], {'stock_units':1, 'whole_packs':False})
-        self.run_logic('shopping.html', 'const items = ' + json.dumps(items) + '; const links = ' + json.dumps(links) + ';' + r'''
-const page = shoppingPage();
-page.stores = [{store:'aldi',enabled:1}];
-page.items = items.map(i => ({...i, links:links[i.product_id - 1]}));
-assert.equal(page.splitTotal, 4.9);
-assert.equal(page.storeTotals[0].total, 4.9);
-const stock = page.items.find(i => i.product_id === 1);
-stock.amount = 1001;
-assert.equal(page.itemCost(stock, stock.links[0]), 3.8);
-stock.amount = 2000;
-assert.equal(page.itemCost(stock, stock.links[0]), 3.8);
-''')
-
-    def test_range_packs_and_unparseable_size_name_fallback(self):
-        from app import db as database
-        from app.routes.pricing import price_quantity
-        db = sqlite3.connect(':memory:')
-        self.addCleanup(db.close)
-        db.row_factory = sqlite3.Row
-        db.executescript(database.SCHEMA)
-        db.executescript("""
-            INSERT INTO units(id,name) VALUES(1,'g'),(2,'kg');
-            INSERT INTO unit_conversions(from_unit_id,to_unit_id,factor) VALUES(2,1,1000);
-        """)
-        product = dict(unit_id=1, purchase_unit_id=None, purchase_factor=1)
-        for size, name, expected in [
-                ('1.1kg-1.8kg', 'Chicken Thigh Fillets Skinless 1.1kg-1.8kg', 1450),
-                ('1.1 kg - 1.8 kg', '', 1450), ('500g-750g', '', 625),
-                ('1.1-1.8kg', '', 1450), ('500g-1kg', '', 500),
-                ('variable weight', 'Chicken Thigh Fillets Skinless 1.1kg-1.8kg', 1450),
-                ('', 'Chicken Thigh Fillets Skinless 1.1kg-1.8kg', 1450),
-                ('unknown', 'Chicken 500g', 500), ('500g', '', 500)]:
-            with self.subTest(size=size, name=name):
-                quantity = price_quantity(db, product, dict(size=size, store_name=name))
-                self.assertEqual(quantity, dict(stock_units=expected, whole_packs=True))
+    def test_estimates_multiply_quantity_by_store_price(self):
         self.run_logic('shopping.html', r'''
 const page = shoppingPage();
-const item = {amount:1000, stock_per_amount:1};
-const link = {latest_check:{price:26.10}, price_quantity:{stock_units:1450, whole_packs:true}};
-assert.equal(page.itemCost(item, link), 26.10);
+page.stores = [{store:'aldi',enabled:1}, {store:'coles',enabled:1}];
+const pack = {store:'aldi', size:'1.1kg-1.8kg', latest_check:{price:3.50, unit_price:1.75}};
+const other = {store:'coles', latest_check:{price:4}};
+page.items = [{product_id:1, amount:2, links:[pack, other]}];
+assert.equal(page.itemCost(page.items[0], pack), 7);
+assert.equal(page.splitTotal, 7);
+assert.equal(page.storeTotals[0].total, 7);
+assert.equal(page.storeTotals[1].total, 8);
+assert.equal(page.bestSingleStore.total, 7);
+assert.equal(page.itemCost({amount:1.5}, pack), 5.25);
+assert.equal(page.itemCost({amount:2}, {latest_check:{price:0}}), 0);
+assert.equal(page.itemCost({amount:2}, {latest_check:{price:null}}), null);
+const onions = {store_name:'Brown Onions per kg', latest_check:{price:2.49, unit_price:2.49}};
+assert.equal(page.itemCost({amount:2}, onions), 4.98);
 ''')
+
+    def test_price_response_has_no_quantity_conversion(self):
+        from app import db as database
+        from app.routes import pricing
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO units(id,name) VALUES(1,'g');
+            INSERT INTO products(id,name,unit_id) VALUES(1,'Chicken',1);
+        """)
+        link = pricing.pricing.link_product(db, 1, 'aldi', '1', 'Chicken 1.1kg-1.8kg', size='1.1kg-1.8kg')
+        pricing.pricing.record_price(db, link, {'price':3.5})
+        response = pricing.product_prices(1, db=db)[0]
+        self.assertEqual(response['latest_check']['price'], 3.5)
+        self.assertNotIn('price_quantity', response)
 
     def test_settings_store_controls(self):
         template = (ROOT / 'app/templates/settings.html').read_text()
