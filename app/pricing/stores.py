@@ -22,6 +22,19 @@ def client():
     return httpx.Client(headers=HEADERS, timeout=15, follow_redirects=True)
 
 
+def coles_browse_session():
+    """One persistent, cookied session for a whole crawl run -- a real
+    browser picks up Incapsula's visitor cookie on the first page and
+    carries it for the rest of the visit; a fresh client per request never
+    gets that and reads as a new first-time visitor every single time."""
+    session = client()
+    try:
+        session.get("https://www.coles.com.au/")
+    except Exception:
+        pass
+    return session
+
+
 class PageData(HTMLParser):
     def __init__(self, script_id):
         super().__init__(convert_charrefs=True)
@@ -128,13 +141,23 @@ CATALOGUE_CATEGORIES = (
 )
 
 
-def browse_coles_category(category: str, page: int = 1):
+def browse_coles_category(category: str, page: int = 1, session=None):
     """One page of a Coles browse-category listing. Unlike search_coles(),
     these pages aren't behind the bot wall at all -- just plain product
-    listings, same as any shopper scrolling the category in a browser."""
-    with client() as session:
+    listings, same as any shopper scrolling the category in a browser.
+
+    Pass a shared session (from coles_browse_session()) when fetching many
+    pages in a row -- a fresh client with no cookies on every single
+    request looks like a different first-time visitor every time, which
+    trips the rate limiter far sooner than a normal browsing session would."""
+    owns_session = session is None
+    session = session or client()
+    try:
         response = session.get(f"https://www.coles.com.au/browse/{category}", params={"page": page})
         response.raise_for_status()
+    finally:
+        if owns_session:
+            session.close()
     data = payload(response.text, "__NEXT_DATA__")
     search = data.get("props", {}).get("pageProps", {}).get("searchResults")
     if not isinstance(search, dict) or "results" not in search:

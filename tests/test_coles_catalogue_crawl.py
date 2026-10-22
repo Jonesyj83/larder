@@ -65,6 +65,27 @@ class ColesCatalogueCrawl(unittest.TestCase):
         result = crawl(self.db, categories=["drinks"], delay=0, sleep=lambda s: None, fetch=fetch, log=lambda *a: None)
         self.assertEqual(result["products"], 0)
 
+    def test_default_run_shares_one_cookied_session_across_every_request(self):
+        from unittest.mock import patch
+        from app.pricing import stores
+        calls = []
+        class FakeSession:
+            closed = False
+            def close(self):
+                self.closed = True
+        fake = FakeSession()
+        def fake_browse(category, page, session=None):
+            calls.append(session)
+            return [], 0
+        with patch.object(stores, 'coles_browse_session', return_value=fake) as opener, \
+             patch.object(stores, 'browse_coles_category', side_effect=fake_browse):
+            crawl(self.db, categories=["drinks", "pantry"], delay=0, sleep=lambda s: None, log=lambda *a: None)
+        opener.assert_called_once()
+        # Every single page request used the SAME session object, not a
+        # fresh one each time.
+        self.assertTrue(all(s is fake for s in calls))
+        self.assertTrue(fake.closed)
+
 
 if __name__ == "__main__":
     unittest.main()
