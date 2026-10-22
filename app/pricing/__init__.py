@@ -80,16 +80,18 @@ def strongest_match(name, candidates):
     return ranked[0][1]
 
 
-def auto_match(db, product_id, name, before_search=None):
+def auto_match(db, product_id, name, before_search=None, search_fn=None, excluded_stores=()):
     matched = []
     settings = db.execute("""SELECT * FROM store_settings s WHERE enabled=1
         AND NOT EXISTS (SELECT 1 FROM product_store_links l
             WHERE l.product_id=? AND l.store=s.store) ORDER BY store""", (product_id,)).fetchall()
     for setting in settings:
+        if setting["store"] in excluded_stores:
+            continue
         try:
-            if before_search:
-                before_search()
-            candidates = search(setting["store"], name, setting["postcode"])
+            if before_search and before_search() is False:
+                break
+            candidates = (search_fn or search)(setting["store"], name, setting["postcode"])
             candidate = strongest_match(name, candidates)
             if candidate is None:
                 continue
@@ -103,11 +105,17 @@ def auto_match(db, product_id, name, before_search=None):
     return matched
 
 
-def auto_match_all(db):
+def auto_match_all(db, *, search_fn=None, before_search=None, excluded_stores=(), max_searches=None):
     requested = False
+    searches = 0
 
     def pace():
-        nonlocal requested
+        nonlocal requested, searches
+        if max_searches is not None and searches >= max_searches:
+            return False
+        searches += 1
+        if before_search:
+            return before_search()
         if requested:
             time.sleep(1.5)
         requested = True
@@ -118,7 +126,7 @@ def auto_match_all(db):
             SELECT 1 FROM product_store_links l WHERE l.product_id=p.id AND l.store=s.store))
         ORDER BY p.id""").fetchall()
     for product in products:
-        result["matched"].extend(auto_match(db, product["id"], product["name"], pace))
+        result["matched"].extend(auto_match(db, product["id"], product["name"], pace, search_fn, excluded_stores))
         if db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
                 SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
                 (product["id"],)).fetchone():

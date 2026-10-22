@@ -203,6 +203,35 @@ stock.amount = 2000;
 assert.equal(page.itemCost(stock, stock.links[0]), 3.8);
 ''')
 
+    def test_range_packs_and_unparseable_size_name_fallback(self):
+        from app import db as database
+        from app.routes.pricing import price_quantity
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO units(id,name) VALUES(1,'g'),(2,'kg');
+            INSERT INTO unit_conversions(from_unit_id,to_unit_id,factor) VALUES(2,1,1000);
+        """)
+        product = dict(unit_id=1, purchase_unit_id=None, purchase_factor=1)
+        for size, name, expected in [
+                ('1.1kg-1.8kg', 'Chicken Thigh Fillets Skinless 1.1kg-1.8kg', 1450),
+                ('1.1 kg - 1.8 kg', '', 1450), ('500g-750g', '', 625),
+                ('1.1-1.8kg', '', 1450), ('500g-1kg', '', 500),
+                ('variable weight', 'Chicken Thigh Fillets Skinless 1.1kg-1.8kg', 1450),
+                ('', 'Chicken Thigh Fillets Skinless 1.1kg-1.8kg', 1450),
+                ('unknown', 'Chicken 500g', 500), ('500g', '', 500)]:
+            with self.subTest(size=size, name=name):
+                quantity = price_quantity(db, product, dict(size=size, store_name=name))
+                self.assertEqual(quantity, dict(stock_units=expected, whole_packs=True))
+        self.run_logic('shopping.html', r'''
+const page = shoppingPage();
+const item = {amount:1000, stock_per_amount:1};
+const link = {latest_check:{price:26.10}, price_quantity:{stock_units:1450, whole_packs:true}};
+assert.equal(page.itemCost(item, link), 26.10);
+''')
+
     def test_settings_store_controls(self):
         template = (ROOT / 'app/templates/settings.html').read_text()
         self.assertLess(template.index('<summary>Store prices</summary>'), template.index('{% if user.is_admin %}'))
