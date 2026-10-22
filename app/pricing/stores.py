@@ -169,40 +169,98 @@ def _product_dicts(value):
 
 
 def search_aldi(query: str, limit: int = 12):
+    words = set(re.findall(r"[a-z]+", query.lower()))
+    expanded = set(words)
+    for word, aliases in {"pork": {"meat"}, "chops": {"pork"}, "potato": {"potatoes"},
+                          "potatoes": {"potato"}, "milk": {"dairy"}, "cream": {"dairy"}}.items():
+        if word in words:
+            expanded.update(aliases)
     try:
         with client() as session:
             links = _categories(session)
-            words = set(re.findall(r"[a-z]+", query.lower()))
-            # Only fetch a relevant category; never sweep the catalogue.
-            scored = [(len(words & set(re.findall(r"[a-z]+", path))), path) for path in links]
-            score, path = max(scored)
-            if not score:
-                return []
-            response = session.get("https://www.aldi.com.au" + path)
-            response.raise_for_status()
-        data = _unflatten(payload(response.text, "__NUXT_DATA__"))
-        products = list(_product_dicts(data))
-        if not products:
-            raise ValueError("No recognizable Aldi product entries")
-        out = {}
-        for p in products:
-            name = p.get("name") or p.get("displayName")
-            if not isinstance(name, str) or not words.issubset(set(re.findall(r"[a-z]+", name.lower()))):
-                continue
-            price = p.get("price")
-            if isinstance(price, dict):
-                price = price.get("amount", price.get("value"))
-            item_id = str(p.get("sku") or p.get("productId") or p.get("code"))
-            out[item_id] = {"store_item_id": item_id, "name": name, "brand": p.get("brand") or "",
-                            "size": p.get("size") or "", "price": price, "was_price": p.get("wasPrice"),
-                            "unit_price": None, "unit_measure": "", "on_special": False}
-        return list(out.values())[:max(1, min(limit, 36))]
+            scored = sorted(((len(expanded & set(re.findall(r"[a-z]+", path))), path) for path in links), reverse=True)
+            paths = [path for score, path in scored if score][:3]
+            out = {}
+            for path in paths:
+                response = session.get("https://www.aldi.com.au" + path)
+                response.raise_for_status()
+                data = _unflatten(payload(response.text, "__NUXT_DATA__"))
+                for p in _product_dicts(data):
+                    name = p.get("name") or p.get("displayName")
+                    if not isinstance(name, str):
+                        continue
+                    name_words = set(re.findall(r"[a-z]+", name.casefold()))
+                    overlap = len(words & name_words)
+                    if overlap < max(1, len(words) - 1):
+                        continue
+                    score = overlap / len(words | name_words)
+                    price = p.get("price")
+                    if isinstance(price, dict):
+                        price = price.get("amount", price.get("value"))
+                    if isinstance(price, int) and not isinstance(price, bool):
+                        price = price / 100
+                    item_id = str(p.get("sku") or p.get("productId") or p.get("code"))
+                    out[item_id] = {"store_item_id": item_id, "name": name, "brand": p.get("brand") or "",
+                                    "size": p.get("size") or "", "price": price,
+                                    "was_price": p.get("wasPrice"), "unit_price": None, "unit_measure": "",
+                                    "on_special": bool(p.get("wasPrice")), "_score": score}
+            return sorted(out.values(), key=lambda item: item["_score"], reverse=True)[:max(1, min(limit, 36))]
     except Exception:
         log.warning("Aldi lookup failed", exc_info=True)
         return FailedResults()
 
 
+_IGA_STORE_CACHE = {}
+_IGA_CACHE_TTL = 604800
+_IGA_MODE_ID = "11111111-1111-1111-1111-111111111111"
+
+
+def _iga_store_for_location(session, location):
+    key = location.strip().casefold()
+    cached = _IGA_STORE_CACHE.get(key)
+    if cached and cached[0] > time.time():
+        return cached[1]
+    response = session.get("https://nominatim.openstreetmap.org/search",
+                           params={"q": location + ", Western Australia, Australia", "format": "json", "limit": 1},
+                           headers={"User-Agent": "Larder grocery app"})
+    response.raise_for_status()
+    places = response.json()
+    if not places:
+        raise ValueError("Could not locate that suburb or postcode")
+    lat, lon = places[0]["lat"], places[0]["lon"]
+    response = session.get(f"https://www.igashop.com.au/api/storefront/near/{lat}/{lon}/100/10/stores",
+                           params={"shoppingModeId": _IGA_MODE_ID})
+    response.raise_for_status()
+    stores = response.json().get("items") or []
+    store = next((item for item in stores if item.get("retailerStoreId")), None)
+    if not store:
+        raise ValueError("No IGA store found near that location")
+    store_id = str(store["retailerStoreId"])
+    _IGA_STORE_CACHE[key] = (time.time() + _IGA_CACHE_TTL, store_id)
+    return store_id
+
+
 def search_iga(query: str, limit: int = 12, postcode: str = ""):
-    # not yet working: store selection on igashop.com.au needs live verification.
-    log.warning("IGA lookup unavailable: store selection has not been verified (postcode %s)", postcode)
-    return FailedResults()
+    if not postcode.strip():
+        return FailedResults()
+    try:
+        with client() as session:
+            store_id = _iga_store_for_location(session, postcode)
+            response = session.get(f"https://www.igashop.com.au/api/storefront/stores/{store_id}/search",
+                                   params={"q": query, "take": max(1, min(limit, 36))})
+            response.raise_for_status()
+            products = response.json().get("items") or []
+        results = []
+        for p in products:
+            size_info = p.get("unitOfSize") or {}
+            size = " ".join(str(size_info.get(key)).strip() for key in ("size", "abbreviation") if size_info.get(key))
+            results.append({"store_item_id": str(p.get("productId") or p.get("sku") or ""),
+                            "name": p.get("name", ""), "brand": p.get("brand") or "", "size": size,
+                            "price": p.get("priceNumeric"), "was_price": p.get("wasPriceNumeric"),
+                            "unit_price": p.get("wholePrice"),
+                            "unit_measure": (p.get("unitOfPrice") or {}).get("abbreviation", ""),
+                            "on_special": bool(p.get("tprPrice"))})
+        return [item for item in results if item["store_item_id"] and item["name"]]
+    except Exception:
+        log.warning("IGA lookup failed for location %s", postcode, exc_info=True)
+        return FailedResults()

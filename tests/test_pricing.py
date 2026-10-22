@@ -380,8 +380,31 @@ class StoreParsers(unittest.TestCase):
             self.assertEqual(stores.search_aldi('Unknown'), [])
             with patch.object(stores, 'payload', side_effect=ValueError('bad data')), self.assertLogs(level='WARNING'):
                 self.assertTrue(stores.search_aldi('Dairy Milk').failed)
-        with self.assertLogs(level='WARNING'):
-            self.assertTrue(stores.search_iga('Milk', postcode='6000').failed)
+
+    def test_iga_resolves_nearest_store_and_normalizes_results(self):
+        self.assertFalse(stores.search_iga('Milk', postcode=''))
+
+        def handler(request):
+            if 'nominatim' in str(request.url):
+                return httpx.Response(200, json=[{'lat': '-32.13', 'lon': '115.91'}])
+            if '/near/' in str(request.url):
+                return httpx.Response(200, json={'items': [{'retailerStoreId': 48323}]})
+            self.assertEqual(request.url.params['q'], 'pork chops')
+            return httpx.Response(200, json={'items': [
+                {'productId': 80080037, 'name': 'Pork Loin Chops', 'brand': '', 'priceNumeric': 18.495,
+                 'wasPriceNumeric': None, 'wholePrice': 36.99, 'unitOfPrice': {'abbreviation': 'kg'},
+                 'unitOfSize': {'size': '500', 'abbreviation': 'g'}, 'tprPrice': None},
+                {'productId': '', 'name': '', 'priceNumeric': 1},
+            ]})
+        with patch.object(stores, 'client', lambda: self.session(handler)):
+            found = stores.search_iga('pork chops', postcode='Piara Waters')
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]['store_item_id'], '80080037')
+        self.assertEqual(found[0]['size'], '500 g')
+        self.assertEqual(found[0]['price'], 18.495)
+        with patch.object(stores, 'client', lambda: self.session(lambda r: httpx.Response(500))), self.assertLogs(level='WARNING'):
+            stores._IGA_STORE_CACHE.clear()
+            self.assertTrue(stores.search_iga('pork chops', postcode='Piara Waters').failed)
 
 
 class ProductsHistoryLogic(unittest.TestCase):
