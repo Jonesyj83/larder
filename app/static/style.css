@@ -574,7 +574,7 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 
 .shop-row {
   display: grid;
-  grid-template-columns: 56px minmax(150px, 1.15fr) minmax(250px, 1.5fr) 150px 108px 140px;
+  grid-template-columns: 76px minmax(150px, 1.15fr) minmax(250px, 1.5fr) 150px 108px 140px;
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
@@ -586,7 +586,7 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .shop-row.is-done .shop-name { text-decoration: line-through; }
 
 .shop-identity { display: flex; align-items: center; gap: var(--space-3); }
-.shop-identity input[type="checkbox"] { width: 20px; height: 20px; }
+.shop-identity input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
 .thumb {
   width: 40px; height: 40px; border-radius: var(--radius-control);
   background: var(--bg); border: 1px solid var(--edge);
@@ -668,7 +668,7 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .list-surface .state-block p { font-size: .88rem; max-width: 36ch; margin: 0 auto; }
 
 @media (max-width: 1150px) {
-  .shop-row { grid-template-columns: 48px minmax(120px, 1fr) minmax(190px, 1.3fr) 130px 108px; gap: var(--space-3); }
+  .shop-row { grid-template-columns: 76px minmax(120px, 1fr) minmax(190px, 1.3fr) 130px 108px; gap: var(--space-3); }
   .shop-actions { grid-column: 2 / -1; }
 }
 @media (max-width: 840px) {
@@ -688,7 +688,7 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
     row-gap: var(--space-3);
     padding: var(--space-4) var(--space-3);
   }
-  .shop-identity { grid-area: check; flex-wrap: wrap; }
+  .shop-identity { grid-area: check; }
   .shop-product { grid-area: name; }
   .store-chips { grid-area: chips; }
   .qty-col { grid-area: qty; }

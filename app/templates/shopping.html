@@ -64,9 +64,9 @@
       <div class="shop-row" :class="i.done ? 'is-done' : ''">
         <div class="shop-identity">
           <input type="checkbox" class="check-item" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)">
-          <div class="thumb">
-            <img x-show="i.picture" :src="pic(i.picture)" alt="">
-          </div>
+          <template x-if="i.picture">
+            <div class="thumb"><img :src="pic(i.picture)" alt=""></div>
+          </template>
         </div>
         <div class="shop-product">
           <span class="shop-name" x-text="i.label"></span>

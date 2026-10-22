@@ -106,6 +106,39 @@ class SchemaAndRefresh(unittest.TestCase):
         sleep.assert_called_with(1.5)
         self.assertEqual(self.db.execute('SELECT COUNT(*) FROM store_price_checks').fetchone()[0], 4)
 
+    def test_nightly_missing_matches_are_bounded_and_paced(self):
+        self.db.execute("UPDATE store_settings SET enabled=(store='coles')")
+        self.db.execute("INSERT INTO products(name,unit_id) VALUES('Bread',1)")
+        fetch = MagicMock(return_value=[CANDIDATE])
+        sleep = MagicMock()
+        refresh_prices(self.db, fetch, sleep, match_limit=1)
+        fetch.assert_called_once_with('coles', 'Milk 2L', '')
+        self.assertEqual(self.db.execute('SELECT COUNT(*) FROM product_store_links').fetchone()[0], 1)
+        refresh_prices(self.db, fetch, sleep, match_limit=1)
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(sleep.call_count, 1)
+
+    def test_missing_matches_share_refresh_breaker(self):
+        self.add_links('coles', 3)
+        self.db.execute("UPDATE store_settings SET enabled=(store='coles')")
+        self.db.commit()
+        fetch = MagicMock(side_effect=ValueError('offline'))
+        with self.assertLogs(level='WARNING'):
+            refresh_prices(self.db, fetch, lambda _: None, match_limit=100)
+        self.assertEqual(fetch.call_count, 3)
+
+    def test_missing_matches_trip_their_own_breaker(self):
+        self.add_links('aldi', 5)
+        self.db.execute("UPDATE store_settings SET enabled=(store='coles')")
+        self.db.commit()
+        fetch = MagicMock(return_value=stores.FailedResults())
+        sleep = MagicMock()
+        with self.assertLogs(level='WARNING'):
+            result = refresh_prices(self.db, fetch, sleep, match_limit=100)
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(result['circuit_breakers'], ['coles'])
+
     def test_exact_id_missing_id_and_append_only_history(self):
         link = pricing.link_product(self.db, 1, 'coles', '123', 'Milk 2L')
         self.db.commit()

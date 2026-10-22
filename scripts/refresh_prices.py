@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Refresh only this household's matched items, outside the web process.
+"""Refresh this household's matched items and retry missing store matches, outside the web process.
 
 Run from a checkout with its virtual environment and LARDER_DATA set to the
 same directory as the web service. Example cron entry (nightly at 03:15):
@@ -7,7 +7,8 @@ same directory as the web service. Example cron entry (nightly at 03:15):
 
 Requests are paced by 1.5 seconds. Three consecutive failures disable a store
 for this run. Missing IDs and unavailable prices append an unknown observation;
-old observations remain available as history. No automatic re-matching occurs.
+old observations remain available as history. Missing matches get up to 100 paced
+searches per nightly run; existing links are preserved.
 """
 import logging
 from pathlib import Path
@@ -18,12 +19,12 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app import db as database
-from app.pricing import record_price, search
+from app.pricing import auto_match_all, record_price, search
 
 log = logging.getLogger(__name__)
 
 
-def refresh_prices(db, fetch=None, sleep=None, delay=1.5):
+def refresh_prices(db, fetch=None, sleep=None, delay=1.5, match_limit=0):
     fetch = fetch or search
     sleep = sleep or time.sleep
     failures = {}
@@ -62,6 +63,31 @@ def refresh_prices(db, fetch=None, sleep=None, delay=1.5):
             if failures[store] >= 3:
                 broken.add(store)
                 log.warning("Circuit breaker: %s stopped after three consecutive failures", store)
+    if match_limit:
+        def pace_match():
+            nonlocal requested
+            if requested:
+                sleep(delay)
+            requested = True
+
+        def match_search(store, name, postcode):
+            try:
+                results = fetch(store, name, postcode)
+                if getattr(results, "failed", False) or not isinstance(results, list) or any(
+                        not isinstance(p, dict) or "store_item_id" not in p for p in results):
+                    raise ValueError("Store lookup failed or returned malformed results")
+                failures[store] = 0
+                return results
+            except Exception:
+                failures[store] = failures.get(store, 0) + 1
+                if failures[store] >= 3:
+                    broken.add(store)
+                    log.warning("Circuit breaker: %s stopped after three consecutive failures", store)
+                raise
+
+        matches = auto_match_all(db, search_fn=match_search, before_search=pace_match,
+                                 excluded_stores=broken, max_searches=match_limit)
+        log.info("Missing store matches added: %s", len(matches["matched"]))
     summary = {"products_checked": checked, "prices_updated": updated, "circuit_breakers": sorted(broken)}
     log.info("Products checked: %s; prices updated: %s; circuit breakers: %s", checked, updated, ", ".join(sorted(broken)) or "none")
     return summary
@@ -72,7 +98,7 @@ def main():
     database.init_db()
     db = database.connect()
     try:
-        refresh_prices(db)
+        refresh_prices(db, match_limit=100)
     finally:
         db.close()
 

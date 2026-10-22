@@ -107,6 +107,16 @@ def price_quantity(db, product, link):
     aliases = {"litre": "l", "litres": "l", "liter": "l", "liters": "l", "grams": "g", "kilograms": "kg"}
 
     def quantity(text):
+        ranged = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?\s*[-–]\s*(\d+(?:\.\d+)?)\s*([a-zA-Z]+)?\s*", text or "")
+        if ranged:
+            first_unit, last_unit = ranged[2] or ranged[4], ranged[4] or ranged[2]
+            if not first_unit:
+                return None
+            first = quantity(f"{ranged[1]}{first_unit}")
+            last = quantity(f"{ranged[3]}{last_unit}")
+            if first_unit.casefold() != last_unit.casefold():
+                return first if first is not None else last
+            return (first + last) / 2 if first is not None and last is not None else None
         match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)?\s*([a-zA-Z]+)\s*", text or "")
         if not match:
             return None
@@ -121,8 +131,8 @@ def price_quantity(db, product, link):
 
     size = link.get("size") or ""
     pack = quantity(size)
-    if pack is None and not size.strip():
-        named_size = re.search(r"\b(\d+(?:\.\d+)?\s*(?:kg|g|ml|l))\b", link.get("store_name", ""), re.I)
+    if pack is None:
+        named_size = re.search(r"\b(\d+(?:\.\d+)?\s*(?:kg|g|ml|l)(?:\s*[-–]\s*\d+(?:\.\d+)?\s*(?:kg|g|ml|l))?)\b", link.get("store_name", ""), re.I)
         if named_size:
             pack = quantity(named_size[1])
     per_unit = re.search(r"\bper\s+(kg|g|ml|l)\b|/\s*(kg|g|ml|l)\b", link.get("store_name", ""), re.I)
