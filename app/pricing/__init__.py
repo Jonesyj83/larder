@@ -159,9 +159,12 @@ def strongest_match(name, candidates, preferred_size=None):
         recall = len(words & other) / len(words)
         # The bonus only kicks in when there's a real word beyond the brand
         # itself to check recall against -- "Vegemite" alone matching every
-        # word of itself proves nothing, it's the whole query.
-        if required_brand and len(words) > 1 and recall == 1 and score < .5:
-            score += .5
+        # word of itself proves nothing, it's the whole query. Clamped up
+        # to the floor, never past it -- a messy full-recall name must
+        # never outrank a cleaner one that already cleared the floor on
+        # its own ("Pepsi Max Cola Drink" vs "...Vanilla...").
+        if required_brand and len(words) > 1 and recall == 1:
+            score = max(score, .5)
         elif score < .5:
             continue
         if preferred_size:
