@@ -281,8 +281,8 @@ function shoppingPage() {
       try {
         await api('/api/pricing/products/' + i.product_id + '/link', { method: 'POST', body: {
           store, store_item_id: String(candidate.store_item_id), store_name: candidate.name,
-          price: candidate.price, was_price: candidate.was_price, unit_price: candidate.unit_price,
-          unit_measure: candidate.unit_measure, on_special: candidate.on_special,
+          size: candidate.size || '', price: candidate.price, was_price: candidate.was_price,
+          unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
         }});
         i.picker = null;
         await this.loadPrice(i);
