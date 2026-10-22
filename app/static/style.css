@@ -604,11 +604,11 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .shop-product .pill { font-size: .65rem; padding: 1px 5px; line-height: 1.3; }
 
 /* Store price chips */
-.store-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.store-chip-cell { position: relative; min-width: 0; }
+.store-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.store-chip-cell { position: relative; min-width: 0; display: flex; }
 .store-chip {
   --sc: var(--muted);
-  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0;
   border: 1px solid var(--edge); border-left: 3px solid var(--sc);
   border-radius: var(--radius-small);
   padding: 2px 6px;
@@ -616,12 +616,13 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
   cursor: pointer;
   font: inherit;
   text-align: left;
-  min-width: 58px;
-  min-height: 0;
+  width: 100%;
+  min-height: 34px;
+  box-sizing: border-box;
 }
 .store-chip:hover { border-color: var(--muted); background: var(--card); }
 .store-chip .store-label { font-size: .6rem; font-weight: 400; line-height: 1.2; color: var(--sc); }
-.store-chip .store-price { font-size: .78rem; font-weight: 600; line-height: 1.3; white-space: nowrap; color: var(--text); }
+.store-chip .store-price { font-size: .78rem; font-weight: 600; line-height: 1.3; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .store-chip.cheapest { --sc: var(--ok-strong); background: linear-gradient(0deg, rgba(111,191,143,.12), rgba(111,191,143,.12)), var(--card); }
 .store-chip.cheapest .store-price { color: var(--ok-strong); font-weight: 800; }
 .store-chip.unmatched { opacity: .45; }
