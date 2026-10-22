@@ -30,6 +30,14 @@
   --shadow-3: 0 8px 16px rgba(0,0,0,.35), 0 32px 80px rgba(0,0,0,.45);
   --edge: #3d4754;
   --shadow-panel: 0 4px 16px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.16);
+
+  /* Shopping page hierarchy — same scale/family as above, not a parallel system */
+  --card-raised: #2b323c;
+  --ok-strong: #6fbf8f;
+  --store-wool: #7fbf8a;
+  --store-coles: #e6897f;
+  --store-aldi: #e9b447;
+  --store-iga: #ffc36b;
 }
 
 * { box-sizing: border-box; }
@@ -511,57 +519,180 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .price-history-chart circle:focus { outline: none; stroke: var(--text); stroke-width: 3; }
 
 
-/* Shopping rows share column tracks, including unmatched stores and empty history. */
-.shopping-row {
+/* ==================== Shopping page ==================== */
+.shopping-page .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-4); }
+.list-switcher { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-2); }
+.list-switcher .field { margin: 0; min-width: 11rem; }
+.btn-ghost { background: none; border: 1px solid var(--line); color: var(--muted); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted); background: var(--control); }
+.btn-ghost.danger { color: var(--bad); border-color: var(--bad); }
+
+/* ---- Hero / summary strip ---- */
+.summary-strip {
   display: grid;
-  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(240px, 1.5fr) minmax(160px, 1fr) 80px 140px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  background: var(--card-raised);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-5);
+}
+.summary-metric { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.summary-metric .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.summary-metric .value { font-size: 1.6rem; font-weight: 800; letter-spacing: -.02em; }
+.summary-metric .value small { font-size: .95rem; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.summary-metric .delta { font-size: .8rem; font-weight: 600; color: var(--muted); }
+.summary-metric .delta.bad { color: var(--bad); }
+.summary-metric.cheapest-store .store-tag { font-size: 1.05rem; font-weight: 700; color: var(--ok-strong); display: inline-flex; align-items: center; gap: 6px; }
+.summary-metric.cheapest-store .store-tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok-strong); flex-shrink: 0; }
+.summary-divider { width: 1px; background: var(--edge); align-self: stretch; }
+
+/* ---- Add bar ---- */
+.add-bar {
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-5);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+.add-bar .search-icon { opacity: .6; flex-shrink: 0; }
+.add-bar input.grow { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 1rem; padding: var(--space-2) 0; }
+.add-bar input.grow:focus { outline: none; box-shadow: none; }
+.add-bar .qty-mini { width: 4.5rem; flex: 0 0 auto; }
+.add-bar .unit-mini { flex: 0 0 auto; width: auto; }
+.add-bar .divider { width: 1px; height: 24px; background: var(--edge); flex-shrink: 0; }
+.add-bar button.primary { flex-shrink: 0; }
+
+/* ---- Product list surface ---- */
+.list-surface { background: var(--inventory); border: 1px solid var(--edge); border-radius: var(--radius-panel); overflow: hidden; padding: 0; }
+
+.shop-row {
+  display: grid;
+  grid-template-columns: 56px minmax(150px, 1.15fr) minmax(250px, 1.5fr) 150px 108px 140px;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-2);
+  padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--edge);
 }
-.shopping-row:last-child { border-bottom: 0; }
-.shopping-row.is-done { opacity: .55; }
-.shopping-row.is-done .shopping-product strong { text-decoration: line-through; }
-.shopping-identity { display: flex; align-items: center; gap: var(--space-3); }
-.shopping-thumbnail { width: 36px; height: 40px; flex-shrink: 0; }
-.shopping-thumbnail .thumb { width: 100%; height: 100%; object-fit: contain; }
-.shopping-product { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
-.shopping-product strong { font-size: 1rem; line-height: 1.4; }
-.shopping-store-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
-.shopping-store-cell { position: relative; min-width: 0; }
-.shopping-store-badge { --store-colour: var(--muted); border-left: 2px solid var(--store-colour); padding: var(--space-1) var(--space-2); font-size: .78rem; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; display: block; width: 100%; text-align: left; background: none; border-top: none; border-right: none; border-bottom: none; color: inherit; font: inherit; cursor: pointer; }
-.shopping-store-badge:hover { background: var(--control); border-radius: var(--radius-small); }
-.shopping-store-badge[data-store="woolworths"] { --store-colour: var(--ok); }
-.shopping-store-badge[data-store="coles"] { --store-colour: var(--bad); }
-.shopping-store-badge[data-store="aldi"] { --store-colour: var(--accent); }
-.shopping-store-badge[data-store="iga"] { --store-colour: var(--warn); }
-.shopping-store-name { display: block; color: var(--store-colour); font-weight: 600; }
+.shop-row:last-child { border-bottom: 0; }
+.shop-row:hover { background: var(--control); }
+.shop-row.is-done { opacity: .55; }
+.shop-row.is-done .shop-name { text-decoration: line-through; }
 
-.shopping-store-badge.is-cheapest { background: var(--control); border-radius: var(--radius-small); }
-.shopping-store-badge.is-cheapest > span:last-child { color: var(--ok); font-weight: 700; }
-.shopping-store-badge.is-unmatched { opacity: .5; border-left-color: var(--line); }
-.shopping-picker { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: var(--space-1); min-width: 260px; max-width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-small); padding: var(--space-2); box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
-.shopping-picker form { display: flex; gap: var(--space-1); flex-wrap: wrap; }
-.shopping-picker input { flex: 1 1 120px; min-width: 0; }
-.shopping-picker .picker-result { display: block; width: 100%; text-align: left; margin-top: var(--space-1); }
-.shopping-history { min-width: 0; min-height: 76px; display: flex; align-items: center; justify-content: center; }
-.shopping-history svg { width: 100%; height: auto; max-height: 96px; overflow: visible; }
-.shopping-history svg text { fill: var(--muted); font-size: 19px; }
-.shopping-history > span { font-size: .75rem; text-align: center; }
-.shopping-quantity { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.shopping-quantity input { width: 100%; min-width: 0; padding: var(--space-2); }
-.shopping-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); }
-.shopping-actions button { padding: var(--space-2); }
+.shop-identity { display: flex; align-items: center; gap: var(--space-3); }
+.shop-identity input[type="checkbox"] { width: 20px; height: 20px; }
+.thumb {
+  width: 40px; height: 40px; border-radius: var(--radius-control);
+  background: var(--bg); border: 1px solid var(--edge);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0; color: var(--muted); overflow: hidden;
+}
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+.shop-product { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.shop-name { font-size: .98rem; font-weight: 600; line-height: 1.3; }
+.shop-meta { font-size: .78rem; color: var(--muted); }
+.unit-choice { margin-top: var(--space-1); }
+
+/* Store price chips */
+.store-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.store-chip-cell { position: relative; min-width: 0; }
+.store-chip {
+  --sc: var(--muted);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  border: 1px solid var(--edge); border-left: 3px solid var(--sc);
+  border-radius: var(--radius-small);
+  padding: 4px 8px;
+  background: var(--card);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  min-width: 68px;
+  min-height: 0;
+}
+.store-chip:hover { border-color: var(--muted); background: var(--card); }
+.store-chip .store-label { font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--sc); }
+.store-chip .store-price { font-size: .86rem; font-weight: 600; color: var(--text); }
+.store-chip.cheapest { --sc: var(--ok-strong); background: linear-gradient(0deg, rgba(111,191,143,.12), rgba(111,191,143,.12)), var(--card); }
+.store-chip.cheapest .store-price { color: var(--ok-strong); font-weight: 800; }
+.store-chip.cheapest::after { content: "lowest"; font-size: .6rem; color: var(--ok-strong); font-weight: 700; }
+.store-chip.unmatched { opacity: .45; }
+.store-chip.unmatched .store-price { color: var(--muted); }
+.store-chip[data-store="woolworths"] { --sc: var(--store-wool); }
+.store-chip[data-store="coles"] { --sc: var(--store-coles); }
+.store-chip[data-store="aldi"] { --sc: var(--store-aldi); }
+.store-chip[data-store="iga"] { --sc: var(--store-iga); }
+.store-chip.cheapest[data-store] { --sc: var(--ok-strong); }
+
+.store-picker { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: var(--space-1); min-width: 260px; max-width: 320px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-small); padding: var(--space-2); box-shadow: 0 4px 16px rgba(0, 0, 0, .35); }
+.store-picker form { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+.store-picker input { flex: 1 1 120px; min-width: 0; }
+.store-picker .picker-result { display: block; width: 100%; text-align: left; margin-top: var(--space-1); }
+
+/* Inline price-history chart */
+.shop-trend { min-width: 0; min-height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.shop-trend svg { width: 100%; height: auto; max-height: 96px; overflow: visible; }
+.shop-trend .trend-label { font-size: .75rem; text-align: center; }
+
+/* Quantity stepper */
+.qty-col { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); min-width: 0; }
+.qty-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
+.qty-stepper button { background: var(--control); color: var(--text); border: 0; width: 28px; height: 32px; min-height: 32px; font-size: 1rem; line-height: 1; padding: 0; }
+.qty-stepper button:hover { background: var(--edge); }
+.qty-stepper input { width: 3.2rem; text-align: center; border: 0; background: var(--input); color: var(--text); font: inherit; height: 32px; min-height: 32px; padding: 0; }
+.qty-unit { font-size: .7rem; color: var(--muted); }
+
+/* Row actions */
+.shop-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.icon-btn {
+  width: 34px; height: 34px; min-height: 34px; border-radius: var(--radius-control);
+  border: 1px solid var(--line); background: var(--control); color: var(--text);
+  display: flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0;
+}
+.icon-btn:hover { background: var(--edge); }
+.icon-btn.ok-btn { border-color: var(--ok-strong); color: var(--ok-strong); background: transparent; }
+.icon-btn.ok-btn:hover { background: rgba(111,191,143,.12); }
+.icon-btn.danger-btn { border-color: var(--bad); color: var(--bad); background: transparent; }
+.icon-btn.danger-btn:hover { background: rgba(255,170,160,.12); }
+
+/* Empty state */
+.list-surface .state-block { padding: var(--space-12) var(--space-6); text-align: center; color: var(--muted); }
+.list-surface .state-block .state-icon { font-size: 2rem; margin-bottom: var(--space-3); opacity: .7; }
+.list-surface .state-block h3 { color: var(--text); font-size: 1.05rem; margin-bottom: var(--space-2); }
+.list-surface .state-block p { font-size: .88rem; max-width: 36ch; margin: 0 auto; }
+
 @media (max-width: 1150px) {
-  .shopping-row { grid-template-columns: 72px minmax(120px, 1fr) minmax(190px, 1.3fr) 130px 68px; gap: var(--space-3); }
-  .shopping-actions { grid-column: 2 / -1; }
+  .shop-row { grid-template-columns: 48px minmax(120px, 1fr) minmax(190px, 1.3fr) 130px 108px; gap: var(--space-3); }
+  .shop-actions { grid-column: 2 / -1; }
 }
 @media (max-width: 840px) {
-  .shopping-row { grid-template-columns: 72px minmax(0, 1fr) 76px; gap: var(--space-3); }
-  .shopping-quantity { grid-column: 3; grid-row: 1; }
-  .shopping-store-grid { grid-column: 2 / -1; }
-  .shopping-history { grid-column: 2 / -1; justify-content: flex-start; min-height: 60px; }
-  .shopping-history svg { width: 240px; max-width: 100%; }
-  .shopping-actions { grid-column: 2 / -1; }
+  .summary-strip { grid-template-columns: repeat(2, 1fr); padding: var(--space-4); gap: var(--space-3); }
+  .summary-divider { display: none; }
+  .add-bar { flex-wrap: wrap; }
+  .add-bar .qty-mini, .add-bar .unit-mini { flex: 1; min-width: 70px; }
+  .add-bar button.primary { width: 100%; order: 10; }
+
+  /* Rows collapse into stacked cards */
+  .shop-row {
+    grid-template-columns: 76px minmax(0,1fr) auto;
+    grid-template-areas:
+      "check name qty"
+      "chips chips chips"
+      "trend trend actions";
+    row-gap: var(--space-3);
+    padding: var(--space-4) var(--space-3);
+  }
+  .shop-identity { grid-area: check; flex-wrap: wrap; }
+  .shop-product { grid-area: name; }
+  .store-chips { grid-area: chips; }
+  .qty-col { grid-area: qty; }
+  .shop-trend { grid-area: trend; align-items: flex-start; }
+  .shop-trend svg { max-width: 220px; }
+  .shop-actions { grid-area: actions; }
 }
