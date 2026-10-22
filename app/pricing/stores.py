@@ -26,13 +26,64 @@ def coles_browse_session():
     """One persistent, cookied session for a whole crawl run -- a real
     browser picks up Incapsula's visitor cookie on the first page and
     carries it for the rest of the visit; a fresh client per request never
-    gets that and reads as a new first-time visitor every single time."""
-    session = client()
+    gets that and reads as a new first-time visitor every single time.
+
+    Prefers a real, stealth-patched browser tab kept open for the whole
+    run -- tested at 14/14 pages with zero blocks, against a plain
+    session's soft wall after ~5-10. Falls back to the plain httpx session
+    if Playwright/Chromium isn't installed in this environment."""
     try:
-        session.get("https://www.coles.com.au/")
+        return ColesBrowserSession()
     except Exception:
+        log.warning("Coles stealth browser unavailable, falling back to a plain session", exc_info=True)
+        session = client()
+        try:
+            session.get("https://www.coles.com.au/")
+        except Exception:
+            pass
+        return session
+
+
+class ColesBrowserSession:
+    """A single stealth-patched browser tab, reused for an entire crawl
+    run so Coles sees one continuous visit instead of a new "visitor"
+    on every page."""
+    def __init__(self):
+        from playwright.sync_api import sync_playwright
+        from playwright_stealth import Stealth
+        self._pw = sync_playwright().start()
+        self._browser = self._pw.chromium.launch(headless=True)
+        context = self._browser.new_context(user_agent=HEADERS["User-Agent"])
+        self._page = context.new_page()
+        Stealth().apply_stealth_sync(self._page)
+
+    def get(self, url, params=None):
+        from urllib.parse import urlencode
+        full = url + ("?" + urlencode(params) if params else "")
+        self._page.goto(full, wait_until="domcontentloaded", timeout=20000)
+        # Incapsula's challenge resolves client-side within a couple of
+        # seconds once a real browser clears it -- nothing stable to poll
+        # for before then, so a flat wait is simplest and matches the
+        # existing search_coles_browser() fallback's approach.
+        self._page.wait_for_timeout(2000)
+        raw = self._page.evaluate("document.getElementById('__NEXT_DATA__')?.textContent")
+        if not raw:
+            raise ValueError("No __NEXT_DATA__ on the page")
+        return BrowserResponse(raw)
+
+    def close(self):
+        self._browser.close()
+        self._pw.stop()
+
+
+class BrowserResponse:
+    """Just enough of an httpx.Response's shape for browse_coles_category
+    to treat a browser-fetched page the same as a plain request's."""
+    def __init__(self, text):
+        self.text = text
+
+    def raise_for_status(self):
         pass
-    return session
 
 
 class PageData(HTMLParser):
