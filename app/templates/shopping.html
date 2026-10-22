@@ -321,6 +321,10 @@ function shoppingPage() {
         this.text = ''; this.amount = 1; this.resetSuggestions(); this.liveSearchCount = 0;
         this.quantityHint = item.typical_amount != null ? item : null;
         await this.load();
+        // Prices for a brand-new item are matched in the background, not
+        // held up in the add itself -- check back shortly once that's had
+        // a moment to land, instead of making the add wait on it.
+        if (item.product_id) setTimeout(() => this.load(), 4000);
       } catch (e) { oops(e); } finally { this.adding = false; }
     },
     async acceptQuantityHint() {

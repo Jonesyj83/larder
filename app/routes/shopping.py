@@ -2,8 +2,9 @@ import logging
 from typing import Optional
 
 from .. import pricing, order_history
+from .. import db as database
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from .. import stock as st
@@ -13,6 +14,20 @@ from .stock import MAX_AMOUNT, DatedInput
 from .pricing import LinkIn, check_store
 
 router = APIRouter(prefix="/api/shopping", tags=["shopping list"])
+
+log = logging.getLogger(__name__)
+
+
+def _match_in_background(product_id, product_name, connect=None):
+    """Runs after the add response has already gone out -- its own
+    connection, since the request's is closed by the time this fires."""
+    conn = (connect or database.connect)()
+    try:
+        pricing.auto_match_live(conn, product_id, product_name, excluded_stores=("coles",))
+    except Exception:
+        log.warning("Background matching failed for product %s", product_id, exc_info=True)
+    finally:
+        conn.close()
 
 
 class ItemIn(BaseModel):
@@ -225,7 +240,8 @@ def list_items(db=Depends(get_db), user=Depends(current_user), list_id: Optional
 
 
 @router.post("", status_code=201)
-def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None,
+        *, background_tasks: BackgroundTasks = None):  # type: ignore[assignment]
     _check_unit(db, data.unit_id)
     begin(db)
     product_id = data.product_id
@@ -261,20 +277,18 @@ def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: O
     item_id = add_item(db, product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
     db.commit()
     if product_id and not data.store_match and db.execute("SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
-        try:
-            missing = db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
-                SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
-                (product_id,)).fetchone()
-            if missing:
-                product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
-                # Coles doesn't get asked live -- it blocks repeat requests
-                # from one IP, so it only ever gets checked from the weekly
-                # job's fresh one. Everything else still gets an instant try,
-                # all at once instead of one after another.
-                pricing.auto_match_live(db, product_id, product["name"], excluded_stores=("coles",))
-        except Exception:
-            db.rollback()
-            logging.getLogger(__name__).warning("Shopping item pricing failed", exc_info=True)
+        missing = db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
+            SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
+            (product_id,)).fetchone()
+        if missing:
+            product_name = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()["name"]
+            # Don't make someone sit there watching a spinner for three live
+            # store checks -- the item's on the list already, prices land a
+            # moment later on their own next reload. Coles still doesn't get
+            # asked live; that's the weekly job's job. A direct call with no
+            # background_tasks (tests, scripts) just skips the live check.
+            if background_tasks is not None:
+                background_tasks.add_task(_match_in_background, product_id, product_name)
     result = row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
     if product_id and not data.store_match:
         hint = order_history.typical(order_history.recent(db, product_id))

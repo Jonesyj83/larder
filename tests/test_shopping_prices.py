@@ -181,9 +181,10 @@ const api = async (path, options) => {
         for removed in ('unitChoice', 'unit-mini', 'unit-choice', 'qty-unit', 'amountText', '/api/units'):
             self.assertNotIn(removed, template)
 
-    def test_add_matches_only_added_product_and_keeps_item_on_failure(self):
-        from app import db as database, pricing
+    def test_add_schedules_background_matching_only_when_needed(self):
+        from app import db as database
         from app.routes import shopping
+        from fastapi import BackgroundTasks
         db = sqlite3.connect(':memory:')
         self.addCleanup(db.close)
         db.row_factory = sqlite3.Row
@@ -194,32 +195,37 @@ const api = async (path, options) => {
             INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Home','order');
             INSERT INTO store_settings(store,enabled) VALUES('coles',1),('iga',0);
         """)
-        with patch.object(pricing, 'auto_match_live') as match:
-            shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
-            match.assert_called_once_with(db, 1, 'Woolworths Chilli Ground', excluded_stores=('coles',))
-        with patch.object(pricing, 'auto_match_live', side_effect=RuntimeError('offline')) as match, self.assertLogs(level='WARNING'):
-            result = shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
-            self.assertEqual(result['amount'], 2)
+        # Prices are matched after the response, not before it -- the add
+        # itself only has to queue the task, never run it.
+        bt = BackgroundTasks()
+        shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1, background_tasks=bt)
+        self.assertEqual(len(bt.tasks), 1)
+        self.assertEqual(bt.tasks[0].func, shopping._match_in_background)
+        self.assertEqual(bt.tasks[0].args, (1, 'Woolworths Chilli Ground'))
         db.execute("INSERT INTO product_store_links(product_id,store,store_item_id,store_name) VALUES(1,'coles','1','Chilli Ground')")
         db.commit()
-        with patch.object(pricing, 'auto_match_live') as match:
-            shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
-            match.assert_not_called()
+        # Already matched everywhere it can be -- nothing to queue.
+        bt = BackgroundTasks()
+        shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1, background_tasks=bt)
+        self.assertEqual(len(bt.tasks), 0)
         # A brand-new free-text name on the order list gets its own product so it
         # can still be matched to stores, not left as inert text.
-        with patch.object(pricing, 'auto_match_live') as match:
-            shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
-            match.assert_called_once()
-            self.assertEqual(match.call_args[0][2], 'Loose')
+        bt = BackgroundTasks()
+        shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1, background_tasks=bt)
+        self.assertEqual(len(bt.tasks), 1)
+        self.assertEqual(bt.tasks[0].args[1], 'Loose')
         created = db.execute("SELECT id FROM products WHERE name='Loose'").fetchone()
         self.assertIsNotNone(created)
 
     def test_add_never_calls_coles_live_only_the_other_stores(self):
+        import tempfile
         from app import db as database
         from app.pricing import stores
         from app.routes import shopping
-        db = sqlite3.connect(':memory:')
-        self.addCleanup(db.close)
+        from fastapi import BackgroundTasks
+        path = tempfile.mktemp()
+        self.addCleanup(lambda: __import__('os').remove(path) if __import__('os').path.exists(path) else None)
+        db = sqlite3.connect(path)
         db.row_factory = sqlite3.Row
         db.executescript(database.SCHEMA)
         db.executescript("""
@@ -227,12 +233,20 @@ const api = async (path, options) => {
             INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Home','order');
             INSERT INTO store_settings(store,enabled) VALUES('coles',1),('woolworths',1),('aldi',1),('iga',1);
         """)
+        bt = BackgroundTasks()
+        def reconnect():
+            c = sqlite3.connect(path)
+            c.row_factory = sqlite3.Row
+            return c
         with patch.object(stores, 'search_coles') as coles, \
              patch.object(stores, 'search_coles_browser') as coles_browser, \
              patch.object(stores, 'search_woolworths', return_value=[]), \
              patch.object(stores, 'search_aldi', return_value=[]), \
              patch.object(stores, 'search_iga', return_value=[]):
-            shopping.add(shopping.ItemIn(name='Rice'), db=db, user={'id': None}, list_id=1)
+            shopping.add(shopping.ItemIn(name='Rice'), db=db, user={'id': None}, list_id=1, background_tasks=bt)
+            db.close()
+            for task in bt.tasks:
+                task.func(*task.args, connect=reconnect, **task.kwargs)
         coles.assert_not_called()
         coles_browser.assert_not_called()
 
