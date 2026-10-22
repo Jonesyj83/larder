@@ -196,7 +196,7 @@ const api = async (path, options) => {
         """)
         with patch.object(pricing, 'auto_match') as match:
             shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
-            match.assert_called_once_with(db, 1, 'Woolworths Chilli Ground')
+            match.assert_called_once_with(db, 1, 'Woolworths Chilli Ground', excluded_stores=('coles',))
         with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')) as match, self.assertLogs(level='WARNING'):
             result = shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
             self.assertEqual(result['amount'], 2)
@@ -213,6 +213,28 @@ const api = async (path, options) => {
             self.assertEqual(match.call_args[0][2], 'Loose')
         created = db.execute("SELECT id FROM products WHERE name='Loose'").fetchone()
         self.assertIsNotNone(created)
+
+    def test_add_never_calls_coles_live_only_the_other_stores(self):
+        from app import db as database
+        from app.pricing import stores
+        from app.routes import shopping
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO units(id,name) VALUES(1,'piece');
+            INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Home','order');
+            INSERT INTO store_settings(store,enabled) VALUES('coles',1),('woolworths',1),('aldi',1),('iga',1);
+        """)
+        with patch.object(stores, 'search_coles') as coles, \
+             patch.object(stores, 'search_coles_browser') as coles_browser, \
+             patch.object(stores, 'search_woolworths', return_value=[]), \
+             patch.object(stores, 'search_aldi', return_value=[]), \
+             patch.object(stores, 'search_iga', return_value=[]):
+            shopping.add(shopping.ItemIn(name='Rice'), db=db, user={'id': None}, list_id=1)
+        coles.assert_not_called()
+        coles_browser.assert_not_called()
 
     def test_estimates_multiply_quantity_by_store_price(self):
         self.run_logic('shopping.html', r'''
