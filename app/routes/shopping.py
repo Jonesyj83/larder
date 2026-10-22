@@ -10,11 +10,13 @@ from .. import stock as st
 from ..auth import current_user
 from ..db import begin, get_db, row, rows
 from .stock import MAX_AMOUNT, DatedInput
+from .pricing import LinkIn, check_store
 
 router = APIRouter(prefix="/api/shopping", tags=["shopping list"])
 
 
 class ItemIn(BaseModel):
+    store_match: Optional[LinkIn] = None
     product_id: Optional[int] = None
     name: str = ""  # for things that aren't a product yet
     amount: float = Field(default=1, gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
@@ -152,6 +154,7 @@ def delete_list(list_id: int, db=Depends(get_db), user=Depends(current_user)):
 
 
 class MoveIn(BaseModel):
+    store: Optional[str] = None
     list_id: Optional[int] = None
     name: Optional[str] = Field(default=None, max_length=200)
 
@@ -159,10 +162,26 @@ class MoveIn(BaseModel):
 @router.post("/{item_id}/move")
 def move(item_id: int, data: MoveIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     begin(db)
-    item = db.execute("SELECT id FROM shopping_list WHERE id=? AND list_id=?",
+    item = db.execute("SELECT * FROM shopping_list WHERE id=? AND list_id=?",
                       (item_id, resolve_list(db, list_id))).fetchone()
     if not item:
         raise HTTPException(404, "Not on the list")
+    display_name = item['name']
+    note = item['note']
+    if data.store is not None:
+        link = db.execute("""SELECT l.*, c.price FROM product_store_links l
+            JOIN store_settings s ON s.store=l.store AND s.enabled=1
+            LEFT JOIN store_price_checks c ON c.id=(SELECT id FROM store_price_checks
+                WHERE link_id=l.id ORDER BY checked_at DESC,id DESC LIMIT 1)
+            WHERE l.product_id=? AND l.store=?""", (item['product_id'], data.store)).fetchone()
+        if not link:
+            raise HTTPException(400, "Choose a matched store")
+        display_name = link['store_name']
+        if link['size'] and link['size'].casefold() not in display_name.casefold():
+            display_name += ' · ' + link['size']
+        price = 'price not checked yet' if link['price'] is None else f"${link['price']:.2f}"
+        context = f"{data.store.title()} · {price}"
+        note = context + (' · ' + note if note else '')
     if (data.list_id is None) == (data.name is None):
         raise HTTPException(400, "Choose a list or a new list name")
     if data.list_id is not None:
@@ -177,7 +196,8 @@ def move(item_id: int, data: MoveIn, db=Depends(get_db), user=Depends(current_us
         target = db.execute("SELECT id FROM shopping_lists WHERE kind='plain' AND name=? COLLATE NOCASE ORDER BY id LIMIT 1", (name,)).fetchone()
         target_id = target['id'] if target else db.execute(
             "INSERT INTO shopping_lists(name,created_by) VALUES(?,?)", (name, user['id'])).lastrowid
-    db.execute("UPDATE shopping_list SET list_id=? WHERE id=?", (target_id, item_id))
+    db.execute("UPDATE shopping_list SET list_id=?, name=?, note=? WHERE id=?",
+               (target_id, display_name, note, item_id))
     db.commit()
     return row(db.execute(ITEM_SQL + " WHERE i.id=?", (item_id,)))
 
@@ -204,9 +224,28 @@ def list_items(db=Depends(get_db), user=Depends(current_user), list_id: Optional
 def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     _check_unit(db, data.unit_id)
     begin(db)
-    item_id = add_item(db, data.product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
+    product_id = data.product_id
+    if data.store_match:
+        match = data.store_match
+        check_store(match.store)
+        if not match.store_item_id.strip() or not match.store_name.strip() or not data.name.strip():
+            raise HTTPException(400, "Need an item name and store product")
+        if not db.execute("SELECT 1 FROM store_settings WHERE store=? AND enabled=1", (match.store,)).fetchone():
+            raise HTTPException(400, "Store is not enabled")
+        if not product_id:
+            found = db.execute("SELECT id FROM products WHERE name=? COLLATE NOCASE", (data.name.strip(),)).fetchone()
+            if found:
+                product_id = found['id']
+            else:
+                unit = db.execute("SELECT id FROM units WHERE lower(name)='each' ORDER BY id LIMIT 1").fetchone()
+                unit_id = unit['id'] if unit else db.execute("INSERT INTO units(name) VALUES('each')").lastrowid
+                product_id = db.execute("INSERT INTO products(name,unit_id) VALUES(?,?)", (data.name.strip(), unit_id)).lastrowid
+        link_id = pricing.link_product(db, product_id, match.store, match.store_item_id.strip(),
+                                       match.store_name.strip(), user['id'], size=match.size.strip())
+        pricing.record_price(db, link_id, match.model_dump())
+    item_id = add_item(db, product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
     db.commit()
-    if data.product_id and db.execute("SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
+    if data.product_id and not data.store_match and db.execute("SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
         try:
             missing = db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
                 SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",

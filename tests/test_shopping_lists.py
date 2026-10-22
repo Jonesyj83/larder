@@ -63,6 +63,30 @@ class ShoppingLists(MemoryDB):
             self.assertEqual(made['product']['in_stock'], 2)
         self.assertEqual(shop.list_items(self.db, USER), [])
 
+    def test_store_suggestion_add_and_specific_move(self):
+        from app.routes.pricing import LinkIn
+        self.db.execute("INSERT INTO store_settings(store,enabled) VALUES('woolworths',1) ON CONFLICT(store) DO UPDATE SET enabled=1")
+        self.db.commit()
+        match = LinkIn(store='woolworths', store_item_id='42', store_name='Woolworths Salt', size='500g', price=2.5)
+        with patch('app.pricing.auto_match') as automatic:
+            item = shop.add(shop.ItemIn(name='Salt', amount=2, note='For baking', store_match=match), self.db, USER)
+            automatic.assert_not_called()
+        pid = item['product_id']
+        self.assertIsNotNone(pid)
+        link = self.db.execute('SELECT * FROM product_store_links WHERE product_id=?', (pid,)).fetchone()
+        self.assertEqual(link['store_item_id'], '42')
+        with self.assertRaises(HTTPException):
+            shop.move(item['id'], shop.MoveIn(name='Weekend', store='coles'), self.db, USER)
+        self.db.rollback()
+        moved = shop.move(item['id'], shop.MoveIn(name='Weekend', store='woolworths'), self.db, USER)
+        self.assertEqual(moved['name'], 'Woolworths Salt · 500g')
+        self.assertEqual(moved['note'], 'Woolworths · $2.50 · For baking')
+        self.assertEqual(moved['product_id'], pid)
+        target = moved['list_id']
+        self.assertEqual(shop.list_items(self.db, USER, list_id=target)[0]['name'], moved['name'])
+        shop.bought(item['id'], None, self.db, USER, list_id=target)
+        self.assertEqual(self.db.execute('SELECT SUM(amount) FROM stock WHERE product_id=?', (pid,)).fetchone()[0], 2)
+
     def test_migration_of_copied_old_database(self):
         from app import db as module
         with tempfile.TemporaryDirectory() as directory:

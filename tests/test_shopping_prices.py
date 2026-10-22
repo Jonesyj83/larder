@@ -246,7 +246,49 @@ const api = async (path, options) => {
   page.list_id = 2;
   await page.init();
   assert.equal(page.list_id, 7);
-  await page.moveItem({id:10}, {list_id:2});
+  await page.moveItem({id:10, moveStore:'woolworths'}, {list_id:2});
   assert.ok(calls.some(([p,o]) => p === '/api/shopping/10/move?list_id=7' && o.method === 'POST' && o.body.list_id === 2));
+})().catch(e => {console.error(e); process.exit(1);});
+''')
+
+    def test_live_suggestions_and_store_choice(self):
+        self.run_logic('shopping.html', r'''
+const oops = e => {throw e;};
+const calls = [];
+const api = async (path, options) => {
+  calls.push([path, options]);
+  if (path.includes('/pricing/search')) return [{store_item_id:'42',name:'Salt',size:'500g',price:2}];
+  return [];
+};
+(async () => {
+  const page = shoppingPage();
+  page.stores = [{store:'coles',enabled:1},{store:'woolworths',enabled:1}];
+  page.text = 'salt';
+  await page.suggestStore('salt', 0);
+  assert.equal(calls.length, 1);
+  assert.ok(calls[0][0].includes('store=woolworths'));
+  assert.equal(page.liveSuggestions[0].name, 'Salt');
+  await page.suggestStore('salt', 0);
+  assert.equal(calls.length, 1);
+  page.resetSuggestions();
+  await page.suggestStore('salt', 0);
+  assert.equal(page.liveSuggestions.length, 0);
+  page.liveSearchCount = 5;
+  page.text = 'saffron';
+  await page.suggestStore('saffron', page.suggestionVersion);
+  assert.equal(calls.length, 1);
+  assert.ok(page.suggestionMessage.includes('limit'));
+  page.liveSearchCount = 0;
+  page.stores[1].enabled = 0;
+  await page.suggestStore('saffron', page.suggestionVersion);
+  assert.ok(calls[1][0].includes('store=coles'));
+  const item = {links:[{store:'coles'}, {store:'woolworths'}]};
+  page.openMove(item);
+  assert.equal(item.moveStore, 'coles');
+  item.moveOpen = false;
+  page.stores[1].enabled = 1;
+  page.openMove(item);
+  assert.equal(item.moveStore, null);
+  assert.equal(item.moveOpen, true);
 })().catch(e => {console.error(e); process.exit(1);});
 ''')

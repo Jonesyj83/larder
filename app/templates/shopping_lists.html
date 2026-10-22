@@ -29,7 +29,10 @@
     <template x-for="i in items" :key="i.id">
       <div class="shop-row plain-row" :class="i.done ? 'is-done' : ''">
         <input type="checkbox" class="check-item" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)">
-        <span class="shop-name" x-text="i.label"></span>
+        <div class="shop-product">
+          <span class="shop-name" x-text="i.name || i.label"></span>
+          <span class="shop-meta" x-show="i.note" x-text="i.note"></span>
+        </div>
         <div class="qty-stepper">
           <button type="button" aria-label="Decrease quantity" @click="step(i, -1)">–</button>
           <input type="number" min="0.000001" step="any" :aria-label="'Quantity for ' + i.label" x-model.number="i.amount" @change="updateAmount(i)">
