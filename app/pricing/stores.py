@@ -99,6 +99,58 @@ def search_coles(query: str, limit: int = 12):
     return out
 
 
+def _coles_products_from_next_data(raw_json, limit):
+    data = json.loads(raw_json)
+    search = data.get("props", {}).get("pageProps", {}).get("searchResults")
+    if not isinstance(search, dict) or "results" not in search:
+        raise ValueError("Missing Coles search results")
+    out = []
+    for p in (search.get("results") or [])[:max(1, min(limit, 36))]:
+        if p.get("_type") != "PRODUCT":
+            continue
+        pricing = p.get("pricing") or {}
+        unit = pricing.get("unit") or {}
+        out.append({"store_item_id": str(p["id"]), "name": p["name"], "brand": p.get("brand", ""),
+                    "size": p.get("size", ""), "price": pricing.get("now"), "was_price": pricing.get("was") or None,
+                    "unit_price": unit.get("price"),
+                    "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}",
+                    "on_special": bool(pricing.get("onlineSpecial"))})
+    return out
+
+
+def search_coles_browser(query: str, limit: int = 12):
+    """Coles sits behind a bot-detection challenge that a plain HTTP request
+    can't get past (even a real browser gets served a blank decoy page
+    unless it's patched to hide the usual automation fingerprints). This is
+    the fallback path for when search_coles() above comes back empty-handed:
+    a real, stealth-patched browser tab, used only when it's actually
+    needed since it's much slower than a plain request."""
+    from playwright.sync_api import sync_playwright
+    from playwright_stealth import Stealth
+    from urllib.parse import quote
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                context = browser.new_context(user_agent=HEADERS["User-Agent"])
+                page = context.new_page()
+                Stealth().apply_stealth_sync(page)
+                page.goto(f"https://www.coles.com.au/search/products?q={quote(query)}",
+                           wait_until="domcontentloaded", timeout=20000)
+                # The challenge resolves itself client-side within a couple of
+                # seconds once a real browser passes it; there's nothing to
+                # poll for before then, so a flat wait is simplest.
+                page.wait_for_timeout(3000)
+                raw = page.evaluate("document.getElementById('__NEXT_DATA__')?.textContent")
+                if not raw:
+                    raise ValueError("No __NEXT_DATA__ on the page")
+            finally:
+                browser.close()
+    except Exception as exc:
+        raise ValueError("Coles search unavailable (bot check didn't clear)") from exc
+    return _coles_products_from_next_data(raw, limit)
+
+
 def _unflatten(arr):
     """Resolve devalue references, keeping recursive slots from looping forever."""
     if not isinstance(arr, list) or not arr:

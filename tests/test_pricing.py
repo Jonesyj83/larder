@@ -177,6 +177,9 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
             mocked = patch.object(stores, 'search_' + store, return_value=[])
             self.patches.append(mocked)
             self.searches[store] = mocked.start()
+        coles_browser = patch.object(stores, 'search_coles_browser', return_value=[])
+        self.patches.append(coles_browser)
+        self.searches['coles_browser'] = coles_browser.start()
 
     async def asyncTearDown(self):
         self.timer.cancel()
@@ -196,6 +199,7 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
             self.searches[store].return_value = [CANDIDATE]
             self.assertEqual((await self.client.get(f'/api/pricing/search?store={store}&q=milk')).json(), [CANDIDATE])
         self.searches['coles'].side_effect = ValueError('parse')
+        self.searches['coles_browser'].side_effect = ValueError('bot check too')
         with self.assertLogs(level='WARNING'):
             self.assertEqual((await self.client.get('/api/pricing/search?store=coles&q=milk')).status_code, 502)
         self.assertEqual((await self.client.put('/api/pricing/stores/unknown', json={'enabled': True})).status_code, 404)
@@ -317,6 +321,7 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
 
     async def test_creation_survives_site_and_whole_hook_failure(self):
         self.searches['coles'].side_effect = httpx.ConnectError('offline')
+        self.searches['coles_browser'].side_effect = httpx.ConnectError('offline')
         with self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Milk', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
@@ -352,6 +357,24 @@ class ScoredMatching(unittest.TestCase):
             result = pricing.search('coles', 'carrot')
         self.assertEqual(calls, ['carrot', 'carrots'])
         self.assertEqual(result, [self.candidate('Carrots')])
+
+    def test_coles_falls_back_to_the_browser_when_the_plain_request_is_blocked(self):
+        with patch.object(pricing.stores, 'search_coles', side_effect=ValueError('bot check')), \
+             patch.object(pricing.stores, 'search_coles_browser', return_value=[self.candidate('Carrots')]) as browser:
+            self.assertEqual(pricing.search('coles', 'carrot'), [self.candidate('Carrots')])
+        browser.assert_called_once_with('carrot')
+        # And if the browser fallback is ALSO down, the original failure is
+        # what should surface -- not a confusing second-hand error.
+        with patch.object(pricing.stores, 'search_coles', side_effect=ValueError('bot check')), \
+             patch.object(pricing.stores, 'search_coles_browser', side_effect=ValueError('no chromium')):
+            with self.assertRaises(ValueError) as ctx:
+                pricing.search('coles', 'carrot')
+        self.assertEqual(str(ctx.exception), 'bot check')
+        # Other stores never touch the browser path at all.
+        with patch.object(pricing.stores, 'search_woolworths', return_value=[]), \
+             patch.object(pricing.stores, 'search_coles_browser') as browser:
+            pricing.search('woolworths', 'carrot')
+        browser.assert_not_called()
 
     def test_wildly_different_size_is_rejected_not_just_scored_lower(self):
         # Same words, very different pack -- a known-size history must stop
@@ -427,6 +450,17 @@ class StoreParsers(unittest.TestCase):
         with patch.object(stores, 'client', lambda: self.session(lambda _: httpx.Response(200, text='<html/>'))):
             with self.assertRaises(ValueError):
                 stores.search_coles('milk')
+
+    def test_coles_browser_fallback_parses_the_same_next_data_shape(self):
+        data = {'props': {'pageProps': {'searchResults': {'results': [
+            {'_type': 'AD'}, {'_type': 'PRODUCT', 'id': 9, 'name': 'Carrots', 'pricing': {'now': 2.5, 'unit': {}}}
+        ]}}}}
+        found = stores._coles_products_from_next_data(json.dumps(data), 12)
+        self.assertEqual(found, [{'store_item_id': '9', 'name': 'Carrots', 'brand': '', 'size': '',
+                                   'price': 2.5, 'was_price': None, 'unit_price': None, 'unit_measure': '',
+                                   'on_special': False}])
+        with self.assertRaises(ValueError):
+            stores._coles_products_from_next_data(json.dumps({'props': {}}), 12)
 
     def test_coles_retries_with_fresh_session_and_leaves_failure_unmatched(self):
         data = {'props': {'pageProps': {'searchResults': {'results': []}}}}

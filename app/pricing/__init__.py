@@ -10,9 +10,23 @@ from . import stores
 log = logging.getLogger(__name__)
 
 
-def search(store, query, postcode=""):
+def _fetch(store, query, postcode):
     function = getattr(stores, "search_" + store)
-    results = function(query, postcode=postcode) if store == "iga" else function(query)
+    if store != "coles":
+        return function(query, postcode=postcode) if store == "iga" else function(query)
+    try:
+        return function(query)
+    except Exception as exc:
+        # The plain request almost always hits Coles's bot check. Only pay
+        # for a real browser tab when the quick path has actually failed.
+        try:
+            return stores.search_coles_browser(query)
+        except Exception:
+            raise exc from None
+
+
+def search(store, query, postcode=""):
+    results = _fetch(store, query, postcode)
     if results:
         return results
     # A plain singular/plural miss shouldn't come back empty -- "carrot" has
@@ -23,7 +37,7 @@ def search(store, query, postcode=""):
     if variant == query:
         return results
     try:
-        return (function(variant, postcode=postcode) if store == "iga" else function(variant)) or results
+        return _fetch(store, variant, postcode) or results
     except Exception:
         return results
 

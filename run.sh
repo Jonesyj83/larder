@@ -9,8 +9,10 @@ if [ ! -x .venv/bin/python ]; then
     python3 -m venv .venv
     .venv/bin/pip install -q --upgrade pip
     .venv/bin/pip install -q -r requirements.txt
+    .venv/bin/playwright install chromium
 elif [ requirements.txt -nt .venv/.installed ]; then
     .venv/bin/pip install -q -r requirements.txt
+    .venv/bin/playwright install chromium
 fi
 touch .venv/.installed
 
