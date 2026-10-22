@@ -269,8 +269,9 @@ def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: O
                 product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
                 # Coles doesn't get asked live -- it blocks repeat requests
                 # from one IP, so it only ever gets checked from the weekly
-                # job's fresh one. Everything else still gets an instant try.
-                pricing.auto_match(db, product_id, product["name"], excluded_stores=("coles",))
+                # job's fresh one. Everything else still gets an instant try,
+                # all at once instead of one after another.
+                pricing.auto_match_live(db, product_id, product["name"], excluded_stores=("coles",))
         except Exception:
             db.rollback()
             logging.getLogger(__name__).warning("Shopping item pricing failed", exc_info=True)

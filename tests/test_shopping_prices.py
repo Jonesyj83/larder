@@ -194,20 +194,20 @@ const api = async (path, options) => {
             INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Home','order');
             INSERT INTO store_settings(store,enabled) VALUES('coles',1),('iga',0);
         """)
-        with patch.object(pricing, 'auto_match') as match:
+        with patch.object(pricing, 'auto_match_live') as match:
             shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
             match.assert_called_once_with(db, 1, 'Woolworths Chilli Ground', excluded_stores=('coles',))
-        with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')) as match, self.assertLogs(level='WARNING'):
+        with patch.object(pricing, 'auto_match_live', side_effect=RuntimeError('offline')) as match, self.assertLogs(level='WARNING'):
             result = shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
             self.assertEqual(result['amount'], 2)
         db.execute("INSERT INTO product_store_links(product_id,store,store_item_id,store_name) VALUES(1,'coles','1','Chilli Ground')")
         db.commit()
-        with patch.object(pricing, 'auto_match') as match:
+        with patch.object(pricing, 'auto_match_live') as match:
             shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
             match.assert_not_called()
         # A brand-new free-text name on the order list gets its own product so it
         # can still be matched to stores, not left as inert text.
-        with patch.object(pricing, 'auto_match') as match:
+        with patch.object(pricing, 'auto_match_live') as match:
             shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
             match.assert_called_once()
             self.assertEqual(match.call_args[0][2], 'Loose')

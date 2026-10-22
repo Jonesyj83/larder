@@ -152,6 +152,48 @@ class SchemaAndRefresh(unittest.TestCase):
         self.assertTrue(all(call.args[0] != 'coles' for call in fetch.call_args_list))
         self.assertEqual(result['circuit_breakers'], [])
 
+    def test_auto_match_live_asks_every_store_concurrently(self):
+        self.db.executescript("UPDATE store_settings SET enabled=1")
+        self.db.commit()
+        import time
+        order = []
+
+        def slow_search(store, query, postcode=''):
+            delay = {'woolworths': 0.2, 'aldi': 0.05, 'iga': 0.05, 'coles': 0.2}[store]
+            time.sleep(delay)
+            order.append(store)
+            if store == 'woolworths':
+                return [CANDIDATE]
+            return []
+
+        t0 = time.time()
+        with patch.object(pricing, 'search', side_effect=slow_search):
+            matched = pricing.auto_match_live(self.db, 1, 'Milk 2L')
+        elapsed = time.time() - t0
+        # Run one after another this would be >= 0.2+0.2+0.05+0.05 = 0.5s;
+        # run together it's bounded by the slowest one, ~0.2s.
+        self.assertLess(elapsed, 0.4)
+        self.assertEqual(len(order), 4)
+        self.assertEqual([m['store'] for m in matched], ['woolworths'])
+        link = self.db.execute("SELECT store_item_id FROM product_store_links WHERE product_id=1 AND store='woolworths'").fetchone()
+        self.assertEqual(link['store_item_id'], '123')
+
+    def test_auto_match_live_skips_excluded_and_survives_one_store_failing(self):
+        self.db.executescript("UPDATE store_settings SET enabled=1")
+        self.db.commit()
+
+        def flaky_search(store, query, postcode=''):
+            if store == 'coles':
+                raise AssertionError('coles must never be asked live')
+            if store == 'aldi':
+                raise ValueError('aldi is down right now')
+            return [CANDIDATE] if store == 'woolworths' else []
+
+        with patch.object(pricing, 'search', side_effect=flaky_search), self.assertLogs(level='WARNING'):
+            matched = pricing.auto_match_live(self.db, 1, 'Milk 2L', excluded_stores=('coles',))
+        self.assertEqual([m['store'] for m in matched], ['woolworths'])
+
+
     def test_exact_id_missing_id_and_append_only_history(self):
         link = pricing.link_product(self.db, 1, 'coles', '123', 'Milk 2L')
         self.db.commit()

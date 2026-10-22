@@ -76,9 +76,18 @@ def normalized_name(name):
     return "".join(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold()))
 
 
+# A size token anywhere in a name -- "1.25L Pepsi Max", "Milk 2L", "Water
+# 12x600mL" -- never appears in what a store calls the product itself, so
+# it's pure noise for word-overlap scoring and has to come out first.
+SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
+              r"|\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
+              r"|\d+(?:\.\d+)?\s*[- ]?\s*(?:pack|pk|bottles?|pieces?|each)\b")
+
+
 def name_words(name):
     # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
     name = re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name)
+    name = re.sub(SIZE_TOKEN, " ", name, flags=re.IGNORECASE)
     # Supermarket names are scoring noise; keep stored names and brand guards intact.
     words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga"}
     # A plain trailing "s" shouldn't count as a different word -- "carrot"
@@ -124,7 +133,17 @@ def strongest_match(name, candidates, preferred_size=None):
     words = name_words(name)
     if not words:
         return None
-    first = re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())[0]
+    if not preferred_size:
+        # No buying history yet -- but if the size is right there in what
+        # was typed ("1.25L Pepsi Max"), that's a real claim worth gating
+        # on too, not just a word to throw away.
+        preferred_size = pack_size(name)
+    # The leading word decides the brand check -- but it has to be the
+    # first REAL word, not a size token's leftover digits ("1" out of
+    # "1.25L Pepsi Max").
+    stripped = re.sub(SIZE_TOKEN, " ", re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name), flags=re.IGNORECASE)
+    leading = re.findall(r"\w+", unicodedata.normalize("NFKC", stripped).casefold())
+    first = leading[0] if leading else ""
     brands = {normalized_name(p.get("brand") or "") for p in candidates}
     required_brand = first if first in brands else None
     scored = {}
@@ -133,7 +152,17 @@ def strongest_match(name, candidates, preferred_size=None):
             continue
         other = name_words(candidate["name"])
         score = len(words & other) / len(words | other)
-        if score < .5:
+        # A confirmed brand match is strong enough on its own that a long,
+        # marketing-heavy store title ("Pepsi Max Cola No Sugar Soft Drink
+        # Bottle") shouldn't sink a candidate just for having extra words
+        # we didn't type -- as long as every word we DID type shows up.
+        recall = len(words & other) / len(words)
+        # The bonus only kicks in when there's a real word beyond the brand
+        # itself to check recall against -- "Vegemite" alone matching every
+        # word of itself proves nothing, it's the whole query.
+        if required_brand and len(words) > 1 and recall == 1 and score < .5:
+            score += .5
+        elif score < .5:
             continue
         if preferred_size:
             size = pack_size(candidate.get('size') or '')
@@ -141,14 +170,16 @@ def strongest_match(name, candidates, preferred_size=None):
                             for key, value in preferred_size.items()
                             if key in size and value > 0 and size[key] > 0]
             if similarities:
-                # Same name doesn't mean same product -- a 170g tub and a 1kg
-                # tub can share every word. Only abstain (no opinion) when the
-                # candidate makes no size claim at all; a real claim that's
-                # wildly off (less than 40% the size we know we buy) has to
-                # lose outright, not just lose a bonus.
-                if min(similarities) < .4:
+                # Same name doesn't mean same product -- a 170g tub, a 1kg
+                # tub, a 1.25L bottle and a 2L bottle of the exact same
+                # drink can all share every word. Only abstain (no opinion)
+                # when the candidate makes no size claim at all; anything
+                # that isn't close to the size we know we buy (within 25%)
+                # has to lose outright, not just lose a bonus -- a near
+                # miss on name shouldn't out-rank the actually right size.
+                if min(similarities) < .75:
                     continue
-                score += .35 * sum(similarities) / len(similarities)
+                score += 1 + sum(similarities) / len(similarities)
         scored[str(candidate["store_item_id"])] = (score, candidate)
     ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < .5:
@@ -180,6 +211,47 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
         except Exception:
             db.rollback()
             log.warning("Product lookup failed for %s", setting["store"], exc_info=True)
+    return matched
+
+
+def auto_match_live(db, product_id, name, excluded_stores=()):
+    """Same job as auto_match, but for the moment someone's actually sitting
+    there waiting on an "add item" click -- asks every store at once instead
+    of one after another, so it's one slow store's wait, not the sum of all
+    of them. Never used for the paced nightly/weekly batch jobs; those stay
+    sequential on purpose."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    settings = [s for s in db.execute("""SELECT * FROM store_settings s WHERE enabled=1
+        AND NOT EXISTS (SELECT 1 FROM product_store_links l
+            WHERE l.product_id=? AND l.store=s.store) ORDER BY store""", (product_id,)).fetchall()
+        if s["store"] not in excluded_stores]
+    if not settings:
+        return []
+
+    def fetch(setting):
+        try:
+            return setting["store"], search(setting["store"], name, setting["postcode"]), None
+        except Exception as exc:
+            return setting["store"], None, exc
+
+    matched = []
+    with ThreadPoolExecutor(max_workers=len(settings)) as pool:
+        for store, candidates, exc in pool.map(fetch, settings):
+            if exc is not None:
+                log.warning("Product lookup failed for %s", store, exc_info=exc)
+                continue
+            candidate = strongest_match(name, candidates, size_preference(db, product_id, store))
+            if candidate is None:
+                continue
+            try:
+                with db:
+                    link_id = link_product(db, product_id, store, str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"))
+                    record_price(db, link_id, candidate)
+                matched.append({"product_id": product_id, "name": name, "store": store})
+            except Exception:
+                db.rollback()
+                log.warning("Saving a match failed for %s", store, exc_info=True)
     return matched
 
 
