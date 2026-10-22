@@ -69,7 +69,9 @@ class ColesBrowserSession:
         raw = self._page.evaluate("document.getElementById('__NEXT_DATA__')?.textContent")
         if not raw:
             raise ValueError("No __NEXT_DATA__ on the page")
-        return BrowserResponse(raw)
+        # payload() expects to pull this out of a real script tag by id --
+        # keep that one code path instead of a second JSON-parsing branch.
+        return BrowserResponse(f'<script id="__NEXT_DATA__">{raw}</script>')
 
     def close(self):
         self._browser.close()
