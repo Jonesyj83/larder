@@ -2,16 +2,8 @@
 {% block content %}
 <div class="shopping-page" x-data="shoppingPage()">
   <div class="page-head">
-    <h1>Shopping list</h1>
-    <div class="list-switcher">
-      <label class="field no-margin">List<select x-ref="listSelect" x-model.number="list_id" @change="selectList()">
-        <template x-for="list in lists" :key="list.id"><option :value="list.id" x-text="list.name + ' (' + list.item_count + ')'"></option></template>
-      </select></label>
-      <button class="btn-ghost" @click="newList()">New list</button>
-      <button class="btn-ghost" @click="renameList()">Rename</button>
-      <button class="btn-ghost danger" @click="deleteList()">Delete list</button>
-      <button class="btn-ghost" @click="addMissing()">Add what's running low</button>
-    </div>
+    <h1>Order list</h1>
+    <button class="btn-ghost" @click="addMissing()">Add what's running low</button>
   </div>
 
   <section class="summary-strip" aria-label="List summary" x-show="items.length">
@@ -110,7 +102,18 @@
           </div>
         </div>
         <div class="shop-actions">
-          <button class="icon-btn ok-btn" x-show="i.product_id" @click="bought(i)" title="Got it — move to stock">✓</button>
+          <div class="move-control">
+            <button class="small" @click="i.moveOpen = !i.moveOpen">Add to list</button>
+            <div class="store-picker move-picker" x-show="i.moveOpen" @click.outside="i.moveOpen = false" x-cloak>
+              <template x-for="list in lists.filter(l => l.kind === 'plain')" :key="list.id">
+                <button class="small picker-result" @click="moveItem(i, {list_id: list.id})" x-text="list.name"></button>
+              </template>
+              <form @submit.prevent="moveItem(i, {name: i.newListName})">
+                <input aria-label="New shopping list name" placeholder="New list name" x-model="i.newListName" maxlength="200" required>
+                <button class="small">Create &amp; move</button>
+              </form>
+            </div>
+          </div>
           <button class="icon-btn" x-show="!i.product_id" @click="makeProduct(i)" title="Create product &amp; add to stock">＋</button>
           <button class="icon-btn danger-btn" :aria-label="'Remove ' + i.label" @click="remove(i)" title="Remove from list">✕</button>
         </div>
@@ -120,7 +123,6 @@
       <button class="small" @click="clearDone()">Clear ticked items</button>
     </div>
   </section>
-  <p class="muted small">"Got it" puts the item into stock and removes it from this list. The checkbox just ticks it off.</p>
 </div>
 <script>
 function shoppingPage() {
@@ -129,37 +131,13 @@ function shoppingPage() {
     lists: [], list_id: null, loadVersion: 0, stores: [], items: [], products: [], text: '', amount: 1,
     async init() {
       this.products = await api('/api/products');
-      try { this.list_id = Number(localStorage.getItem('shopping-list')) || null; } catch (e) {}
       await this.load();
     },
     scoped(path = '') { return '/api/shopping' + path + '?list_id=' + this.list_id; },
-    async selectList() {
-      try { localStorage.setItem('shopping-list', this.list_id); } catch (e) {}
-      await this.load();
-    },
-    async newList() {
-      const name = prompt('List name');
-      if (!name?.trim()) return;
+    async moveItem(i, body) {
       try {
-        const list = await api('/api/shopping/lists', {method: 'POST', body: {name}});
-        this.list_id = list.id;
-        await this.selectList();
-      } catch (e) { oops(e); }
-    },
-    async renameList() {
-      const name = prompt('List name', this.lists.find(l => l.id === this.list_id)?.name || '');
-      if (!name?.trim()) return;
-      try {
-        await api('/api/shopping/lists/' + this.list_id, {method: 'PUT', body: {name}});
+        await api(this.scoped('/' + i.id + '/move'), {method: 'POST', body});
         await this.load();
-      } catch (e) { oops(e); }
-    },
-    async deleteList() {
-      if (!confirm('Delete this list? Its items will move to the first remaining list.')) return;
-      try {
-        await api('/api/shopping/lists/' + this.list_id, {method: 'DELETE'});
-        await this.load();
-        await this.selectList();
       } catch (e) { oops(e); }
     },
     async load() {
@@ -168,14 +146,10 @@ function shoppingPage() {
         const lists = await api('/api/shopping/lists');
         if (version !== this.loadVersion) return;
         this.lists = lists;
-        if (!lists.some(l => l.id === this.list_id)) this.list_id = lists[0].id;
-        if (typeof this.$nextTick === 'function') {
-          await this.$nextTick();
-          if (this.$refs && this.$refs.listSelect) this.$refs.listSelect.value = this.list_id;
-        }
+        this.list_id = lists.find(l => l.kind === 'order').id;
         const items = await api(this.scoped());
         if (version !== this.loadVersion) return;
-        this.items = items.map(i => ({...i, links: [], pricingLoaded: false, pricingError: '', historyChart: null, picker: null}));
+        this.items = items.map(i => ({...i, links: [], pricingLoaded: false, pricingError: '', historyChart: null, picker: null, moveOpen: false, newListName: ''}));
         this.loadPrices(this.items);
       } catch (e) { oops(e); }
     },
@@ -308,13 +282,6 @@ function shoppingPage() {
     async toggle(i) {
       try {
         await api(this.scoped('/' + i.id), { method: 'PUT', body: { done: !i.done } });
-        this.load();
-      } catch (e) { oops(e); }
-    },
-    async bought(i) {
-      try {
-        await api(this.scoped('/' + i.id + '/bought'), { method: 'POST', body: {} });
-        toast(i.label + ' added to stock');
         this.load();
       } catch (e) { oops(e); }
     },

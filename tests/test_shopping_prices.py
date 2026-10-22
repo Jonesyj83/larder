@@ -34,7 +34,7 @@ const oops = e => { throw e; };
 let fail = false;
 const api = async (path, options) => {
   calls.push([path, options]);
-  if (path === '/api/shopping/lists') return [{id:1}];
+  if (path === '/api/shopping/lists') return [{id:1,kind:'order'}];
   if (path === '/api/shopping?list_id=1') return [{id:1, product_id:10, label:'Milk'}, {id:2, label:'Loose'}];
   if (path === '/api/pricing/stores') return [{store:'coles',enabled:1},{store:'aldi',enabled:1},{store:'iga',enabled:0}];
   if (fail) throw Error('offline');
@@ -67,7 +67,7 @@ const api = async (path, options) => {
 ''')
 
     def test_selected_list_is_remembered_and_used(self):
-        self.run_logic('shopping.html', r'''
+        self.run_logic('shopping_lists.html', r'''
 const saved = {'shopping-list': '2'};
 const localStorage = {getItem: key => saved[key], setItem: (key, value) => saved[key] = String(value)};
 const calls = [];
@@ -75,7 +75,7 @@ const oops = e => {throw e;};
 const toast = () => {};
 const api = async (path, options) => {
   calls.push([path, options]);
-  if (path === '/api/shopping/lists') return [{id:1, name:'Shopping', item_count:0}, {id:2, name:'Work', item_count:0}];
+  if (path === '/api/shopping/lists?kind=plain') return [{id:1, name:'Shopping', item_count:0}, {id:2, name:'Work', item_count:0}];
   if (path.startsWith('/api/shopping/add-missing')) return {added:1};
   return [];
 };
@@ -90,8 +90,6 @@ const api = async (path, options) => {
   page.text = 'Bread';
   await page.add();
   assert.ok(calls.some(([path, opts]) => path === '/api/shopping?list_id=1' && opts?.method === 'POST'));
-  await page.addMissing();
-  assert.ok(calls.some(([path]) => path === '/api/shopping/add-missing?list_id=1'));
   saved['shopping-list'] = '999';
   const reloaded = shoppingPage();
   await reloaded.init();
@@ -143,7 +141,7 @@ const api = async (path, options) => {
         db.executescript("""
             INSERT INTO units(id,name) VALUES(1,'piece');
             INSERT INTO products(id,name,unit_id) VALUES(1,'Woolworths Chilli Ground',1),(2,'Other',1);
-            INSERT INTO shopping_lists(id,name) VALUES(1,'Home');
+            INSERT INTO shopping_lists(id,name,kind) VALUES(1,'Home','order');
             INSERT INTO store_settings(store,enabled) VALUES('coles',1),('iga',0);
         """)
         with patch.object(pricing, 'auto_match') as match:
@@ -220,5 +218,35 @@ const api = async (path, options) => {
   assert.equal(store.enabled, true);
   assert.equal(store.saving, false);
   assert.deepEqual(['woolworths','coles','aldi','iga'].map(s => page.storeName(s)), ['Woolworths','Coles','Aldi','IGA']);
+})().catch(e => {console.error(e); process.exit(1);});
+''')
+
+    def test_plain_page_has_only_checklist_controls(self):
+        template = (ROOT / 'app/templates/shopping_lists.html').read_text()
+        for absent in ('store-chip', 'pricing', 'historyChart', 'openPicker', 'unit_id', 'makeProduct'):
+            self.assertNotIn(absent, template)
+        for present in ('Got it', 'qty-stepper', 'type="checkbox"', 'newList()', 'renameList()', 'deleteList()'):
+            self.assertIn(present, template)
+        order = (ROOT / 'app/templates/shopping.html').read_text()
+        self.assertNotIn('list-switcher', order)
+        self.assertNotIn('Got it', order)
+        self.assertIn('Add to list', order)
+
+    def test_order_ignores_saved_plain_selection_and_moves(self):
+        self.run_logic('shopping.html', r'''
+const oops = e => {throw e;};
+const calls = [];
+const api = async (path, options) => {
+  calls.push([path, options]);
+  if (path === '/api/shopping/lists') return [{id:2,kind:'plain'}, {id:7,kind:'order'}];
+  return [];
+};
+(async () => {
+  const page = shoppingPage();
+  page.list_id = 2;
+  await page.init();
+  assert.equal(page.list_id, 7);
+  await page.moveItem({id:10}, {list_id:2});
+  assert.ok(calls.some(([p,o]) => p === '/api/shopping/10/move?list_id=7' && o.method === 'POST' && o.body.list_id === 2));
 })().catch(e => {console.error(e); process.exit(1);});
 ''')

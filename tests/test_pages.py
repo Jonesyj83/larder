@@ -107,7 +107,7 @@ async def check():
             assert ('on' in memory_summary['class'].split()) == (route == '/memory')
             links = {a.get('href') for t, a in tags if t == 'a'}
             assert BASE_PATH + '/stock' not in links
-            for destination in ('/', '/expiring', '/scan', '/shopping', '/recipes',
+            for destination in ('/', '/expiring', '/scan', '/shopping', '/lists', '/recipes',
                                 '/mealplan', '/manage', '/settings'):
                 assert BASE_PATH + destination in links, (route, destination)
             for kind in ('like', 'dislike', 'maybe', 'condition', 'habit', 'buying_pattern',

@@ -163,6 +163,8 @@ async def check():
         assert (await admin.post(f"/api/shopping/{loose['id']}/bought?list_id={home_id}", json={})).status_code == 200
         renamed = await admin.put(f'/api/shopping/lists/{home_id}', json={'name': 'Work'})
         assert renamed.json()['name'] == 'Work'
+        assert (await admin.delete(f'/api/shopping/lists/{home_id}')).status_code == 409
+        assert (await admin.post('/api/shopping/lists', json={'name': 'Other'})).status_code == 201
         assert (await admin.delete(f'/api/shopping/lists/{home_id}')).status_code == 200
         assert (await admin.delete('/api/shopping/lists/' + str(lists[0]['id']))).status_code == 409
         assert (await admin.post('/api/shopping/lists', json={'name': '  '})).status_code == 400

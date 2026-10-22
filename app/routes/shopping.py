@@ -94,7 +94,7 @@ def _check_unit(db, unit_id):
 
 def resolve_list(db, list_id=None):
     if list_id is None:
-        found = db.execute("SELECT id FROM shopping_lists ORDER BY id LIMIT 1").fetchone()
+        found = db.execute("SELECT id FROM shopping_lists WHERE kind='order' ORDER BY id LIMIT 1").fetchone()
     else:
         found = db.execute("SELECT id FROM shopping_lists WHERE id=?", (list_id,)).fetchone()
     if not found:
@@ -114,9 +114,9 @@ def list_name(data):
 
 
 @router.get("/lists")
-def lists(db=Depends(get_db), user=Depends(current_user)):
+def lists(db=Depends(get_db), user=Depends(current_user), kind: Optional[str] = None):
     return rows(db.execute("""SELECT l.*, (SELECT COUNT(*) FROM shopping_list i
-        WHERE i.list_id=l.id AND i.done=0) AS item_count FROM shopping_lists l ORDER BY l.id"""))
+        WHERE i.list_id=l.id AND i.done=0) AS item_count FROM shopping_lists l WHERE (? IS NULL OR l.kind=?) ORDER BY l.id""", (kind, kind)))
 
 
 @router.post("/lists", status_code=201)
@@ -129,6 +129,8 @@ def create_list(data: ListIn, db=Depends(get_db), user=Depends(current_user)):
 @router.put("/lists/{list_id}")
 def rename_list(list_id: int, data: ListIn, db=Depends(get_db), user=Depends(current_user)):
     resolve_list(db, list_id)
+    if db.execute("SELECT kind FROM shopping_lists WHERE id=?", (list_id,)).fetchone()['kind'] == 'order':
+        raise HTTPException(409, "The Order list cannot be renamed")
     db.execute("UPDATE shopping_lists SET name=? WHERE id=?", (list_name(data), list_id))
     db.commit()
     return row(db.execute("SELECT * FROM shopping_lists WHERE id=?", (list_id,)))
@@ -138,13 +140,46 @@ def rename_list(list_id: int, data: ListIn, db=Depends(get_db), user=Depends(cur
 def delete_list(list_id: int, db=Depends(get_db), user=Depends(current_user)):
     begin(db)
     resolve_list(db, list_id)
-    target = db.execute("SELECT id FROM shopping_lists WHERE id!=? ORDER BY id LIMIT 1", (list_id,)).fetchone()
+    if db.execute("SELECT kind FROM shopping_lists WHERE id=?", (list_id,)).fetchone()['kind'] == 'order':
+        raise HTTPException(409, "The Order list cannot be deleted")
+    target = db.execute("SELECT id FROM shopping_lists WHERE id!=? AND kind='plain' ORDER BY id LIMIT 1", (list_id,)).fetchone()
     if not target:
         raise HTTPException(409, "Cannot delete the last shopping list")
     db.execute("UPDATE shopping_list SET list_id=? WHERE list_id=?", (target["id"], list_id))
     db.execute("DELETE FROM shopping_lists WHERE id=?", (list_id,))
     db.commit()
     return {"ok": True}
+
+
+class MoveIn(BaseModel):
+    list_id: Optional[int] = None
+    name: Optional[str] = Field(default=None, max_length=200)
+
+
+@router.post("/{item_id}/move")
+def move(item_id: int, data: MoveIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+    begin(db)
+    item = db.execute("SELECT id FROM shopping_list WHERE id=? AND list_id=?",
+                      (item_id, resolve_list(db, list_id))).fetchone()
+    if not item:
+        raise HTTPException(404, "Not on the list")
+    if (data.list_id is None) == (data.name is None):
+        raise HTTPException(400, "Choose a list or a new list name")
+    if data.list_id is not None:
+        target = db.execute("SELECT id FROM shopping_lists WHERE id=? AND kind='plain'", (data.list_id,)).fetchone()
+        if not target:
+            raise HTTPException(404, "Shopping list not found")
+        target_id = target['id']
+    else:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(400, "Need a list name")
+        target = db.execute("SELECT id FROM shopping_lists WHERE kind='plain' AND name=? COLLATE NOCASE ORDER BY id LIMIT 1", (name,)).fetchone()
+        target_id = target['id'] if target else db.execute(
+            "INSERT INTO shopping_lists(name,created_by) VALUES(?,?)", (name, user['id'])).lastrowid
+    db.execute("UPDATE shopping_list SET list_id=? WHERE id=?", (target_id, item_id))
+    db.commit()
+    return row(db.execute(ITEM_SQL + " WHERE i.id=?", (item_id,)))
 
 
 @router.get("")
@@ -171,7 +206,7 @@ def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: O
     begin(db)
     item_id = add_item(db, data.product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
     db.commit()
-    if data.product_id:
+    if data.product_id and db.execute("SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
         try:
             missing = db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
                 SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
