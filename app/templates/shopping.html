@@ -33,13 +33,18 @@
 
   <form class="add-bar" @submit.prevent="add()">
     <span class="search-icon" aria-hidden="true">🔍</span>
-    <div class="add-product-search grow" @click.outside="suggestionsOpen = false" @keydown.escape.stop="suggestionsOpen = false">
-    <input class="grow" aria-label="Item to add" placeholder="Add an item — try “milk”, “pasta sauce”, “paper towel”…" x-model="text" @input="suggestions = []; suggestionsOpen = false" @input.debounce.200ms="suggestProducts()" @focus="suggestProducts()" autocomplete="off" role="combobox" aria-autocomplete="list" :aria-expanded="suggestionsOpen" aria-controls="product-suggestions" maxlength="200">
-    <div id="product-suggestions" class="store-picker product-suggestions" x-show="suggestionsOpen && suggestions.length" x-cloak>
-      <span class="muted small">Existing household products</span>
+    <div class="add-product-search grow" @click.outside="dismissSuggestions()" @keydown.escape.stop="dismissSuggestions()">
+    <input class="grow" aria-label="Item to add" placeholder="Add an item — try “milk”, “pasta sauce”, “paper towel”…" x-model="text" @input="resetSuggestions()" @input.debounce.200ms="suggestProducts()" @focus="suggestProducts()" autocomplete="off" role="combobox" aria-autocomplete="list" :aria-expanded="suggestionsOpen" aria-controls="product-suggestions" maxlength="200">
+    <div id="product-suggestions" class="store-picker product-suggestions" x-show="suggestionsOpen && (suggestions.length || liveSuggestions.length || suggestionMessage)" x-cloak>
+      <span class="muted small" x-show="suggestions.length">Existing household products</span>
       <template x-for="p in suggestions" :key="p.id">
         <button type="button" class="small picker-result" @click="add(p)" x-text="p.name"></button>
       </template>
+      <span class="muted small" x-show="liveSuggestions.length" x-text="'From ' + storeName(suggestionStore)"></span>
+      <template x-for="candidate in liveSuggestions" :key="candidate.store_item_id">
+        <button type="button" class="small picker-result" :disabled="adding" @click="add(null, candidate)" x-text="[candidate.name, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+      </template>
+      <span class="muted small" x-show="suggestionMessage" x-text="suggestionMessage"></span>
     </div>
     </div>
     <span class="divider"></span>
@@ -125,8 +130,15 @@
         </div>
         <div class="shop-actions">
           <div class="move-control">
-            <button class="small" @click="i.moveOpen = !i.moveOpen">Add to list</button>
-            <div class="store-picker move-picker" x-show="i.moveOpen" @click.outside="i.moveOpen = false" x-cloak>
+            <button class="small" @click="openMove(i)">Add to list</button>
+            <div class="store-picker move-picker" x-show="i.moveOpen" @click.outside="i.moveOpen = false" x-cloak @keydown.escape.window="i.moveOpen = false">
+              <div x-show="!i.moveStore">
+                <span class="muted small" x-show="!priceLinks(i).length">Match a store product before adding to a shopping list.</span>
+                <template x-for="link in priceLinks(i)" :key="link.store">
+                  <button type="button" class="small picker-result" @click="i.moveStore = link.store" x-text="[storeName(link.store), link.store_name, link.size, priceText(link.latest_check?.price)].filter(Boolean).join(' · ')"></button>
+                </template>
+              </div>
+              <div x-show="i.moveStore">
               <template x-for="list in lists.filter(l => l.kind === 'plain')" :key="list.id">
                 <button class="small picker-result" @click="moveItem(i, {list_id: list.id})" x-text="list.name"></button>
               </template>
@@ -134,6 +146,7 @@
                 <input aria-label="New shopping list name" placeholder="New list name" x-model="i.newListName" maxlength="200" required>
                 <button class="small">Create &amp; move</button>
               </form>
+              </div>
             </div>
           </div>
           <button class="icon-btn" x-show="!i.product_id" @click="makeProduct(i)" title="Create product &amp; add to stock">＋</button>
@@ -160,15 +173,57 @@ function shoppingPage() {
   return {
     drawHistory,
     suggestions: [], suggestionsOpen: false, suggestionVersion: 0, historyItem: null, historyTrigger: null,
+    liveSuggestions: [], suggestionStore: '', suggestionMessage: '', suggestionCache: {},
+    liveSearchCount: 0, lastLiveSearch: 0, liveSearchBusy: false, suggestionTimer: null, adding: false,
+    dismissSuggestions() {
+      ++this.suggestionVersion; clearTimeout(this.suggestionTimer); this.suggestionsOpen = false;
+    },
+    resetSuggestions() {
+      ++this.suggestionVersion;
+      clearTimeout(this.suggestionTimer);
+      this.suggestions = []; this.liveSuggestions = []; this.suggestionMessage = ''; this.suggestionsOpen = false;
+    },
     async suggestProducts() {
       const query = this.text.trim(), version = ++this.suggestionVersion;
-      if (!query) { this.suggestions = []; this.suggestionsOpen = false; return; }
+      clearTimeout(this.suggestionTimer);
+      if (!query) { this.resetSuggestions(); return; }
       try {
         const products = await api('/api/products?q=' + encodeURIComponent(query));
         if (version !== this.suggestionVersion || query !== this.text.trim()) return;
         this.suggestions = products.sort((a, b) => Number(b.name.toLowerCase().startsWith(query.toLowerCase())) - Number(a.name.toLowerCase().startsWith(query.toLowerCase())));
         this.suggestionsOpen = !!products.length;
+        if (products.length < 3 && query.length >= 2) {
+          this.suggestionTimer = setTimeout(() => this.suggestStore(query, version), Math.max(300, 3000 - (Date.now() - this.lastLiveSearch)));
+        }
       } catch (e) { if (version === this.suggestionVersion) this.suggestionsOpen = false; }
+    },
+    async suggestStore(query, version) {
+      if (version !== this.suggestionVersion || query !== this.text.trim()) return;
+      const store = this.enabledStores.find(s => s.store === 'woolworths') || this.enabledStores[0];
+      if (!store) return;
+      this.suggestionStore = store.store;
+      const key = store.store + ':' + query.toLowerCase();
+      if (!this.suggestionCache[key]) {
+        if (this.liveSearchBusy) {
+          this.suggestionTimer = setTimeout(() => this.suggestStore(query, version), 500); return;
+        }
+        if (this.liveSearchCount >= 5) {
+          this.suggestionMessage = 'Search limit reached. Add the item and use its store search to match it.';
+          this.suggestionsOpen = true; return;
+        }
+        this.liveSearchCount++; this.lastLiveSearch = Date.now(); this.liveSearchBusy = true;
+        this.suggestionMessage = 'Searching ' + this.storeName(store.store) + '…'; this.suggestionsOpen = true;
+        try {
+          this.suggestionCache[key] = (await api('/api/pricing/search?store=' + store.store + '&q=' + encodeURIComponent(query))).slice(0, 8);
+        } catch (e) {
+          if (version === this.suggestionVersion) this.suggestionMessage = 'Store search unavailable. You can still add this item.';
+          return;
+        } finally { this.liveSearchBusy = false; }
+      }
+      if (version !== this.suggestionVersion || query !== this.text.trim()) return;
+      this.liveSuggestions = this.suggestionCache[key];
+      this.suggestionMessage = this.liveSuggestions.length ? '' : 'No store matches. You can still add this item.';
+      this.suggestionsOpen = true;
     },
     checkedText(at) {
       if (!at) return 'Not checked yet';
@@ -186,7 +241,15 @@ function shoppingPage() {
       await this.load();
     },
     scoped(path = '') { return '/api/shopping' + path + '?list_id=' + this.list_id; },
+    openMove(i) {
+      if (i.moveOpen) { i.moveOpen = false; return; }
+      const links = this.priceLinks(i);
+      i.moveStore = links.length === 1 ? links[0].store : null;
+      i.moveOpen = true;
+    },
     async moveItem(i, body) {
+      if (!i.moveStore) return;
+      body = {...body, store: i.moveStore};
       try {
         await api(this.scoped('/' + i.id + '/move'), {method: 'POST', body});
         await this.load();
@@ -288,15 +351,18 @@ function shoppingPage() {
       } catch (e) { i.picker.message = 'Search failed.'; }
       i.picker.busy = false;
     },
+    matchBody(store, candidate) {
+      return {
+        store, store_item_id: String(candidate.store_item_id), store_name: candidate.name,
+        size: candidate.size || '', price: candidate.price, was_price: candidate.was_price,
+        unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
+      };
+    },
     async pickMatch(i, store, candidate) {
       if (!i.picker) return;
       i.picker.busy = true;
       try {
-        await api('/api/pricing/products/' + i.product_id + '/link', { method: 'POST', body: {
-          store, store_item_id: String(candidate.store_item_id), store_name: candidate.name,
-          size: candidate.size || '', price: candidate.price, was_price: candidate.was_price,
-          unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
-        }});
+        await api('/api/pricing/products/' + i.product_id + '/link', { method: 'POST', body: this.matchBody(store, candidate)});
         i.picker = null;
         await this.loadPrice(i);
       } catch (e) { oops(e); i.picker.busy = false; }
@@ -319,17 +385,23 @@ function shoppingPage() {
         await this.load();
       } catch (e) { oops(e); await this.load(); }
     },
-    async add(selected = null) {
+    async add(selected = null, candidate = null) {
       const name = this.text.trim();
-      if (!name) return;
+      if (!name || this.adding) return;
       const p = selected || this.products.find(x => x.name.toLowerCase() == name.toLowerCase());
       const body = { amount: this.amount || 1 };
       if (p) body.product_id = p.id; else body.name = name;
+      if (candidate) {
+        body.name = name;
+        body.store_match = this.matchBody(this.suggestionStore, candidate);
+      }
+      this.adding = true;
       try {
-        await api(this.scoped(), { method: 'POST', body });
-        this.text = ''; this.amount = 1; this.suggestionsOpen = false; this.suggestions = []; ++this.suggestionVersion;
+        const item = await api(this.scoped(), { method: 'POST', body });
+        if (item.product_id && !this.products.some(p => p.id === item.product_id)) this.products.push({id: item.product_id, name: item.label});
+        this.text = ''; this.amount = 1; this.resetSuggestions(); this.liveSearchCount = 0;
         this.load();
-      } catch (e) { oops(e); }
+      } catch (e) { oops(e); } finally { this.adding = false; }
     },
     async toggle(i) {
       try {
