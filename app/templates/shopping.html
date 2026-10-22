@@ -32,23 +32,9 @@
   </section>
 
   <form class="add-bar" @submit.prevent="add()">
-    <span class="search-icon" aria-hidden="true">🔍</span>
-    <div class="add-product-search grow" @click.outside="dismissSuggestions()" @keydown.escape.stop="dismissSuggestions()">
-    <input class="grow" aria-label="Item to add" placeholder="Add an item — try “milk”, “pasta sauce”, “paper towel”…" x-model="text" @input="resetSuggestions()" @input.debounce.200ms="suggestProducts()" @focus="suggestProducts()" autocomplete="off" role="combobox" aria-autocomplete="list" :aria-expanded="suggestionsOpen" aria-controls="product-suggestions" maxlength="200">
-    <div id="product-suggestions" class="store-picker product-suggestions" x-show="suggestionsOpen && (suggestions.length || liveSuggestions.length || suggestionMessage)" x-cloak>
-      <span class="muted small" x-show="suggestions.length">Existing household products</span>
-      <template x-for="p in suggestions" :key="p.id">
-        <button type="button" class="small picker-result" @click="add(p)" x-text="p.name"></button>
-      </template>
-      <span class="muted small" x-show="liveSuggestions.length">From the stores</span>
-      <template x-for="candidate in liveSuggestions" :key="candidate.store + ':' + candidate.store_item_id">
-        <button type="button" class="small picker-result" :disabled="adding" @click="add(null, candidate)" x-text="[storeName(candidate.store), candidate.name, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
-      </template>
-      <span class="muted small" x-show="suggestionMessage" x-text="suggestionMessage"></span>
-    </div>
-    </div>
+    <input class="grow" aria-label="Generic item to order" placeholder="Add a generic item (e.g. water 24 bottles)" x-model="text" autocomplete="off" maxlength="200">
     <span class="divider"></span>
-    <input class="qty-mini" type="number" step="any" min="0.000001" aria-label="Amount" x-model.number="amount" required>
+    <input class="qty-mini" type="number" step="any" min="0.000001" aria-label="Quantity" x-model.number="amount" required>
     <button class="primary" type="submit">Add</button>
   </form>
 
