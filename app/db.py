@@ -137,6 +137,15 @@ CREATE TABLE IF NOT EXISTS coles_catalogue (
 );
 CREATE INDEX IF NOT EXISTS coles_catalogue_name ON coles_catalogue(name);
 
+-- Coles' soft rate limit doesn't clear inside one run, so a crawl needs to
+-- pick up next time where this one got cut off, not restart from scratch
+-- and burn the same five pages for nothing.
+CREATE TABLE IF NOT EXISTS coles_crawl_progress (
+    category TEXT PRIMARY KEY,
+    next_page INTEGER NOT NULL DEFAULT 1,
+    done INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS barcodes (
     id INTEGER PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
