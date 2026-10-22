@@ -93,6 +93,7 @@
           <template x-if="store.store === 'iga'">
             <label class="field small" :class="!store.enabled && 'muted'">IGA area or postcode<input aria-label="IGA area or postcode" placeholder="e.g. Piara Waters or 6112" maxlength="20" x-model="store.postcode" :disabled="!store.enabled || store.saving" @change="saveStore(store, !!store.enabled)"></label>
           </template>
+          <p class="small" x-show="store.store === 'iga' && store.enabled && !(store.postcode || '').trim()">Enter an area or postcode before IGA can find matches.</p>
           <p class="muted small" x-show="store.store === 'iga' && store.enabled">Prices come from the closest participating IGA to this area.</p>
         </div>
       </template>

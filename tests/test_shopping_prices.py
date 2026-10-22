@@ -166,6 +166,43 @@ assert.equal(page.amountText(items[4]), '1 piece');
             shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
             match.assert_not_called()
 
+    def test_estimates_convert_units_round_packs_and_scale_loose_produce(self):
+        from app import db as database
+        from app.routes import shopping, pricing
+        db = sqlite3.connect(':memory:')
+        self.addCleanup(db.close)
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO units(id,name) VALUES(1,'mL'),(2,'bottle'),(3,'L'),(4,'kg'),(5,'g');
+            INSERT INTO unit_conversions(from_unit_id,to_unit_id,factor) VALUES(3,1,1000),(4,5,1000);
+            INSERT INTO products(id,name,unit_id,purchase_unit_id,purchase_factor)
+                VALUES(1,'Stock',1,2,1000),(2,'Onions',4,NULL,1);
+            INSERT INTO shopping_lists(id,name) VALUES(1,'Home');
+            INSERT INTO shopping_list(id,list_id,product_id,amount,unit_id)
+                VALUES(1,1,1,100,1),(2,1,2,1.5,4);
+        """)
+        items = shopping.list_items(db=db, user={'id':1}, list_id=1)
+        links = []
+        for product_id, name, size, price, measure in [(1,'Stock 1L','1L',1.9,'1L'),(2,'Brown Onions per kg','',2,'kg')]:
+            link_id = pricing.pricing.link_product(db, product_id, 'aldi', str(product_id), name, size=size)
+            pricing.pricing.record_price(db, link_id, {'price':price,'unit_price':price,'unit_measure':measure})
+            links.append(pricing.product_prices(product_id, db=db))
+        self.assertEqual(links[0][0]['price_quantity'], {'stock_units':1000, 'whole_packs':True})
+        self.assertEqual(links[1][0]['price_quantity'], {'stock_units':1, 'whole_packs':False})
+        self.run_logic('shopping.html', 'const items = ' + json.dumps(items) + '; const links = ' + json.dumps(links) + ';' + r'''
+const page = shoppingPage();
+page.stores = [{store:'aldi',enabled:1}];
+page.items = items.map(i => ({...i, links:links[i.product_id - 1]}));
+assert.equal(page.splitTotal, 4.9);
+assert.equal(page.storeTotals[0].total, 4.9);
+const stock = page.items.find(i => i.product_id === 1);
+stock.amount = 1001;
+assert.equal(page.itemCost(stock, stock.links[0]), 3.8);
+stock.amount = 2000;
+assert.equal(page.itemCost(stock, stock.links[0]), 3.8);
+''')
+
     def test_settings_store_controls(self):
         template = (ROOT / 'app/templates/settings.html').read_text()
         self.assertLess(template.index('<summary>Store prices</summary>'), template.index('{% if user.is_admin %}'))

@@ -356,6 +356,38 @@ class StoreParsers(unittest.TestCase):
             with self.assertRaises(ValueError):
                 stores.search_coles('milk')
 
+    def test_coles_retries_with_fresh_session_and_leaves_failure_unmatched(self):
+        data = {'props': {'pageProps': {'searchResults': {'results': []}}}}
+        html = '<script id="__NEXT_DATA__">' + json.dumps(data) + '</script>'
+        with patch.object(stores, 'client', side_effect=[
+                self.session(lambda _: httpx.Response(200, text='<html/>')),
+                self.session(lambda _: httpx.Response(200, text=html))]) as clients, patch.object(stores.time, 'sleep') as sleep:
+            self.assertEqual(stores.search_coles('milk'), [])
+            self.assertEqual(clients.call_count, 2)
+            sleep.assert_called_once_with(0.5)
+        db = prepare(sqlite3.connect(':memory:'))
+        self.addCleanup(db.close)
+        db.execute("UPDATE store_settings SET enabled=(store='coles')")
+        with patch.object(stores, 'client', lambda: self.session(lambda _: httpx.Response(200, text='<html/>'))), \
+                patch.object(stores.time, 'sleep'), self.assertLogs(level='WARNING'):
+            result = pricing.auto_match_all(db)
+        self.assertEqual(result['unmatched'], [{'product_id': 1, 'name': 'Milk 2L'}])
+        self.assertEqual(db.execute('SELECT COUNT(*) FROM product_store_links').fetchone()[0], 0)
+
+    def test_aldi_fallback_and_per_kg_produce(self):
+        arr = [{'products': 1}, [2], {'sku': 3, 'name': 4, 'price': 5}, '123', 'Brown Onions per kg', 2.49]
+        paths = []
+        def handler(request):
+            paths.append(request.url.path)
+            return httpx.Response(200, text='<script id="__NUXT_DATA__">' + json.dumps(arr) + '</script>')
+        with patch.object(stores, '_categories', return_value=['/products/fresh/k/1']), \
+                patch.object(stores, 'client', lambda: self.session(handler)):
+            result = stores.search_aldi('brown onions')
+        self.assertEqual(paths, ['/products/fresh/k/1'])
+        self.assertEqual(result[0]['name'], 'Brown Onions per kg')
+        self.assertEqual(result[0]['unit_measure'], 'kg')
+        self.assertEqual(result[0]['unit_price'], 2.49)
+
     def test_nuxt_references_shared_slots_wrappers_and_cycle(self):
         data = [{'product': 1, 'same': 1, 'cycle': 5}, {'name': 2, 'price': 3}, 'Milk', 3.4, None, {'self': 5}]
         found = stores._unflatten(data)
@@ -382,7 +414,8 @@ class StoreParsers(unittest.TestCase):
                 self.assertTrue(stores.search_aldi('Dairy Milk').failed)
 
     def test_iga_resolves_nearest_store_and_normalizes_results(self):
-        self.assertFalse(stores.search_iga('Milk', postcode=''))
+        with self.assertRaisesRegex(ValueError, 'requires an area or postcode'):
+            stores.search_iga('Milk', postcode='')
 
         def handler(request):
             if 'nominatim' in str(request.url):
