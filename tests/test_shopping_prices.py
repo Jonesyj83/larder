@@ -66,6 +66,56 @@ const api = async (path, options) => {
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
 
+    def test_stock_prices(self):
+        template = (ROOT / 'app/templates/stock.html').read_text()
+        self.assertIn('<template x-if="prices">', template)
+        self.assertIn('@click.stop="openPicker(s, store.store)"', template)
+        self.assertIn('@submit.prevent="searchMatches(s)"', template)
+        self.assertIn('@click="pickMatch(s, store.store, candidate)"', template)
+        self.assertIn('x-effect="drawHistory($el, s.historyChart)"', template)
+        self.assertGreater(template.index('class="store-chips"'), template.index('class="stock-details"'))
+        self.run_logic('stock.html', r'''
+let show = false;
+const preferences = () => ({show_prices: show});
+const calls = [];
+const oops = e => {throw e;};
+const api = async (path, options) => {
+  calls.push([path, options]);
+  if (path === '/api/stock') return [{product_id:10,name:'Milk'}, {product_id:11,name:'Bread'}];
+  if (path === '/api/pricing/stores') return [{store:'coles',enabled:1}, {store:'aldi',enabled:1}, {store:'iga',enabled:0}];
+  if (path.endsWith('/history')) return {stores:[],purchases:[]};
+  if (path === '/api/pricing/products/10') return [{store:'coles',size:'2L',store_name:'Full cream milk',latest_check:{price:3}}, {store:'iga',latest_check:{price:1}}];
+  if (path.startsWith('/api/pricing/search')) return [{store_item_id:'123',name:'Milk',price:2}];
+  return [];
+};
+(async () => {
+  const hidden = stockPage();
+  await hidden.load();
+  assert.ok(!calls.some(([p]) => p.startsWith('/api/pricing')));
+  show = true;
+  const page = stockPage(); page.q = 'Milk';
+  await page.load();
+  await new Promise(resolve => setImmediate(resolve));
+  const item = page.items[0];
+  assert.ok(!calls.some(([p]) => p.includes('/products/11')));
+  assert.equal(page.badgePrice(item, 'coles'), '$3.00 · 2L');
+  assert.ok(page.cheapest(item, page.storeLink(item, 'coles')));
+  assert.equal(page.badgePrice(item, 'aldi'), '—');
+  const count = calls.length;
+  await page.loadVisiblePrices(); assert.equal(calls.length, count);
+  page.q = ''; await page.loadVisiblePrices();
+  assert.ok(calls.some(([p]) => p === '/api/pricing/products/11'));
+  page.openPicker(item, 'coles'); assert.equal(item.picker.mode, 'info');
+  assert.equal(item.picker.query, 'Milk');
+  item.picker.mode = 'search'; await page.searchMatches(item);
+  await page.pickMatch(item, 'coles', item.picker.candidates[0]);
+  assert.equal(item.picker, null);
+  assert.ok(calls.some(([p,o]) => p.endsWith('/10/link') && o.method === 'POST' && o.body.store_name === 'Milk'));
+  await page.unlink(item, 'coles');
+  assert.ok(calls.some(([p,o]) => p.endsWith('/10/link/coles') && o.method === 'DELETE'));
+})().catch(e => {console.error(e); process.exit(1);});
+''')
+
     def test_selected_list_is_remembered_and_used(self):
         self.run_logic('shopping_lists.html', r'''
 const saved = {'shopping-list': '2'};

@@ -311,3 +311,78 @@ function buildHistoryChart(history) {
     low:'$' + low.toFixed(2), high:'$' + high.toFixed(2),
     start:new Date(start).toISOString().slice(0, 10), end:new Date(end).toISOString().slice(0, 10)};
 }
+
+function storePricing(page) {
+  return Object.defineProperties(page, Object.getOwnPropertyDescriptors({
+    checkedText(at) {
+      if (!at) return 'Not checked yet';
+      const days = daysUntil(at.slice(0, 10));
+      return 'Checked ' + (days === 0 ? 'today' : days === -1 ? 'yesterday' : days < 0 ? -days + ' days ago' : formatDate(at.slice(0, 10)));
+    },
+    storeName(store) { return {woolworths: 'Woolworths', coles: 'Coles', aldi: 'Aldi', iga: 'IGA'}[store] || store; },
+    get enabledStores() { return this.stores.filter(s => s.enabled); },
+    priceLinks(i) { return (i.links || []).filter(link => this.enabledStores.some(s => s.store === link.store)); },
+    priceText(price) { return price == null ? 'price not checked yet' : '$' + Number(price).toFixed(2); },
+    money(n) { return '$' + (Number(n) || 0).toFixed(2); },
+    cheapest(i, link) {
+      const prices = this.priceLinks(i).map(l => l.latest_check?.price).filter(p => p != null).map(Number);
+      return link.latest_check?.price != null && Number(link.latest_check.price) === Math.min(...prices);
+    },
+    async loadPrices(items) {
+      const lookups = items.filter(i => i.product_id).map(i => this.loadPrice(i));
+      try { this.stores = await api('/api/pricing/stores'); }
+      catch (e) { items.filter(i => i.product_id).forEach(i => { i.pricingError = 'Store settings unavailable.'; }); }
+      await Promise.all(lookups);
+    },
+    async loadPrice(i) {
+      i.pricingError = '';
+      try { i.links = await api('/api/pricing/products/' + i.product_id); i.pricingLoaded = true; }
+      catch (e) { i.pricingError = 'Prices unavailable.'; }
+      try { i.historyChart = buildHistoryChart(await api('/api/pricing/products/' + i.product_id + '/history')); }
+      catch (e) { i.historyChart = null; i.pricingError = i.pricingError || 'History unavailable.'; }
+    },
+    storeLink(i, store) { return this.priceLinks(i).find(link => link.store === store); },
+    badgePrice(i, store) {
+      const link = this.storeLink(i, store);
+      if (!link) return '—';
+      const size = link.size || (link.store_name || '').match(/\b\d+(?:\.\d+)?\s*(?:kg|ml|mg|g|l|pack|pk)\b/i)?.[0];
+      return this.priceText(link.latest_check?.price) + (size ? ' · ' + size : '');
+    },
+    openPicker(i, store) {
+      if (i.picker && i.picker.store === store) { i.picker = null; return; }
+      i.picker = { store, mode: this.storeLink(i, store) ? 'info' : 'search', query: i.label, candidates: [], busy: false, message: '' };
+    },
+    async searchMatches(i) {
+      if (!i.picker) return;
+      i.picker.busy = true; i.picker.message = ''; i.picker.candidates = [];
+      try {
+        i.picker.candidates = await api('/api/pricing/search?store=' + i.picker.store + '&q=' + encodeURIComponent(i.picker.query));
+        if (!i.picker.candidates.length) i.picker.message = 'No matches found.';
+      } catch (e) { i.picker.message = 'Search failed.'; }
+      i.picker.busy = false;
+    },
+    matchBody(store, candidate) {
+      return {
+        store, store_item_id: String(candidate.store_item_id), store_name: candidate.name,
+        size: candidate.size || '', price: candidate.price, was_price: candidate.was_price,
+        unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
+      };
+    },
+    async pickMatch(i, store, candidate) {
+      if (!i.picker) return;
+      i.picker.busy = true;
+      try {
+        await api('/api/pricing/products/' + i.product_id + '/link', { method: 'POST', body: this.matchBody(store, candidate)});
+        i.picker = null;
+        await this.loadPrice(i);
+      } catch (e) { oops(e); i.picker.busy = false; }
+    },
+    async unlink(i, store) {
+      try {
+        await api('/api/pricing/products/' + i.product_id + '/link/' + store, { method: 'DELETE' });
+        i.picker = null;
+        await this.loadPrice(i);
+      } catch (e) { oops(e); }
+    },
+  }));
+}

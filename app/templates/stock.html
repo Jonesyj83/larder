@@ -38,7 +38,7 @@
   </div>
 
   <div class="filter-row toolbar">
-    <label class="grow" for="stock-search">Find food<input id="stock-search" type="search" placeholder="Name of an item" x-model="q"></label>
+    <label class="grow" for="stock-search">Find food<input id="stock-search" type="search" placeholder="Name of an item" x-model="q" @input.debounce.200ms="loadVisiblePrices()"></label>
     <label for="stock-location">Location<select id="stock-location" x-model="loc" @change="load()">
       <option value="">All locations</option>
       <template x-for="l in locations" :key="l.id"><option :value="l.id" x-text="l.name"></option></template>
@@ -64,6 +64,52 @@
           </div>
         </div>
         <div class="stock-details" x-show="open == s.product_id" x-cloak>
+          <template x-if="prices">
+            <div class="store-chips" :title="s.pricingError">
+              <template x-for="store in enabledStores" :key="store.store">
+                <div class="store-chip-cell" :class="s.picker && s.picker.store === store.store ? 'picker-open' : ''">
+                  <button type="button" class="store-chip" :data-store="store.store"
+                          :class="[storeLink(s, store.store) && cheapest(s, storeLink(s, store.store)) ? 'cheapest' : '', !storeLink(s, store.store) ? 'unmatched' : '']"
+                          @click.stop="openPicker(s, store.store)">
+                    <span class="store-label" x-text="storeName(store.store)"></span>
+                    <span class="store-price" x-text="badgePrice(s, store.store)"></span>
+                  </button>
+                  <template x-if="s.picker && s.picker.store === store.store">
+                    <div class="store-picker" @click.outside="s.picker = null" @keydown.escape.window="s.picker = null">
+                      <template x-if="s.picker.mode === 'info' && storeLink(s, store.store)">
+                        <div class="match-info">
+                          <b x-text="storeLink(s, store.store).store_name"></b>
+                          <p class="muted small" x-show="storeLink(s, store.store).size" x-text="storeLink(s, store.store).size"></p>
+                          <p>
+                            <strong x-text="priceText(storeLink(s, store.store).latest_check?.price)"></strong>
+                            <del class="muted small" x-show="storeLink(s, store.store).latest_check?.on_special && storeLink(s, store.store).latest_check?.was_price != null" x-text="priceText(storeLink(s, store.store).latest_check?.was_price)"></del>
+                          </p>
+                          <p class="muted small" x-text="checkedText(storeLink(s, store.store).latest_check?.checked_at)"></p>
+                          <svg class="price-history-chart" x-show="s.historyChart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + s.name" x-effect="drawHistory($el, s.historyChart)"></svg>
+                          <button type="button" class="small" @click="s.picker.mode = 'search'">Change match</button>
+                          <button type="button" class="small" @click="s.picker = null">Close</button>
+                        </div>
+                      </template>
+                      <div x-show="s.picker.mode === 'search'">
+                      <form @submit.prevent="searchMatches(s)">
+                        <input x-model="s.picker.query" :aria-label="'Search ' + storeName(store.store)" maxlength="200" required>
+                        <button class="small" :disabled="s.picker && s.picker.busy">Search</button>
+                        <button type="button" class="small" x-show="storeLink(s, store.store)" @click="unlink(s, store.store)">Unlink</button>
+                        <button type="button" class="small" @click="s.picker = null">Close</button>
+                      </form>
+                      <p class="muted small" x-show="s.picker && s.picker.message" x-text="s.picker && s.picker.message"></p>
+                      <template x-for="candidate in (s.picker ? s.picker.candidates : [])" :key="candidate.store_item_id">
+                        <button type="button" class="small picker-result" :disabled="s.picker && s.picker.busy" @click="pickMatch(s, store.store, candidate)"
+                                x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+                      </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <span class="shop-meta" x-show="!enabledStores.length">No stores enabled</span>
+            </div>
+          </template>
           <template x-for="e in entries" :key="e.id">
             <form class="stock-entry" @submit.prevent="saveEntry(e)">
               <input type="number" step="any" min="0" x-model.number="e.amount" aria-label="Stock amount">
@@ -126,18 +172,30 @@
 </div>
 <script>
 function stockPage() {
-  return {
+  return storePricing({
+    drawHistory, stores: [],
     items: [], missing: [], history: [], locations: [], entries: [], batches: [],
     q: '', loc: '', open: null, loaded: false, adding: false, pq: '', found: [],
     prices: !!preferences().show_prices,
-    init() { this.q = new URLSearchParams(location.search).get('q') || ''; },
+    init() {
+      this.q = new URLSearchParams(location.search).get('q') || '';
+    },
+    async loadVisiblePrices() {
+      if (!this.prices) return;
+      const items = this.filtered().filter(s => !s.pricingRequested);
+      items.forEach(s => { s.pricingRequested = true; });
+      if (items.length) await this.loadPrices(items);
+    },
     async load() {
       try {
         const loc = this.loc ? '?location_id=' + this.loc : '';
         [this.items, this.missing, this.history, this.locations, this.batches] = await Promise.all([
           api('/api/stock' + loc), api('/api/stock/missing'),
           api('/api/stock/log?limit=15'), api('/api/locations'), api('/api/cooked-batches')]);
+        this.items = this.items.map(s => ({...s, label: s.name, links: [], pricingLoaded: false,
+          pricingRequested: false, pricingError: '', historyChart: null, picker: null}));
         this.loaded = true;
+        this.loadVisiblePrices();
         if (this.open) this.loadEntries(this.open);
       } catch (e) { oops(e); }
     },
@@ -196,7 +254,7 @@ function stockPage() {
       if (!confirm('Take ' + b.name + ' (' + b.code + ') off the list?')) return;
       try { await api('/api/cooked-batches/' + b.id, { method: 'DELETE' }); this.load(); } catch (e) { oops(e); }
     },
-  };
+  });
 }
 </script>
 {% endblock %}
