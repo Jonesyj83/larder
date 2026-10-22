@@ -27,7 +27,8 @@ def fetch_all(queries, search=None, sleep=None, delay=1.5):
         requested = True
         try:
             results = search(item["query"])
-        except Exception:
+        except Exception as e:
+            print(f"refresh query {item['query']!r} failed: {type(e).__name__}: {e}", file=sys.stderr)
             results = []
         out["refresh"].append({"link_id": item["link_id"], "results": results})
     for item in queries.get("match", []):
@@ -36,9 +37,12 @@ def fetch_all(queries, search=None, sleep=None, delay=1.5):
         requested = True
         try:
             results = search(item["query"])
-        except Exception:
+        except Exception as e:
+            print(f"match query {item['query']!r} failed: {type(e).__name__}: {e}", file=sys.stderr)
             results = []
         out["match"].append({"product_id": item["product_id"], "query": item["query"], "results": results})
+        if not results:
+            print(f"match query {item['query']!r} returned no results", file=sys.stderr)
     return out
 
 
