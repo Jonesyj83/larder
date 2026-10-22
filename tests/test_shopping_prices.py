@@ -264,7 +264,10 @@ const oops = e => {throw e;};
 const calls = [];
 const api = async (path, options) => {
   calls.push([path, options]);
-  if (path.includes('/pricing/search')) return [{store_item_id:'42',name:'Salt',size:'500g',price:2}];
+  if (path.includes('/pricing/search')) {
+    const store = new URL(path, 'http://x').searchParams.get('store');
+    return [{store_item_id: store + '-42', name: 'Salt', size: '500g', price: 2}];
+  }
   return [];
 };
 (async () => {
@@ -272,23 +275,27 @@ const api = async (path, options) => {
   page.stores = [{store:'coles',enabled:1},{store:'woolworths',enabled:1}];
   page.text = 'salt';
   await page.suggestStore('salt', 0);
-  assert.equal(calls.length, 1);
-  assert.ok(calls[0][0].includes('store=woolworths'));
-  assert.equal(page.liveSuggestions[0].name, 'Salt');
+  assert.equal(calls.length, 2);
+  assert.ok(calls.some(c => c[0].includes('store=woolworths')));
+  assert.ok(calls.some(c => c[0].includes('store=coles')));
+  assert.equal(page.liveSuggestions.length, 2);
+  assert.ok(page.liveSuggestions.some(c => c.store === 'coles'));
+  assert.ok(page.liveSuggestions.some(c => c.store === 'woolworths'));
   await page.suggestStore('salt', 0);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   page.resetSuggestions();
   await page.suggestStore('salt', 0);
   assert.equal(page.liveSuggestions.length, 0);
   page.liveSearchCount = 5;
   page.text = 'saffron';
   await page.suggestStore('saffron', page.suggestionVersion);
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
   assert.ok(page.suggestionMessage.includes('limit'));
   page.liveSearchCount = 0;
   page.stores[1].enabled = 0;
   await page.suggestStore('saffron', page.suggestionVersion);
-  assert.ok(calls[1][0].includes('store=coles'));
+  assert.equal(calls.length, 3);
+  assert.ok(calls[2][0].includes('store=coles'));
   const item = {links:[{store:'coles'}, {store:'woolworths'}]};
   page.openMove(item);
   assert.equal(item.moveStore, null);

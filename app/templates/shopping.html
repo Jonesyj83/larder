@@ -40,9 +40,9 @@
       <template x-for="p in suggestions" :key="p.id">
         <button type="button" class="small picker-result" @click="add(p)" x-text="p.name"></button>
       </template>
-      <span class="muted small" x-show="liveSuggestions.length" x-text="'From ' + storeName(suggestionStore)"></span>
-      <template x-for="candidate in liveSuggestions" :key="candidate.store_item_id">
-        <button type="button" class="small picker-result" :disabled="adding" @click="add(null, candidate)" x-text="[candidate.name, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+      <span class="muted small" x-show="liveSuggestions.length">From the stores</span>
+      <template x-for="candidate in liveSuggestions" :key="candidate.store + ':' + candidate.store_item_id">
+        <button type="button" class="small picker-result" :disabled="adding" @click="add(null, candidate)" x-text="[storeName(candidate.store), candidate.name, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
       </template>
       <span class="muted small" x-show="suggestionMessage" x-text="suggestionMessage"></span>
     </div>
@@ -199,31 +199,31 @@ function shoppingPage() {
     },
     async suggestStore(query, version) {
       if (version !== this.suggestionVersion || query !== this.text.trim()) return;
-      const store = this.enabledStores.find(s => s.store === 'woolworths') || this.enabledStores[0];
-      if (!store) return;
-      this.suggestionStore = store.store;
-      const key = store.store + ':' + query.toLowerCase();
-      if (!this.suggestionCache[key]) {
-        if (this.liveSearchBusy) {
-          this.suggestionTimer = setTimeout(() => this.suggestStore(query, version), 500); return;
-        }
-        if (this.liveSearchCount >= 5) {
-          this.suggestionMessage = 'Search limit reached. Add the item and use its store search to match it.';
-          this.suggestionsOpen = true; return;
-        }
-        this.liveSearchCount++; this.lastLiveSearch = Date.now(); this.liveSearchBusy = true;
-        this.suggestionMessage = 'Searching ' + this.storeName(store.store) + '…'; this.suggestionsOpen = true;
-        try {
-          this.suggestionCache[key] = (await api('/api/pricing/search?store=' + store.store + '&q=' + encodeURIComponent(query))).slice(0, 8);
-        } catch (e) {
-          if (version === this.suggestionVersion) this.suggestionMessage = 'Store search unavailable. You can still add this item.';
-          return;
-        } finally { this.liveSearchBusy = false; }
+      const stores = this.enabledStores;
+      if (!stores.length) return;
+      if (this.liveSearchBusy) {
+        this.suggestionTimer = setTimeout(() => this.suggestStore(query, version), 500); return;
       }
-      if (version !== this.suggestionVersion || query !== this.text.trim()) return;
-      this.liveSuggestions = this.suggestionCache[key];
-      this.suggestionMessage = this.liveSuggestions.length ? '' : 'No store matches. You can still add this item.';
-      this.suggestionsOpen = true;
+      if (this.liveSearchCount >= 5) {
+        this.suggestionMessage = 'Search limit reached. Add the item and use its store search to match it.';
+        this.suggestionsOpen = true; return;
+      }
+      this.liveSearchCount++; this.lastLiveSearch = Date.now(); this.liveSearchBusy = true;
+      this.suggestionMessage = 'Searching ' + stores.map(s => this.storeName(s.store)).join(', ') + '…'; this.suggestionsOpen = true;
+      try {
+        const results = await Promise.all(stores.map(async store => {
+          const key = store.store + ':' + query.toLowerCase();
+          if (!this.suggestionCache[key]) {
+            try { this.suggestionCache[key] = (await api('/api/pricing/search?store=' + store.store + '&q=' + encodeURIComponent(query))).slice(0, 8); }
+            catch (e) { this.suggestionCache[key] = []; }
+          }
+          return this.suggestionCache[key].map(c => ({...c, store: store.store}));
+        }));
+        if (version !== this.suggestionVersion || query !== this.text.trim()) return;
+        this.liveSuggestions = results.flat();
+        this.suggestionMessage = this.liveSuggestions.length ? '' : 'No store matches. You can still add this item.';
+        this.suggestionsOpen = true;
+      } finally { this.liveSearchBusy = false; }
     },
     checkedText(at) {
       if (!at) return 'Not checked yet';
@@ -392,7 +392,7 @@ function shoppingPage() {
       if (p) body.product_id = p.id; else body.name = name;
       if (candidate) {
         body.name = name;
-        body.store_match = this.matchBody(this.suggestionStore, candidate);
+        body.store_match = this.matchBody(candidate.store, candidate);
       }
       this.adding = true;
       try {
