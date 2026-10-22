@@ -1,65 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="shopping-page" x-data="shoppingPage()">
-  <div class="row page-head">
-    <h1 class="grow">Shopping list</h1>
-    <button @click="addMissing()">Add what's running low</button>
-  </div>
-
-  <div class="card row">
-    <label class="field grow">List<select x-ref="listSelect" x-model.number="list_id" @change="selectList()">
-      <template x-for="list in lists" :key="list.id"><option :value="list.id" x-text="list.name + ' (' + list.item_count + ')'"></option></template>
-    </select></label>
-    <button @click="newList()">New list</button>
-    <button @click="renameList()">Rename</button>
-    <button class="danger" @click="deleteList()">Delete list</button>
-  </div>
-
-
-
-  <form class="card" @submit.prevent="add()">
-    <div class="ingredient-row">
-      <label class="field">Item<input class="grow" aria-label="Item to add" placeholder="Add something" x-model="text" list="product-names" autocomplete="off"></label>
-      <label class="field">Amount<input type="number" step="any" min="0.000001" aria-label="Amount" x-model.number="amount" required></label>
-      <label class="field">Unit<select aria-label="Unit" x-model="unit_id">
-        <option value="">unit</option>
-        <template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+  <div class="page-head">
+    <h1>Shopping list</h1>
+    <div class="list-switcher">
+      <label class="field no-margin">List<select x-ref="listSelect" x-model.number="list_id" @change="selectList()">
+        <template x-for="list in lists" :key="list.id"><option :value="list.id" x-text="list.name + ' (' + list.item_count + ')'"></option></template>
       </select></label>
-      <button class="primary">Add</button>
+      <button class="btn-ghost" @click="newList()">New list</button>
+      <button class="btn-ghost" @click="renameList()">Rename</button>
+      <button class="btn-ghost danger" @click="deleteList()">Delete list</button>
+      <button class="btn-ghost" @click="addMissing()">Add what's running low</button>
     </div>
+  </div>
+
+  <section class="summary-strip" aria-label="List summary" x-show="items.length">
+    <div class="summary-metric">
+      <span class="label">Estimated total</span>
+      <span class="value" x-text="money(estimatedTotal)"></span>
+      <span class="delta" x-show="pricedItems.length" x-text="matchedCount + ' / ' + pricedItems.length + ' priced'"></span>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-metric cheapest-store" x-show="bestSingleStore">
+      <span class="label">Cheapest if bought at one store</span>
+      <span class="store-tag" x-text="bestSingleStore ? (storeName(bestSingleStore.store) + ' — ' + money(bestSingleStore.total)) : ''"></span>
+      <span class="delta" x-show="splitSavings > 0.004" x-text="'Splitting across stores saves ' + money(splitSavings) + ' more'"></span>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-metric">
+      <span class="label">Items</span>
+      <span class="value"><span x-text="items.length"></span> <small x-text="'· ' + doneCount + ' ticked off'"></small></span>
+    </div>
+    <div class="summary-divider"></div>
+    <div class="summary-metric">
+      <span class="label">Matched to a store price</span>
+      <span class="value"><span x-text="matchedCount"></span> <small x-text="'/ ' + pricedItems.length"></small></span>
+      <span class="delta bad" x-show="pricedItems.length - matchedCount > 0" x-text="(pricedItems.length - matchedCount) + ' need matching'"></span>
+    </div>
+  </section>
+
+  <form class="add-bar" @submit.prevent="add()">
+    <span class="search-icon" aria-hidden="true">🔍</span>
+    <input class="grow" aria-label="Item to add" placeholder="Add an item — try “milk”, “pasta sauce”, “paper towel”…" x-model="text" list="product-names" autocomplete="off">
+    <span class="divider"></span>
+    <input class="qty-mini" type="number" step="any" min="0.000001" aria-label="Amount" x-model.number="amount" required>
+    <select class="unit-mini" aria-label="Unit" x-model="unit_id">
+      <option value="">unit</option>
+      <template x-for="u in preferredUnits(units)" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
+    </select>
+    <button class="primary" type="submit">Add</button>
     <datalist id="product-names">
       <template x-for="p in products" :key="p.id"><option :value="p.name"></option></template>
     </datalist>
   </form>
 
-  <div class="card list-surface">
-    <p class="muted" x-show="!items.length">The list is empty.</p>
+  <section class="list-surface">
+    <div class="state-block" x-show="!items.length">
+      <div class="state-icon">🧺</div>
+      <h3>This list is empty</h3>
+      <p>Add something above, or use "Add what's running low" to fill it from items you're short on.</p>
+    </div>
     <template x-for="i in items" :key="i.id">
-      <div class="shopping-row" :class="i.done ? 'is-done' : ''">
-        <div class="shopping-identity">
-          <input type="checkbox" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)" class="check-item">
-          <div class="shopping-thumbnail"><img x-show="i.picture" :src="pic(i.picture)" class="thumb" alt=""></div>
+      <div class="shop-row" :class="i.done ? 'is-done' : ''">
+        <div class="shop-identity">
+          <input type="checkbox" class="check-item" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)">
+          <div class="thumb">
+            <img x-show="i.picture" :src="pic(i.picture)" alt="">
+            <span x-show="!i.picture" aria-hidden="true">🛒</span>
+          </div>
         </div>
-        <div class="shopping-product">
-          <strong x-text="i.label"></strong>
-          <span class="small muted" x-show="i.stock_covers_need">Already have enough in stock</span>
+        <div class="shop-product">
+          <span class="shop-name" x-text="i.label"></span>
+          <span class="shop-meta" x-show="i.stock_covers_need">Already have enough in stock</span>
           <span class="pill" x-show="!i.product_id">not a product</span>
-          <select class="small" x-show="!i.product_id" x-model="i.unitChoice" :disabled="!!i.unit_id" aria-label="Unit for new product">
+          <select class="unit-choice" x-show="!i.product_id" x-model="i.unitChoice" :disabled="!!i.unit_id" aria-label="Unit for new product">
             <option value="">Choose a stock unit</option>
             <template x-for="u in units" :key="u.id"><option :value="u.id" x-text="u.name"></option></template>
           </select>
-          <span class="small muted" x-show="i.note" x-text="i.note"></span>
+          <span class="shop-meta" x-show="i.note" x-text="i.note"></span>
         </div>
-        <div class="shopping-store-grid" :title="i.pricingError">
+        <div class="store-chips" :title="i.pricingError">
           <template x-for="store in enabledStores" :key="store.store">
-            <div class="shopping-store-cell">
-              <button type="button" class="shopping-store-badge" :data-store="store.store"
-                      :class="[storeLink(i, store.store) && cheapest(i, storeLink(i, store.store)) ? 'is-cheapest' : '', !storeLink(i, store.store) ? 'is-unmatched' : '']"
+            <div class="store-chip-cell">
+              <button type="button" class="store-chip" :data-store="store.store"
+                      :class="[storeLink(i, store.store) && cheapest(i, storeLink(i, store.store)) ? 'cheapest' : '', !storeLink(i, store.store) ? 'unmatched' : '']"
                       @click="openPicker(i, store.store)">
-                <span class="shopping-store-name" x-text="storeName(store.store)"></span>
-                <span x-text="badgePrice(i, store.store)"></span>
+                <span class="store-label" x-text="storeName(store.store)"></span>
+                <span class="store-price" x-text="badgePrice(i, store.store)"></span>
               </button>
-              <div class="shopping-picker" x-show="i.picker && i.picker.store === store.store" @click.outside="i.picker = null">
+              <div class="store-picker" x-show="i.picker && i.picker.store === store.store" @click.outside="i.picker = null">
                 <form @submit.prevent="searchMatches(i)">
                   <input x-model="i.picker.query" :aria-label="'Search ' + storeName(store.store)" maxlength="200" required>
                   <button class="small" :disabled="i.picker && i.picker.busy">Search</button>
@@ -74,26 +103,31 @@
               </div>
             </div>
           </template>
-          <span class="small muted" x-show="!enabledStores.length">No stores enabled</span>
+          <span class="shop-meta" x-show="!enabledStores.length">No stores enabled</span>
         </div>
-        <div class="shopping-history">
-          <svg x-show="i.historyChart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + i.label" x-effect="drawHistory($el, i.historyChart)"></svg>
-          <span class="small muted" x-show="!i.historyChart" x-text="i.pricingError || 'No price history yet'"></span>
+        <div class="shop-trend">
+          <svg x-show="i.historyChart" class="price-history-chart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + i.label" x-effect="drawHistory($el, i.historyChart)"></svg>
+          <span class="trend-label muted" x-show="!i.historyChart" x-text="i.pricingError || 'No price history yet'"></span>
         </div>
-        <label class="shopping-quantity"><span class="small muted">Qty<span x-show="i.unit" x-text="' · ' + i.unit"></span></span>
-          <input type="number" min="0.000001" step="any" :aria-label="'Quantity for ' + i.label" :title="amountText(i)" x-model.number="i.amount" @change="updateAmount(i)">
-        </label>
-        <div class="shopping-actions">
-          <button class="small" x-show="i.product_id" @click="bought(i)" title="Add to stock and remove from list">Got it</button>
-          <button class="small" x-show="!i.product_id" @click="makeProduct(i)">Create product &amp; add to stock</button>
-          <button class="small danger" :aria-label="'Remove ' + i.label" @click="remove(i)">Remove</button>
+        <div class="qty-col">
+          <div class="qty-stepper">
+            <button type="button" aria-label="Decrease quantity" @click="step(i, -1)">–</button>
+            <input type="number" min="0.000001" step="any" :aria-label="'Quantity for ' + i.label" :title="amountText(i)" x-model.number="i.amount" @change="updateAmount(i)">
+            <button type="button" aria-label="Increase quantity" @click="step(i, 1)">+</button>
+          </div>
+          <span class="qty-unit" x-show="i.unit" x-text="i.unit"></span>
+        </div>
+        <div class="shop-actions">
+          <button class="icon-btn ok-btn" x-show="i.product_id" @click="bought(i)" title="Got it — move to stock">✓</button>
+          <button class="icon-btn" x-show="!i.product_id" @click="makeProduct(i)" title="Create product &amp; add to stock">＋</button>
+          <button class="icon-btn danger-btn" :aria-label="'Remove ' + i.label" @click="remove(i)" title="Remove from list">✕</button>
         </div>
       </div>
     </template>
     <div class="space-top-small row" x-show="items.some(i => i.done)">
       <button class="small" @click="clearDone()">Clear ticked items</button>
     </div>
-  </div>
+  </section>
   <p class="muted small">"Got it" puts the item into stock and removes it from this list. The checkbox just ticks it off.</p>
 </div>
 <script>
@@ -161,9 +195,46 @@ function shoppingPage() {
     get enabledStores() { return this.stores.filter(s => s.enabled); },
     priceLinks(i) { return (i.links || []).filter(link => this.enabledStores.some(s => s.store === link.store)); },
     priceText(price) { return price == null ? 'price not checked yet' : '$' + Number(price).toFixed(2); },
+    money(n) { return '$' + (Number(n) || 0).toFixed(2); },
     cheapest(i, link) {
       const prices = this.priceLinks(i).map(l => l.latest_check?.price).filter(p => p != null).map(Number);
       return link.latest_check?.price != null && Number(link.latest_check.price) === Math.min(...prices);
+    },
+    // ---- Summary strip: derived entirely from items/prices already loaded above ----
+    get pricedItems() { return this.items.filter(i => i.product_id); },
+    get doneCount() { return this.items.filter(i => i.done).length; },
+    get matchedCount() { return this.pricedItems.filter(i => this.priceLinks(i).length).length; },
+    get splitTotal() {
+      let total = 0;
+      for (const i of this.pricedItems) {
+        const prices = this.priceLinks(i).map(l => l.latest_check?.price).filter(p => p != null).map(Number);
+        if (prices.length) total += Math.min(...prices) * (Number(i.amount) || 1);
+      }
+      return total;
+    },
+    get estimatedTotal() { return this.splitTotal; },
+    get storeTotals() {
+      const totals = {};
+      for (const s of this.enabledStores) totals[s.store] = {store: s.store, total: 0, count: 0};
+      for (const i of this.pricedItems) {
+        for (const link of this.priceLinks(i)) {
+          const price = link.latest_check?.price;
+          if (price == null || !totals[link.store]) continue;
+          totals[link.store].total += Number(price) * (Number(i.amount) || 1);
+          totals[link.store].count += 1;
+        }
+      }
+      return Object.values(totals).filter(t => t.count > 0);
+    },
+    get bestSingleStore() {
+      const totals = this.storeTotals;
+      if (!totals.length) return null;
+      const maxCount = Math.max(...totals.map(t => t.count));
+      return totals.filter(t => t.count === maxCount).sort((a, b) => a.total - b.total)[0];
+    },
+    get splitSavings() {
+      if (!this.bestSingleStore) return 0;
+      return this.bestSingleStore.total - this.splitTotal;
     },
     async loadPrices(items) {
       const lookups = items.filter(i => i.product_id).map(i => this.loadPrice(i));
@@ -217,6 +288,11 @@ function shoppingPage() {
         i.picker = null;
         await this.loadPrice(i);
       } catch (e) { oops(e); }
+    },
+    step(i, delta) {
+      const next = Math.max(0, (Number(i.amount) || 0) + delta);
+      i.amount = next;
+      this.updateAmount(i);
     },
     async updateAmount(i) {
       try {
