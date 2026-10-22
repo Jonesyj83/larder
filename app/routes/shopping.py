@@ -51,7 +51,7 @@ def add_item(db, product_id, amount, unit_id=None, name="", note="", user_id=Non
         p = row(db.execute("SELECT unit_id, purchase_unit_id FROM products WHERE id = ?", (product_id,)))
         if not p:
             raise HTTPException(404, "Product not found")
-        unit_id = unit_id or p['unit_id']
+        unit_id = unit_id or p['purchase_unit_id'] or p['unit_id']
         existing = row(db.execute(
             "SELECT id FROM shopping_list WHERE product_id = ? AND unit_id = ? AND done = 0 AND list_id = ?", (product_id,unit_id,list_id)))
         if existing:
@@ -152,20 +152,13 @@ def list_items(db=Depends(get_db), user=Depends(current_user), list_id: Optional
     items = rows(db.execute(ITEM_SQL + " WHERE i.list_id = ? ORDER BY i.done, label COLLATE NOCASE", (resolve_list(db, list_id),)))
     for item in items:
         item['stock_covers_need'] = False
-        item['purchase_size'] = None
-        item['stock_per_amount'] = None
         if item['product_id']:
             product = st.get_product(db, item['product_id'])
             try:
-                item['stock_per_amount'] = st.to_stock_units(db, product, 1, item['unit_id'])
-                needed = item['stock_per_amount'] * item['amount']
+                needed = st.to_stock_units(db, product, item['amount'], item['unit_id'])
                 item['stock_covers_need'] = st.in_stock(db, item['product_id']) + 1e-9 >= needed
             except st.StockError:
                 pass
-            if (item['unit_id'] == product['unit_id'] and product['purchase_unit_id']
-                    and product['purchase_unit_id'] != product['unit_id']
-                    and product['purchase_factor'] > item['amount']):
-                item['purchase_size'] = {'amount': product['purchase_factor'], 'unit': item['unit']}
         item['sources'] = rows(db.execute('SELECT kind,source_ref,label,amount,created_at FROM shopping_sources WHERE item_id=? ORDER BY id', (item['id'],)))
         recorded = sum(s['amount'] for s in item['sources'])
         item['origin_unknown'] = not item['sources'] or abs(recorded - item['amount']) > 1e-9
@@ -233,13 +226,12 @@ def edit(item_id: int, data: ItemEdit, db=Depends(get_db), user=Depends(current_
 
 
 class MakeProductIn(BaseModel):
-    unit_id: int
+    pass
 
 
 @router.post("/{item_id}/make-product")
-def make_product(item_id: int, data: MakeProductIn, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
+def make_product(item_id: int, data: MakeProductIn | None = None, db=Depends(get_db), user=Depends(current_user), list_id: Optional[int] = None):
     """Turn a freeform shopping entry into a product and add the purchase to stock."""
-    _check_unit(db, data.unit_id)
     begin(db)
     item = row(db.execute("SELECT * FROM shopping_list WHERE id=? AND list_id=?", (item_id,resolve_list(db, list_id))))
     if not item:
@@ -248,17 +240,21 @@ def make_product(item_id: int, data: MakeProductIn, db=Depends(get_db), user=Dep
     if item["product_id"]:
         db.rollback()
         raise HTTPException(409, "This item is already linked to a product")
-    unit_id = item["unit_id"] or data.unit_id
     name = item["name"].strip()
     product = row(db.execute("SELECT id FROM products WHERE name=? COLLATE NOCASE", (name,)))
     if product:
         product_id = product["id"]
-        try:
-            st.to_stock_units(db, st.get_product(db, product_id), item["amount"], unit_id)
-        except st.StockError as e:
-            db.rollback()
-            raise HTTPException(400, str(e))
+        existing = st.get_product(db, product_id)
+        unit_id = existing['purchase_unit_id'] or existing['unit_id']
     else:
+        default_unit = db.execute("""SELECT id FROM units
+            WHERE lower(name) IN ('each','piece','pieces','item','items','unit','count')
+            ORDER BY CASE lower(name) WHEN 'each' THEN 0 WHEN 'piece' THEN 1 ELSE 2 END, id
+            LIMIT 1""").fetchone()
+        if default_unit:
+            unit_id = default_unit['id']
+        else:
+            unit_id = db.execute("INSERT INTO units(name) VALUES('each')").lastrowid
         cur = db.execute("INSERT INTO products(name,unit_id) VALUES(?,?)", (name, unit_id))
         product_id = cur.lastrowid
     try:

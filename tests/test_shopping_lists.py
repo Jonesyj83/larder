@@ -23,7 +23,7 @@ class ShoppingLists(MemoryDB):
         for action in (
             lambda: shop.edit(b['id'], shop.ItemEdit(done=True), self.db, USER),
             lambda: shop.bought(b['id'], None, self.db, USER),
-            lambda: shop.make_product(b['id'], shop.MakeProductIn(unit_id=1), self.db, USER),
+            lambda: shop.make_product(b['id'], shop.MakeProductIn(), self.db, USER),
         ):
             with self.assertRaises(HTTPException) as error:
                 action()
@@ -47,6 +47,20 @@ class ShoppingLists(MemoryDB):
         self.db.rollback()
         with self.assertRaises(HTTPException):
             shop.add(shop.ItemIn(name='Invalid'), self.db, USER, list_id=999)
+
+    def test_free_text_product_defaults_and_existing_name(self):
+        pid = product(self.db, 'Milk', 'ml', purchase_unit='pack', factor=2000)
+        loose = shop.add(shop.ItemIn(name='milk', amount=2), self.db, USER)
+        made = shop.make_product(loose['id'], shop.MakeProductIn(), self.db, USER)
+        self.assertEqual(made['product']['id'], pid)
+        self.assertEqual(made['product']['in_stock'], 4000)
+        for name in ('Paper towels', 'Soap'):
+            loose = shop.add(shop.ItemIn(name=name, amount=2), self.db, USER)
+            made = shop.make_product(loose['id'], None, self.db, USER)
+            unit = self.db.execute('SELECT name FROM units WHERE id=?', (made['product']['unit_id'],)).fetchone()[0]
+            self.assertIn(unit, ('each', 'piece'))
+            self.assertEqual(made['product']['in_stock'], 2)
+        self.assertEqual(shop.list_items(self.db, USER), [])
 
     def test_migration_of_copied_old_database(self):
         from app import db as module

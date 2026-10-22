@@ -565,19 +565,21 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .add-bar input.grow { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--text); font: inherit; font-size: 1rem; padding: var(--space-2) 0; }
 .add-bar input.grow:focus { outline: none; box-shadow: none; }
 .add-bar .qty-mini { width: 4.5rem; flex: 0 0 auto; }
-.add-bar .unit-mini { flex: 0 0 auto; width: auto; }
 .add-bar .divider { width: 1px; height: 24px; background: var(--edge); flex-shrink: 0; }
 .add-bar button.primary { flex-shrink: 0; }
 
 /* ---- Product list surface ---- */
 .list-surface { background: var(--inventory); border: 1px solid var(--edge); border-radius: var(--radius-panel); overflow: hidden; padding: 0; }
 
+.shopping-page .list-surface { overflow: visible; }
+
 .shop-row {
   display: grid;
-  grid-template-columns: 76px minmax(150px, 1.15fr) minmax(250px, 1.5fr) 150px 108px 140px;
+  min-height: 80px;
+  grid-template-columns: 64px minmax(120px, 1fr) minmax(240px, 1.6fr) 120px 92px 60px;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--edge);
 }
 .shop-row:last-child { border-bottom: 0; }
@@ -585,43 +587,43 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .shop-row.is-done { opacity: .55; }
 .shop-row.is-done .shop-name { text-decoration: line-through; }
 
-.shop-identity { display: flex; align-items: center; gap: var(--space-3); }
-.shop-identity input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
+.shop-identity { display: flex; align-items: center; gap: var(--space-2); }
+.shop-identity input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
 .thumb {
   width: 40px; height: 40px; border-radius: var(--radius-control);
   background: var(--bg); border: 1px solid var(--edge);
   display: flex; align-items: center; justify-content: center;
   font-size: 1rem; flex-shrink: 0; color: var(--muted); overflow: hidden;
 }
+.shop-identity .thumb { width: 32px; height: 32px; }
 .thumb img { width: 100%; height: 100%; object-fit: contain; }
 
 .shop-product { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
 .shop-name { font-size: .98rem; font-weight: 600; line-height: 1.3; }
 .shop-meta { font-size: .78rem; color: var(--muted); }
-.unit-choice { margin-top: var(--space-1); }
+.shop-product .pill { font-size: .65rem; padding: 1px 5px; line-height: 1.3; }
 
 /* Store price chips */
-.store-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.store-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .store-chip-cell { position: relative; min-width: 0; }
 .store-chip {
   --sc: var(--muted);
-  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
   border: 1px solid var(--edge); border-left: 3px solid var(--sc);
   border-radius: var(--radius-small);
-  padding: 4px 8px;
+  padding: 2px 6px;
   background: var(--card);
   cursor: pointer;
   font: inherit;
   text-align: left;
-  min-width: 68px;
+  min-width: 58px;
   min-height: 0;
 }
 .store-chip:hover { border-color: var(--muted); background: var(--card); }
-.store-chip .store-label { font-size: .64rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--sc); }
-.store-chip .store-price { font-size: .86rem; font-weight: 600; color: var(--text); }
+.store-chip .store-label { font-size: .6rem; font-weight: 400; line-height: 1.2; color: var(--sc); }
+.store-chip .store-price { font-size: .78rem; font-weight: 600; line-height: 1.3; white-space: nowrap; color: var(--text); }
 .store-chip.cheapest { --sc: var(--ok-strong); background: linear-gradient(0deg, rgba(111,191,143,.12), rgba(111,191,143,.12)), var(--card); }
 .store-chip.cheapest .store-price { color: var(--ok-strong); font-weight: 800; }
-.store-chip.cheapest::after { content: "lowest"; font-size: .6rem; color: var(--ok-strong); font-weight: 700; }
 .store-chip.unmatched { opacity: .45; }
 .store-chip.unmatched .store-price { color: var(--muted); }
 .store-chip[data-store="woolworths"] { --sc: var(--store-wool); }
@@ -636,22 +638,23 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .store-picker .picker-result { display: block; width: 100%; text-align: left; margin-top: var(--space-1); }
 
 /* Inline price-history chart */
-.shop-trend { min-width: 0; min-height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
-.shop-trend svg { width: 100%; height: auto; max-height: 96px; overflow: visible; }
+.shop-trend { min-width: 0; min-height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.shop-trend svg { width: 100%; height: auto; max-height: 44px; margin-top: 0; overflow: visible; }
 .shop-trend .trend-label { font-size: .75rem; text-align: center; }
 
 /* Quantity stepper */
 .qty-col { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); min-width: 0; }
 .qty-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-control); overflow: hidden; }
-.qty-stepper button { background: var(--control); color: var(--text); border: 0; width: 28px; height: 32px; min-height: 32px; font-size: 1rem; line-height: 1; padding: 0; }
+.qty-stepper button { background: var(--control); color: var(--text); border: 0; width: 24px; height: 26px; min-height: 26px; font-size: 1rem; line-height: 1; padding: 0; }
 .qty-stepper button:hover { background: var(--edge); }
-.qty-stepper input { width: 3.2rem; text-align: center; border: 0; background: var(--input); color: var(--text); font: inherit; height: 32px; min-height: 32px; padding: 0; }
-.qty-unit { font-size: .7rem; color: var(--muted); }
+.shopping-page .qty-stepper input { width: 2.5rem; text-align: center; border: 0; background: var(--input); color: var(--text); font: inherit; height: 26px; min-height: 26px; padding: 0; }
+.shopping-page .qty-stepper input { appearance: textfield; }
+.qty-stepper input::-webkit-inner-spin-button, .qty-stepper input::-webkit-outer-spin-button { appearance: none; margin: 0; }
 
 /* Row actions */
-.shop-actions { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.shop-actions { display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
 .icon-btn {
-  width: 34px; height: 34px; min-height: 34px; border-radius: var(--radius-control);
+  width: 26px; height: 26px; min-height: 26px; border-radius: var(--radius-control);
   border: 1px solid var(--line); background: var(--control); color: var(--text);
   display: flex; align-items: center; justify-content: center; font-size: 1rem; padding: 0;
 }
@@ -668,31 +671,30 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 .list-surface .state-block p { font-size: .88rem; max-width: 36ch; margin: 0 auto; }
 
 @media (max-width: 1150px) {
-  .shop-row { grid-template-columns: 76px minmax(120px, 1fr) minmax(190px, 1.3fr) 130px 108px; gap: var(--space-3); }
-  .shop-actions { grid-column: 2 / -1; }
+  .shop-row { grid-template-columns: 56px minmax(100px, 1fr) minmax(180px, 1.5fr) 80px 90px 60px; gap: var(--space-3); }
 }
 @media (max-width: 840px) {
   .summary-strip { grid-template-columns: repeat(2, 1fr); padding: var(--space-4); gap: var(--space-3); }
   .summary-divider { display: none; }
   .add-bar { flex-wrap: wrap; }
-  .add-bar .qty-mini, .add-bar .unit-mini { flex: 1; min-width: 70px; }
+  .add-bar .qty-mini { flex: 1; min-width: 70px; }
   .add-bar button.primary { width: 100%; order: 10; }
 
   /* Rows collapse into stacked cards */
   .shop-row {
-    grid-template-columns: 76px minmax(0,1fr) auto;
+    grid-template-columns: 56px minmax(0,1fr) auto;
     grid-template-areas:
       "check name qty"
       "chips chips chips"
       "trend trend actions";
-    row-gap: var(--space-3);
-    padding: var(--space-4) var(--space-3);
+    row-gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
   }
   .shop-identity { grid-area: check; }
   .shop-product { grid-area: name; }
   .store-chips { grid-area: chips; }
   .qty-col { grid-area: qty; }
-  .shop-trend { grid-area: trend; align-items: flex-start; }
+  .shop-trend { display: flex; grid-area: trend; align-items: flex-start; }
   .shop-trend svg { max-width: 220px; }
   .shop-actions { grid-area: actions; }
 }

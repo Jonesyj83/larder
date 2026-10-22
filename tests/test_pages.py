@@ -173,7 +173,7 @@ async def check():
         assert (await client.get('/api/shopping')).json()[0]['product_id'] == pid
         loose = await client.post('/api/shopping', json={'name':'Paper towels', 'amount':2, 'unit_id':units[0]['id']})
         assert loose.status_code == 201
-        made = await client.post(f"/api/shopping/{loose.json()['id']}/make-product", json={'unit_id':units[0]['id']})
+        made = await client.post(f"/api/shopping/{loose.json()['id']}/make-product", json={})
         assert made.status_code == 200, made.text
         assert made.json()['product']['name'] == 'Paper towels'
         assert not any(i['name'] == 'Paper towels' for i in (await client.get('/api/shopping')).json())
