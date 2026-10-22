@@ -33,13 +33,18 @@
 
   <form class="add-bar" @submit.prevent="add()">
     <span class="search-icon" aria-hidden="true">🔍</span>
-    <input class="grow" aria-label="Item to add" placeholder="Add an item — try “milk”, “pasta sauce”, “paper towel”…" x-model="text" list="product-names" autocomplete="off">
+    <div class="add-product-search grow" @click.outside="suggestionsOpen = false" @keydown.escape.stop="suggestionsOpen = false">
+    <input class="grow" aria-label="Item to add" placeholder="Add an item — try “milk”, “pasta sauce”, “paper towel”…" x-model="text" @input="suggestions = []; suggestionsOpen = false" @input.debounce.200ms="suggestProducts()" @focus="suggestProducts()" autocomplete="off" role="combobox" aria-autocomplete="list" :aria-expanded="suggestionsOpen" aria-controls="product-suggestions" maxlength="200">
+    <div id="product-suggestions" class="store-picker product-suggestions" x-show="suggestionsOpen && suggestions.length" x-cloak>
+      <span class="muted small">Existing household products</span>
+      <template x-for="p in suggestions" :key="p.id">
+        <button type="button" class="small picker-result" @click="add(p)" x-text="p.name"></button>
+      </template>
+    </div>
+    </div>
     <span class="divider"></span>
     <input class="qty-mini" type="number" step="any" min="0.000001" aria-label="Amount" x-model.number="amount" required>
     <button class="primary" type="submit">Add</button>
-    <datalist id="product-names">
-      <template x-for="p in products" :key="p.id"><option :value="p.name"></option></template>
-    </datalist>
   </form>
 
   <section class="list-surface">
@@ -72,7 +77,21 @@
                 <span class="store-price" x-text="badgePrice(i, store.store)"></span>
               </button>
               <template x-if="i.picker && i.picker.store === store.store">
-                <div class="store-picker" @click.outside="i.picker = null">
+                <div class="store-picker" @click.outside="i.picker = null" @keydown.escape.window="i.picker = null">
+                  <template x-if="i.picker.mode === 'info' && storeLink(i, store.store)">
+                    <div class="match-info">
+                      <b x-text="storeLink(i, store.store).store_name"></b>
+                      <p class="muted small" x-show="storeLink(i, store.store).size" x-text="storeLink(i, store.store).size"></p>
+                      <p>
+                        <strong x-text="priceText(storeLink(i, store.store).latest_check?.price)"></strong>
+                        <del class="muted small" x-show="storeLink(i, store.store).latest_check?.on_special && storeLink(i, store.store).latest_check?.was_price != null" x-text="priceText(storeLink(i, store.store).latest_check?.was_price)"></del>
+                      </p>
+                      <p class="muted small" x-text="checkedText(storeLink(i, store.store).latest_check?.checked_at)"></p>
+                      <button type="button" class="small" @click="i.picker.mode = 'search'">Change match</button>
+                      <button type="button" class="small" @click="i.picker = null">Close</button>
+                    </div>
+                  </template>
+                  <div x-show="i.picker.mode === 'search'">
                   <form @submit.prevent="searchMatches(i)">
                     <input x-model="i.picker.query" :aria-label="'Search ' + storeName(store.store)" maxlength="200" required>
                     <button class="small" :disabled="i.picker && i.picker.busy">Search</button>
@@ -84,6 +103,7 @@
                     <button type="button" class="small picker-result" :disabled="i.picker && i.picker.busy" @click="pickMatch(i, store.store, candidate)"
                             x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
                   </template>
+                  </div>
                 </div>
               </template>
             </div>
@@ -91,7 +111,9 @@
           <span class="shop-meta" x-show="!enabledStores.length">No stores enabled</span>
         </div>
         <div class="shop-trend">
-          <svg x-show="i.historyChart" class="price-history-chart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + i.label" x-effect="drawHistory($el, i.historyChart)"></svg>
+          <button type="button" class="history-trigger" x-show="i.historyChart" :aria-label="'Expand price history for ' + i.label" @click="openHistory(i, $el)">
+          <svg class="price-history-chart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + i.label" x-effect="drawHistory($el, i.historyChart)"></svg>
+          </button>
           <span class="trend-label muted" x-show="!i.historyChart" x-text="i.pricingError || 'No price history yet'"></span>
         </div>
         <div class="qty-col">
@@ -123,11 +145,41 @@
       <button class="small" @click="clearDone()">Clear ticked items</button>
     </div>
   </section>
+  <template x-if="historyItem">
+    <div class="modal-bg" @click.self="closeHistory()" @keydown.escape.window="closeHistory()">
+      <div class="modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title" @keydown.tab.prevent="$refs.historyClose.focus()">
+        <div class="row"><b id="history-title" class="grow" x-text="'Price history — ' + historyItem.label"></b><button type="button" x-ref="historyClose" @click="closeHistory()">Close</button></div>
+        <svg class="price-history-chart" viewBox="0 0 960 420" role="img" :aria-label="'Price history for ' + historyItem.label" x-effect="drawHistory($el, historyItem.historyChart)"></svg>
+        <div class="row"><template x-for="series in historyItem.historyChart.stores" :key="series.store"><span :style="{color: series.colour}" x-text="series.name"></span></template><span class="muted" x-show="historyItem.historyChart.purchases.length">● Your purchases</span></div>
+      </div>
+    </div>
+  </template>
 </div>
 <script>
 function shoppingPage() {
   return {
     drawHistory,
+    suggestions: [], suggestionsOpen: false, suggestionVersion: 0, historyItem: null, historyTrigger: null,
+    async suggestProducts() {
+      const query = this.text.trim(), version = ++this.suggestionVersion;
+      if (!query) { this.suggestions = []; this.suggestionsOpen = false; return; }
+      try {
+        const products = await api('/api/products?q=' + encodeURIComponent(query));
+        if (version !== this.suggestionVersion || query !== this.text.trim()) return;
+        this.suggestions = products.sort((a, b) => Number(b.name.toLowerCase().startsWith(query.toLowerCase())) - Number(a.name.toLowerCase().startsWith(query.toLowerCase())));
+        this.suggestionsOpen = !!products.length;
+      } catch (e) { if (version === this.suggestionVersion) this.suggestionsOpen = false; }
+    },
+    checkedText(at) {
+      if (!at) return 'Not checked yet';
+      const days = daysUntil(at.slice(0, 10));
+      return 'Checked ' + (days === 0 ? 'today' : days === -1 ? 'yesterday' : days < 0 ? -days + ' days ago' : formatDate(at.slice(0, 10)));
+    },
+    openHistory(i, trigger) {
+      this.historyTrigger = trigger; this.historyItem = i;
+      this.$nextTick(() => this.$refs.historyClose.focus());
+    },
+    closeHistory() { this.historyItem = null; this.historyTrigger?.focus(); },
     lists: [], list_id: null, loadVersion: 0, stores: [], items: [], products: [], text: '', amount: 1,
     async init() {
       this.products = await api('/api/products');
@@ -225,7 +277,7 @@ function shoppingPage() {
     },
     openPicker(i, store) {
       if (i.picker && i.picker.store === store) { i.picker = null; return; }
-      i.picker = { store, query: i.label, candidates: [], busy: false, message: '' };
+      i.picker = { store, mode: this.storeLink(i, store) ? 'info' : 'search', query: i.label, candidates: [], busy: false, message: '' };
     },
     async searchMatches(i) {
       if (!i.picker) return;
@@ -267,15 +319,15 @@ function shoppingPage() {
         await this.load();
       } catch (e) { oops(e); await this.load(); }
     },
-    async add() {
+    async add(selected = null) {
       const name = this.text.trim();
       if (!name) return;
-      const p = this.products.find(x => x.name.toLowerCase() == name.toLowerCase());
+      const p = selected || this.products.find(x => x.name.toLowerCase() == name.toLowerCase());
       const body = { amount: this.amount || 1 };
       if (p) body.product_id = p.id; else body.name = name;
       try {
         await api(this.scoped(), { method: 'POST', body });
-        this.text = ''; this.amount = 1;
+        this.text = ''; this.amount = 1; this.suggestionsOpen = false; this.suggestions = []; ++this.suggestionVersion;
         this.load();
       } catch (e) { oops(e); }
     },

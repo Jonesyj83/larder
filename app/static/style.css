@@ -712,3 +712,11 @@ button.danger, .btn.danger { border-color: transparent; font-weight: 400; }
 @media (min-width: 741px) {
   .shopping-page .shop-row:not(.plain-row) { grid-template-columns: 56px minmax(100px, 1fr) minmax(180px, 1.6fr) 100px 92px 150px; }
 }
+
+.add-product-search { position: relative; flex: 1; min-width: 0; }
+.add-product-search > input { width: 100%; }
+.product-suggestions { width: 100%; max-width: none; max-height: 300px; overflow-y: auto; box-sizing: border-box; }
+.match-info { overflow-wrap: anywhere; }
+.history-trigger { width: 100%; padding: 0; border: 0; background: transparent; }
+.history-modal { max-width: 1040px; max-height: 90vh; overflow-y: auto; }
+.history-modal .price-history-chart { width: 100%; height: auto; }

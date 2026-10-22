@@ -260,19 +260,23 @@ function drawHistory(svg, chart) {
     parent.appendChild(element);
     return element;
   };
-  add('path', {d:'M52 16V174H544', fill:'none', stroke:'var(--line)'});
+  const {width, height} = svg.viewBox?.baseVal || {width: 560, height: 210};
+  const right = width - 16, bottom = height - 36;
+  const x = value => 52 + (value - 52) / 492 * (right - 52);
+  const y = value => 16 + (value - 16) / 158 * (bottom - 16);
+  add('path', {d:`M52 16V${bottom}H${right}`, fill:'none', stroke:'var(--line)'});
   add('text', {x:48, y:24, 'text-anchor':'end'}, chart.high);
-  add('text', {x:48, y:174, 'text-anchor':'end'}, chart.low);
-  add('text', {x:52, y:200}, chart.start);
-  add('text', {x:544, y:200, 'text-anchor':'end'}, chart.end);
+  add('text', {x:48, y:bottom, 'text-anchor':'end'}, chart.low);
+  add('text', {x:52, y:height - 10}, chart.start);
+  add('text', {x:right, y:height - 10, 'text-anchor':'end'}, chart.end);
   const dot = (p, colour, purchase = false) => {
-    const circle = add('circle', {cx:p.x, cy:p.y, r:purchase || p.fake_special ? 4 : 2,
+    const circle = add('circle', {cx:x(p.x), cy:y(p.y), r:purchase || p.fake_special ? 4 : 2,
       fill:p.fake_special ? 'var(--card)' : colour,
       stroke:purchase ? 'var(--card)' : colour, tabindex:0});
     add('title', {}, p.label, circle);
   };
   for (const series of chart.stores) {
-    add('polyline', {points:series.points.map(p => p.x + ',' + p.y).join(' '),
+    add('polyline', {points:series.points.map(p => x(p.x) + ',' + y(p.y)).join(' '),
       fill:'none', stroke:series.colour, 'stroke-width':2});
     series.points.forEach(p => dot(p, series.colour));
   }
