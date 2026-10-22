@@ -23,7 +23,10 @@ def _match_in_background(product_id, product_name, connect=None):
     connection, since the request's is closed by the time this fires."""
     conn = (connect or database.connect)()
     try:
-        pricing.auto_match_live(conn, product_id, product_name, excluded_stores=("coles",))
+        # Coles now matches against the locally crawled catalogue (see
+        # scripts/coles_catalogue_crawl.py), so it's just as instant as
+        # the others -- no more sitting out of the live check.
+        pricing.auto_match_live(conn, product_id, product_name)
     except Exception:
         log.warning("Background matching failed for product %s", product_id, exc_info=True)
     finally:

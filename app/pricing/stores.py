@@ -118,6 +118,40 @@ def _coles_products_from_next_data(raw_json, limit):
     return out
 
 
+# The categories listed on coles.com.au/browse, excluding tobacco (we're
+# not pricing that) -- walked page by page to build the full catalogue.
+CATALOGUE_CATEGORIES = (
+    "fruit-vegetables", "dairy-eggs-fridge", "pantry", "meat-seafood", "bakery",
+    "frozen", "drinks", "chips-chocolates-snacks", "cleaning-laundry",
+    "health-beauty", "health-dietary", "deli", "pet", "baby",
+    "international-foods", "home-garden", "liquorland", "big-pack-value",
+)
+
+
+def browse_coles_category(category: str, page: int = 1):
+    """One page of a Coles browse-category listing. Unlike search_coles(),
+    these pages aren't behind the bot wall at all -- just plain product
+    listings, same as any shopper scrolling the category in a browser."""
+    with client() as session:
+        response = session.get(f"https://www.coles.com.au/browse/{category}", params={"page": page})
+        response.raise_for_status()
+    data = payload(response.text, "__NEXT_DATA__")
+    search = data.get("props", {}).get("pageProps", {}).get("searchResults")
+    if not isinstance(search, dict) or "results" not in search:
+        raise ValueError("Missing Coles browse results")
+    out = []
+    for p in search.get("results") or []:
+        if p.get("_type") != "PRODUCT" or not p.get("id"):
+            continue
+        pricing = p.get("pricing") or {}
+        unit = pricing.get("unit") or {}
+        out.append({"coles_id": p["id"], "name": p["name"], "brand": p.get("brand", ""),
+                    "size": p.get("size", ""), "price": pricing.get("now"), "was_price": pricing.get("was") or None,
+                    "unit_price": unit.get("price"),
+                    "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}"})
+    return out, search.get("noOfResults") or 0
+
+
 def search_coles_browser(query: str, limit: int = 12):
     """Coles sits behind a bot-detection challenge that a plain HTTP request
     can't get past (even a real browser gets served a blank decoy page

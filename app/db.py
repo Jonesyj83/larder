@@ -119,6 +119,24 @@ CREATE TABLE IF NOT EXISTS store_price_checks (
 );
 CREATE INDEX IF NOT EXISTS store_price_checks_latest ON store_price_checks(link_id, checked_at DESC, id DESC);
 
+-- Coles blocks repeat requests to its live search, but its plain category
+-- browse pages aren't walled at all -- so instead of searching Coles per
+-- item, the whole catalogue gets crawled periodically and cached here, and
+-- matching runs against this table like any other local lookup.
+CREATE TABLE IF NOT EXISTS coles_catalogue (
+    coles_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT NOT NULL DEFAULT '',
+    size TEXT NOT NULL DEFAULT '',
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS coles_catalogue_name ON coles_catalogue(name);
+
 CREATE TABLE IF NOT EXISTS barcodes (
     id INTEGER PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,

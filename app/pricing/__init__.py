@@ -10,23 +10,48 @@ from . import stores
 log = logging.getLogger(__name__)
 
 
-def _fetch(store, query, postcode):
+def _fetch(store, query, postcode, conn=None):
+    if store == "coles":
+        return _coles_catalogue_lookup(query, conn=conn)
     function = getattr(stores, "search_" + store)
-    if store != "coles":
-        return function(query, postcode=postcode) if store == "iga" else function(query)
+    return function(query, postcode=postcode) if store == "iga" else function(query)
+
+
+def _coles_catalogue_lookup(query, limit=30, conn=None):
+    """Coles never gets asked live -- its search is bot-walled and its
+    plain browse pages only tolerate a request every several seconds, so
+    the whole catalogue gets crawled on a schedule instead (see
+    scripts/coles_catalogue_crawl.py) and cached locally. Matching an item
+    just means searching that local copy, same shape of result as any
+    other store's live search would give strongest_match to rank.
+
+    conn lets a caller that already has the right connection (the current
+    request, a test's own db) use it directly; otherwise this opens and
+    closes its own, since auto_match_live can call this from a worker
+    thread that has no connection of its own to hand in."""
+    words = [w for w in re.findall(r"\w+", query.casefold()) if len(w) > 2]
+    if not words:
+        return []
+    owns_conn = conn is None
+    if owns_conn:
+        from .. import db as database
+        conn = database.connect()
     try:
-        return function(query)
-    except Exception as exc:
-        # The plain request almost always hits Coles's bot check. Only pay
-        # for a real browser tab when the quick path has actually failed.
-        try:
-            return stores.search_coles_browser(query)
-        except Exception:
-            raise exc from None
+        clause = " OR ".join("name LIKE ?" for _ in words)
+        params = [f"%{w}%" for w in words]
+        rows = conn.execute(
+            f"SELECT coles_id, name, brand, size, price, was_price, unit_price, unit_measure FROM coles_catalogue "
+            f"WHERE {clause} LIMIT ?", (*params, limit)).fetchall()
+    finally:
+        if owns_conn:
+            conn.close()
+    return [{"store_item_id": str(r["coles_id"]), "name": r["name"], "brand": r["brand"], "size": r["size"],
+             "price": r["price"], "was_price": r["was_price"], "unit_price": r["unit_price"],
+             "unit_measure": r["unit_measure"], "on_special": bool(r["was_price"])} for r in rows]
 
 
-def search(store, query, postcode=""):
-    results = _fetch(store, query, postcode)
+def search(store, query, postcode="", conn=None):
+    results = _fetch(store, query, postcode, conn=conn)
     if results:
         return results
     # A plain singular/plural miss shouldn't come back empty -- "carrot" has
@@ -37,7 +62,7 @@ def search(store, query, postcode=""):
     if variant == query:
         return results
     try:
-        return _fetch(store, variant, postcode) or results
+        return _fetch(store, variant, postcode, conn=conn) or results
     except Exception:
         return results
 
@@ -203,7 +228,10 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
         try:
             if before_search and before_search() is False:
                 break
-            candidates = (search_fn or search)(setting["store"], name, setting["postcode"])
+            if search_fn:
+                candidates = search_fn(setting["store"], name, setting["postcode"])
+            else:
+                candidates = search(setting["store"], name, setting["postcode"], conn=db)
             candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]))
             if candidate is None:
                 continue

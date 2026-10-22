@@ -250,12 +250,18 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.searches['iga'].return_value = [CANDIDATE]
         self.assertEqual((await self.client.get('/api/pricing/search?store=iga&q=milk')).json(), [CANDIDATE])
         self.searches['iga'].assert_called_once_with('milk', postcode='6000')
-        for store in ('coles', 'aldi', 'woolworths'):
+        for store in ('aldi', 'woolworths'):
             self.searches[store].return_value = [CANDIDATE]
             self.assertEqual((await self.client.get(f'/api/pricing/search?store={store}&q=milk')).json(), [CANDIDATE])
-        self.searches['coles'].side_effect = ValueError('parse')
-        self.searches['coles_browser'].side_effect = ValueError('bot check too')
-        with self.assertLogs(level='WARNING'):
+        # Coles doesn't go through its live search at all -- it's a lookup
+        # against the catalogue crawled on a schedule (see
+        # scripts/coles_catalogue_crawl.py), which is just the request's db.
+        self.db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(1,'Milk 2L',3.4)")
+        self.db.commit()
+        found = (await self.client.get('/api/pricing/search?store=coles&q=milk')).json()
+        self.assertEqual(found[0]['name'], 'Milk 2L')
+        self.searches['coles'].assert_not_called()
+        with patch.object(pricing, '_coles_catalogue_lookup', side_effect=ValueError('db error')), self.assertLogs(level='WARNING'):
             self.assertEqual((await self.client.get('/api/pricing/search?store=coles&q=milk')).status_code, 502)
         self.assertEqual((await self.client.put('/api/pricing/stores/unknown', json={'enabled': True})).status_code, 404)
         self.assertEqual((await self.client.get('/api/pricing/search?store=unknown&q=milk')).status_code, 404)
@@ -299,17 +305,14 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.db.execute("UPDATE store_settings SET enabled=0 WHERE store NOT IN ('coles','iga')")
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(2,'Capsicum',1),(3,'Bread',1)")
         pricing.link_product(self.db, 1, 'coles', 'kept', 'Existing milk')
+        self.db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(55,'Red Capsicum',2.5)")
         self.db.commit()
-
-        def coles_lookup(query):
-            return {'Capsicum': [dict(CANDIDATE, name='Red Capsicum')]}.get(query, [])
 
         def iga_lookup(query, postcode=''):
             if query.startswith('Milk'):
                 raise RuntimeError('offline')
             return {'Bread': [dict(CANDIDATE, name='Bread')]}.get(query, [])
 
-        self.searches['coles'].side_effect = coles_lookup
         self.searches['iga'].side_effect = iga_lookup
         with patch.object(pricing.time, 'sleep') as sleep, self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/pricing/products/auto-match')
@@ -323,6 +326,7 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         sleep.assert_called_with(1.5)
         self.assertEqual(self.db.execute("SELECT store_item_id FROM product_store_links WHERE product_id=1").fetchone()[0], 'kept')
         self.searches['aldi'].assert_not_called()
+        self.searches['coles'].assert_not_called()
 
     async def test_product_history_medians_specials_and_purchases(self):
         url = '/api/pricing/products/1/history'
@@ -360,8 +364,8 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
 
     async def test_creation_matches_only_unambiguous_names_and_enabled_stores(self):
         self.db.execute("UPDATE store_settings SET enabled=0 WHERE store='iga'")
+        self.db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(123,'MILK 2 L',3.4)")
         self.db.commit()
-        self.searches['coles'].return_value = [dict(CANDIDATE, name='MILK 2 L')]
         self.searches['woolworths'].return_value = [CANDIDATE, dict(CANDIDATE, store_item_id='456')]
         self.searches['aldi'].return_value = [dict(CANDIDATE, name='Dark Chocolate Block')]
         response = await self.client.post('/api/products', json={'name': 'Milk 2L', 'unit_id': 1})
@@ -370,14 +374,14 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         links = (await self.client.get(f'/api/pricing/products/{product_id}')).json()
         self.assertEqual([link['store'] for link in links], ['coles'])
         self.assertEqual(links[0]['latest_check']['price'], 3.4)
+        self.assertEqual(links[0]['store_item_id'], '123')
         self.searches['iga'].assert_not_called()
+        self.searches['coles'].assert_not_called()
         await self.client.put(f'/api/products/{product_id}', json={'name': 'Milk', 'unit_id': 1})
-        self.assertEqual(self.searches['coles'].call_count, 1)
+        self.searches['coles'].assert_not_called()
 
     async def test_creation_survives_site_and_whole_hook_failure(self):
-        self.searches['coles'].side_effect = httpx.ConnectError('offline')
-        self.searches['coles_browser'].side_effect = httpx.ConnectError('offline')
-        with self.assertLogs(level='WARNING'):
+        with patch.object(pricing, '_coles_catalogue_lookup', side_effect=ValueError('db error')), self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Milk', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
         self.searches['woolworths'].assert_called()
@@ -405,31 +409,38 @@ class ScoredMatching(unittest.TestCase):
 
     def test_search_retries_the_other_plural_form_on_an_empty_result(self):
         calls = []
-        def fake_search(store, query, postcode=''):
+        def fake_search(store, query, postcode='', conn=None):
             calls.append(query)
             return [self.candidate('Carrots')] if query == 'carrots' else []
-        with patch.object(pricing.stores, 'search_coles', side_effect=lambda q: fake_search('coles', q)):
-            result = pricing.search('coles', 'carrot')
+        with patch.object(pricing, '_fetch', side_effect=fake_search):
+            result = pricing.search('woolworths', 'carrot')
         self.assertEqual(calls, ['carrot', 'carrots'])
         self.assertEqual(result, [self.candidate('Carrots')])
 
-    def test_coles_falls_back_to_the_browser_when_the_plain_request_is_blocked(self):
-        with patch.object(pricing.stores, 'search_coles', side_effect=ValueError('bot check')), \
-             patch.object(pricing.stores, 'search_coles_browser', return_value=[self.candidate('Carrots')]) as browser:
-            self.assertEqual(pricing.search('coles', 'carrot'), [self.candidate('Carrots')])
-        browser.assert_called_once_with('carrot')
-        # And if the browser fallback is ALSO down, the original failure is
-        # what should surface -- not a confusing second-hand error.
-        with patch.object(pricing.stores, 'search_coles', side_effect=ValueError('bot check')), \
-             patch.object(pricing.stores, 'search_coles_browser', side_effect=ValueError('no chromium')):
-            with self.assertRaises(ValueError) as ctx:
-                pricing.search('coles', 'carrot')
-        self.assertEqual(str(ctx.exception), 'bot check')
-        # Other stores never touch the browser path at all.
-        with patch.object(pricing.stores, 'search_woolworths', return_value=[]), \
+    def test_coles_matches_against_the_local_catalogue_not_a_live_request(self):
+        import sqlite3
+        from app import db as database
+        db = sqlite3.connect(':memory:')
+        db.row_factory = sqlite3.Row
+        db.executescript(database.SCHEMA)
+        db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,brand,size,price) VALUES
+                (1,'Carrots 1kg','',  '1kg', 2.1),
+                (2,'Baby Spinach 120g','','120g', 3.5)
+        """)
+        db.commit()
+        with patch.object(pricing.stores, 'search_coles') as live, \
              patch.object(pricing.stores, 'search_coles_browser') as browser:
-            pricing.search('woolworths', 'carrot')
+            result = pricing.search('coles', 'carrot', conn=db)
+        live.assert_not_called()
         browser.assert_not_called()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['name'], 'Carrots 1kg')
+        # Other stores are unaffected -- only Coles is redirected to the
+        # local catalogue.
+        with patch.object(pricing.stores, 'search_woolworths', return_value=[CANDIDATE]) as live:
+            pricing.search('woolworths', 'carrot')
+        live.assert_called_once()
 
     def test_wildly_different_size_is_rejected_not_just_scored_lower(self):
         # Same words, very different pack -- a known-size history must stop
@@ -517,7 +528,7 @@ class StoreParsers(unittest.TestCase):
         with self.assertRaises(ValueError):
             stores._coles_products_from_next_data(json.dumps({'props': {}}), 12)
 
-    def test_coles_retries_with_fresh_session_and_leaves_failure_unmatched(self):
+    def test_coles_retries_with_fresh_session_then_matches_from_the_catalogue(self):
         data = {'props': {'pageProps': {'searchResults': {'results': []}}}}
         html = '<script id="__NEXT_DATA__">' + json.dumps(data) + '</script>'
         with patch.object(stores, 'client', side_effect=[
@@ -529,12 +540,17 @@ class StoreParsers(unittest.TestCase):
         db = prepare(sqlite3.connect(':memory:'))
         self.addCleanup(db.close)
         db.execute("UPDATE store_settings SET enabled=(store='coles')")
-        with patch.object(stores, 'client', lambda: self.session(lambda _: httpx.Response(200, text='<html/>'))), \
-                patch.object(stores, 'search_coles_browser', side_effect=ValueError('no browser')), \
-                patch.object(stores.time, 'sleep'), self.assertLogs(level='WARNING'):
-            result = pricing.auto_match_all(db)
+        db.commit()
+        # Nothing in the local catalogue for it yet -- stays unmatched,
+        # same as any store genuinely not carrying an item, no live
+        # request and no error either.
+        result = pricing.auto_match_all(db)
         self.assertEqual(result['unmatched'], [{'product_id': 1, 'name': 'Milk 2L'}])
         self.assertEqual(db.execute('SELECT COUNT(*) FROM product_store_links').fetchone()[0], 0)
+        db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(1,'Milk 2L',3.4)")
+        db.commit()
+        result = pricing.auto_match_all(db)
+        self.assertEqual(result['matched'], [{'product_id': 1, 'name': 'Milk 2L', 'store': 'coles'}])
 
     def test_aldi_fallback_and_per_kg_produce(self):
         arr = [{'products': 1}, [2], {'sku': 3, 'name': 4, 'price': 5}, '123', 'Brown Onions per kg', 2.49]

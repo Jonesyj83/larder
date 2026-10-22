@@ -65,7 +65,7 @@ def search_store(store: str, q: str = Query(min_length=1, max_length=200), db=De
     if store == "iga" and (not setting or not setting["postcode"].strip()):
         raise HTTPException(400, "IGA matching requires an area or postcode in Settings")
     try:
-        return pricing.search(store, q.strip(), setting["postcode"] if setting else "")
+        return pricing.search(store, q.strip(), setting["postcode"] if setting else "", conn=db)
     except Exception:
         log.warning("Store search failed for %s", store, exc_info=True)
         raise HTTPException(502, "Store search unavailable")

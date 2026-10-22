@@ -10,10 +10,10 @@ for this run. Missing IDs and unavailable prices append an unknown observation;
 old observations remain available as history. Missing matches get up to 100 paced
 searches per nightly run; existing links are preserved.
 
-Coles is left out of the nightly run and handled separately with
---coles-only (weekly, from its own schedule): its plain request falls back
-to a real browser tab when it hits a bot check, which is slow and not a
-pattern worth repeating every night.
+Coles no longer needs special handling here -- matching against it is just a
+local lookup against the catalogue crawled on a schedule (see
+scripts/coles_catalogue_crawl.py), not a live request, so it runs alongside
+every other store.
 """
 import logging
 from pathlib import Path
@@ -108,14 +108,10 @@ def main():
     database.init_db()
     db = database.connect()
     try:
-        if "--coles-only" in sys.argv:
-            # Coles sits behind a bot wall a plain request can't clear, so it
-            # falls back to an actual browser tab -- slow, and a pattern worth
-            # keeping rare. Run this one weekly from its own schedule, well
-            # paced, rather than mixing it into every night's quick refresh.
-            refresh_prices(db, only_stores=("coles",), delay=6, match_limit=40)
-        else:
-            refresh_prices(db, exclude_stores=("coles",), match_limit=100)
+        # Coles no longer needs special-casing here -- matching against it
+        # is just a local lookup against the crawled catalogue now (see
+        # scripts/coles_catalogue_crawl.py), same cost as any other store.
+        refresh_prices(db, match_limit=100)
     finally:
         db.close()
 
