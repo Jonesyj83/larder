@@ -12,9 +12,20 @@ log = logging.getLogger(__name__)
 
 def search(store, query, postcode=""):
     function = getattr(stores, "search_" + store)
-    if store == "iga":
-        return function(query, postcode=postcode)
-    return function(query)
+    results = function(query, postcode=postcode) if store == "iga" else function(query)
+    if results:
+        return results
+    # A plain singular/plural miss shouldn't come back empty -- "carrot" has
+    # to find "Carrots" just as easily as it finds "Carrot". Best effort only:
+    # if the retry itself can't run (store genuinely has nothing, or a test
+    # double runs out of canned responses), fall back to what we already have.
+    variant = query[:-1] if query.endswith("s") and len(query) > 3 else query + "s"
+    if variant == query:
+        return results
+    try:
+        return (function(variant, postcode=postcode) if store == "iga" else function(variant)) or results
+    except Exception:
+        return results
 
 
 def link_product(db, product_id, store, item_id, name, matched_by=None, size=""):
@@ -55,7 +66,10 @@ def name_words(name):
     # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
     name = re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name)
     # Supermarket names are scoring noise; keep stored names and brand guards intact.
-    return set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga"}
+    words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga"}
+    # A plain trailing "s" shouldn't count as a different word -- "carrot"
+    # and "carrots" are the same item, not a mismatch.
+    return {w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
 
 
 def pack_size(size):
@@ -113,6 +127,13 @@ def strongest_match(name, candidates, preferred_size=None):
                             for key, value in preferred_size.items()
                             if key in size and value > 0 and size[key] > 0]
             if similarities:
+                # Same name doesn't mean same product -- a 170g tub and a 1kg
+                # tub can share every word. Only abstain (no opinion) when the
+                # candidate makes no size claim at all; a real claim that's
+                # wildly off (less than 40% the size we know we buy) has to
+                # lose outright, not just lose a bonus.
+                if min(similarities) < .4:
+                    continue
                 score += .35 * sum(similarities) / len(similarities)
         scored[str(candidate["store_item_id"])] = (score, candidate)
     ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)

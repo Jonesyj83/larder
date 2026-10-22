@@ -241,8 +241,17 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.db.execute("INSERT INTO products(id,name,unit_id) VALUES(2,'Capsicum',1),(3,'Bread',1)")
         pricing.link_product(self.db, 1, 'coles', 'kept', 'Existing milk')
         self.db.commit()
-        self.searches['coles'].side_effect = [[dict(CANDIDATE, name='Red Capsicum')], []]
-        self.searches['iga'].side_effect = [RuntimeError('offline'), [], [dict(CANDIDATE, name='Bread')]]
+
+        def coles_lookup(query):
+            return {'Capsicum': [dict(CANDIDATE, name='Red Capsicum')]}.get(query, [])
+
+        def iga_lookup(query, postcode=''):
+            if query.startswith('Milk'):
+                raise RuntimeError('offline')
+            return {'Bread': [dict(CANDIDATE, name='Bread')]}.get(query, [])
+
+        self.searches['coles'].side_effect = coles_lookup
+        self.searches['iga'].side_effect = iga_lookup
         with patch.object(pricing.time, 'sleep') as sleep, self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/pricing/products/auto-match')
         self.assertEqual(response.status_code, 200)
@@ -311,7 +320,7 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         with self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Milk', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
-        self.searches['woolworths'].assert_called_once()
+        self.searches['woolworths'].assert_called()
         with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')), self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Bread', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
@@ -326,6 +335,36 @@ class ScoredMatching(unittest.TestCase):
                                 ('Milk','Full Milk'), ('Milk 2L','MILK 2 L')]:
             with self.subTest(name=name):
                 self.assertIsNotNone(pricing.strongest_match(name, [self.candidate(candidate)]))
+
+    def test_plain_plural_isnt_treated_as_a_different_word(self):
+        # A household item typed as "carrot" has to find a store listing
+        # that only ever says "Carrots" -- same thing, not a name mismatch.
+        self.assertEqual(pricing.name_words('carrot'), pricing.name_words('Carrots'))
+        self.assertIsNotNone(pricing.strongest_match('carrot', [self.candidate('Carrots')]))
+        self.assertIsNotNone(pricing.strongest_match('onion', [self.candidate('Brown Onions')]))
+
+    def test_search_retries_the_other_plural_form_on_an_empty_result(self):
+        calls = []
+        def fake_search(store, query, postcode=''):
+            calls.append(query)
+            return [self.candidate('Carrots')] if query == 'carrots' else []
+        with patch.object(pricing.stores, 'search_coles', side_effect=lambda q: fake_search('coles', q)):
+            result = pricing.search('coles', 'carrot')
+        self.assertEqual(calls, ['carrot', 'carrots'])
+        self.assertEqual(result, [self.candidate('Carrots')])
+
+    def test_wildly_different_size_is_rejected_not_just_scored_lower(self):
+        # Same words, very different pack -- a known-size history must stop
+        # this from matching, not merely nudge the score around.
+        small = self.candidate('Yoghurt Tub', brand='')
+        small['size'] = '170g'
+        big = self.candidate('Yoghurt Tub', item='2', brand='')
+        big['size'] = '1kg'
+        self.assertEqual(pricing.strongest_match('Yoghurt Tub', [small, big], preferred_size={'mass': 170}), small)
+        self.assertEqual(pricing.strongest_match('Yoghurt Tub', [big], preferred_size={'mass': 170}), None)
+        # No size claim on the candidate at all is not evidence of a mismatch.
+        no_size = self.candidate('Yoghurt Tub', item='3', brand='')
+        self.assertEqual(pricing.strongest_match('Yoghurt Tub', [no_size], preferred_size={'mass': 170}), no_size)
 
     def test_supermarket_noise_words_and_real_brand_lock(self):
         self.assertEqual(pricing.name_words('WOOLWORTHS Chilli Coles Ground ALDI iga'), {'chilli', 'ground'})
