@@ -243,8 +243,7 @@ function shoppingPage() {
     scoped(path = '') { return '/api/shopping' + path + '?list_id=' + this.list_id; },
     openMove(i) {
       if (i.moveOpen) { i.moveOpen = false; return; }
-      const links = this.priceLinks(i);
-      i.moveStore = links.length === 1 ? links[0].store : null;
+      i.moveStore = null;
       i.moveOpen = true;
     },
     async moveItem(i, body) {

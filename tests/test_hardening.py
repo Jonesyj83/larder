@@ -158,7 +158,7 @@ class StockInput(MemoryDB):
         self.assertEqual((item['picture'], item['unit_plural']), ('eggs.jpg', 'pieces'))
 
     def test_shopping_list_validation(self):
-        from app.routes.shopping import ItemEdit, ItemIn, add, edit
+        from app.routes.shopping import ItemEdit, ItemIn, ListIn, add, create_list, edit
         for bad in (0, -1, float('nan'), float('inf')):
             with self.assertRaises(ValidationError):
                 ItemIn(name='Milk', amount=bad)
@@ -167,12 +167,13 @@ class StockInput(MemoryDB):
         with self.assertRaises(HTTPException) as e:
             add(ItemIn(name='Milk', unit_id=999), self.db, USER)
         self.assertEqual(e.exception.status_code, 400)
-        item = add(ItemIn(name='Milk'), self.db, USER)
+        plain = create_list(ListIn(name='Errand list'), self.db, USER)['id']
+        item = add(ItemIn(name='Milk'), self.db, USER, list_id=plain)
         with self.assertRaises(HTTPException):
-            edit(item['id'], ItemEdit(name='   '), self.db, USER)
+            edit(item['id'], ItemEdit(name='   '), self.db, USER, list_id=plain)
         with self.assertRaises(HTTPException):
-            edit(item['id'], ItemEdit(unit_id=999), self.db, USER)
-        self.assertEqual(add(ItemIn(name='日本茶 🍵'), self.db, USER)['label'], '日本茶 🍵')
+            edit(item['id'], ItemEdit(unit_id=999), self.db, USER, list_id=plain)
+        self.assertEqual(add(ItemIn(name='日本茶 🍵'), self.db, USER, list_id=plain)['label'], '日本茶 🍵')
 
     def test_duplicate_barcodes(self):
         from app.routes.products import BarcodeIn, ProductIn, add_barcode, add_product

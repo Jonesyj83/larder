@@ -154,8 +154,15 @@ const api = async (path, options) => {
         db.commit()
         with patch.object(pricing, 'auto_match') as match:
             shopping.add(shopping.ItemIn(product_id=1), db=db, user={'id':None}, list_id=1)
-            shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
             match.assert_not_called()
+        # A brand-new free-text name on the order list gets its own product so it
+        # can still be matched to stores, not left as inert text.
+        with patch.object(pricing, 'auto_match') as match:
+            shopping.add(shopping.ItemIn(name='Loose'), db=db, user={'id':None}, list_id=1)
+            match.assert_called_once()
+            self.assertEqual(match.call_args[0][2], 'Loose')
+        created = db.execute("SELECT id FROM products WHERE name='Loose'").fetchone()
+        self.assertIsNotNone(created)
 
     def test_estimates_multiply_quantity_by_store_price(self):
         self.run_logic('shopping.html', r'''
@@ -283,10 +290,6 @@ const api = async (path, options) => {
   await page.suggestStore('saffron', page.suggestionVersion);
   assert.ok(calls[1][0].includes('store=coles'));
   const item = {links:[{store:'coles'}, {store:'woolworths'}]};
-  page.openMove(item);
-  assert.equal(item.moveStore, 'coles');
-  item.moveOpen = false;
-  page.stores[1].enabled = 1;
   page.openMove(item);
   assert.equal(item.moveStore, null);
   assert.equal(item.moveOpen, true);

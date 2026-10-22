@@ -243,16 +243,27 @@ def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: O
         link_id = pricing.link_product(db, product_id, match.store, match.store_item_id.strip(),
                                        match.store_name.strip(), user['id'], size=match.size.strip())
         pricing.record_price(db, link_id, match.model_dump())
+    elif not product_id and data.name.strip() and db.execute(
+            "SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
+        # A brand-new free-text item on the order list still needs a product behind it
+        # so it can be auto-matched to stores, not just sit there as plain text.
+        found = db.execute("SELECT id FROM products WHERE name=? COLLATE NOCASE", (data.name.strip(),)).fetchone()
+        if found:
+            product_id = found['id']
+        else:
+            unit = db.execute("SELECT id FROM units WHERE lower(name)='each' ORDER BY id LIMIT 1").fetchone()
+            unit_id = unit['id'] if unit else db.execute("INSERT INTO units(name) VALUES('each')").lastrowid
+            product_id = db.execute("INSERT INTO products(name,unit_id) VALUES(?,?)", (data.name.strip(), unit_id)).lastrowid
     item_id = add_item(db, product_id, data.amount, data.unit_id, data.name, data.note, user["id"], list_id=list_id)
     db.commit()
-    if data.product_id and not data.store_match and db.execute("SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
+    if product_id and not data.store_match and db.execute("SELECT kind FROM shopping_lists WHERE id=?", (resolve_list(db, list_id),)).fetchone()['kind'] == 'order':
         try:
             missing = db.execute("""SELECT 1 FROM store_settings s WHERE enabled=1 AND NOT EXISTS (
                 SELECT 1 FROM product_store_links l WHERE l.product_id=? AND l.store=s.store)""",
-                (data.product_id,)).fetchone()
+                (product_id,)).fetchone()
             if missing:
-                product = db.execute("SELECT name FROM products WHERE id=?", (data.product_id,)).fetchone()
-                pricing.auto_match(db, data.product_id, product["name"])
+                product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
+                pricing.auto_match(db, product_id, product["name"])
         except Exception:
             db.rollback()
             logging.getLogger(__name__).warning("Shopping item pricing failed", exc_info=True)

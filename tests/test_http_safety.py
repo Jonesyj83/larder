@@ -138,7 +138,7 @@ async def check():
         r = await admin.post('/api/products', json={'name': "Robert'); DROP TABLE products;--", 'unit_id': units['g']})
         assert r.status_code == 201, r.text
         assert (await admin.get('/api/products', params={'q': "%' OR '1'='1"})).json() == []
-        assert len((await admin.get('/api/products')).json()) == 2
+        assert len((await admin.get('/api/products')).json()) == 4
 
         # --- barcodes ---
         r = await admin.post('/api/products', json={'name': 'Beans', 'unit_id': units['piece'], 'barcodes': ['5000157024671']})

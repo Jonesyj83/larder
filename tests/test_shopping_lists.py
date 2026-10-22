@@ -50,18 +50,19 @@ class ShoppingLists(MemoryDB):
             shop.add(shop.ItemIn(name='Invalid'), self.db, USER, list_id=999)
 
     def test_free_text_product_defaults_and_existing_name(self):
+        plain = shop.create_list(shop.ListIn(name='Errand list'), self.db, USER)['id']
         pid = product(self.db, 'Milk', 'ml', purchase_unit='pack', factor=2000)
-        loose = shop.add(shop.ItemIn(name='milk', amount=2), self.db, USER)
-        made = shop.make_product(loose['id'], shop.MakeProductIn(), self.db, USER)
+        loose = shop.add(shop.ItemIn(name='milk', amount=2), self.db, USER, list_id=plain)
+        made = shop.make_product(loose['id'], shop.MakeProductIn(), self.db, USER, list_id=plain)
         self.assertEqual(made['product']['id'], pid)
         self.assertEqual(made['product']['in_stock'], 4000)
         for name in ('Paper towels', 'Soap'):
-            loose = shop.add(shop.ItemIn(name=name, amount=2), self.db, USER)
-            made = shop.make_product(loose['id'], None, self.db, USER)
+            loose = shop.add(shop.ItemIn(name=name, amount=2), self.db, USER, list_id=plain)
+            made = shop.make_product(loose['id'], None, self.db, USER, list_id=plain)
             unit = self.db.execute('SELECT name FROM units WHERE id=?', (made['product']['unit_id'],)).fetchone()[0]
             self.assertIn(unit, ('each', 'piece'))
             self.assertEqual(made['product']['in_stock'], 2)
-        self.assertEqual(shop.list_items(self.db, USER), [])
+        self.assertEqual(shop.list_items(self.db, USER, list_id=plain), [])
 
     def test_store_suggestion_add_and_specific_move(self):
         from app.routes.pricing import LinkIn
