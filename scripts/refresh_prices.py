@@ -9,6 +9,11 @@ Requests are paced by 1.5 seconds. Three consecutive failures disable a store
 for this run. Missing IDs and unavailable prices append an unknown observation;
 old observations remain available as history. Missing matches get up to 100 paced
 searches per nightly run; existing links are preserved.
+
+Coles is left out of the nightly run and handled separately with
+--coles-only (weekly, from its own schedule): its plain request falls back
+to a real browser tab when it hits a bot check, which is slow and not a
+pattern worth repeating every night.
 """
 import logging
 from pathlib import Path
@@ -24,11 +29,15 @@ from app.pricing import auto_match_all, record_price, search
 log = logging.getLogger(__name__)
 
 
-def refresh_prices(db, fetch=None, sleep=None, delay=1.5, match_limit=0):
+def refresh_prices(db, fetch=None, sleep=None, delay=1.5, match_limit=0, only_stores=None, exclude_stores=()):
     fetch = fetch or search
     sleep = sleep or time.sleep
     failures = {}
-    broken = set()
+    skipped = set(exclude_stores)
+    if only_stores:
+        enabled = {r["store"] for r in db.execute("SELECT store FROM store_settings WHERE enabled=1")}
+        skipped |= enabled - set(only_stores)
+    broken = set(skipped)  # one shared, mutable set -- auto_match_all below needs to see breaker trips live
     checked = updated = 0
     requested = False
     links = db.execute("""SELECT l.*,s.postcode FROM product_store_links l
@@ -88,8 +97,9 @@ def refresh_prices(db, fetch=None, sleep=None, delay=1.5, match_limit=0):
         matches = auto_match_all(db, search_fn=match_search, before_search=pace_match,
                                  excluded_stores=broken, max_searches=match_limit)
         log.info("Missing store matches added: %s", len(matches["matched"]))
-    summary = {"products_checked": checked, "prices_updated": updated, "circuit_breakers": sorted(broken)}
-    log.info("Products checked: %s; prices updated: %s; circuit breakers: %s", checked, updated, ", ".join(sorted(broken)) or "none")
+    tripped = sorted(broken - skipped)
+    summary = {"products_checked": checked, "prices_updated": updated, "circuit_breakers": tripped}
+    log.info("Products checked: %s; prices updated: %s; circuit breakers: %s", checked, updated, ", ".join(tripped) or "none")
     return summary
 
 
@@ -98,7 +108,14 @@ def main():
     database.init_db()
     db = database.connect()
     try:
-        refresh_prices(db, match_limit=100)
+        if "--coles-only" in sys.argv:
+            # Coles sits behind a bot wall a plain request can't clear, so it
+            # falls back to an actual browser tab -- slow, and a pattern worth
+            # keeping rare. Run this one weekly from its own schedule, well
+            # paced, rather than mixing it into every night's quick refresh.
+            refresh_prices(db, only_stores=("coles",), delay=6, match_limit=40)
+        else:
+            refresh_prices(db, exclude_stores=("coles",), match_limit=100)
     finally:
         db.close()
 

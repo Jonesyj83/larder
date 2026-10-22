@@ -1,0 +1,28 @@
+name: Weekly Coles price check
+
+on:
+  schedule:
+    # Once a week only -- Coles falls back to a real browser tab when it
+    # hits a bot check, and hammering that regularly is how you end up
+    # permanently on its naughty list. Every other store runs nightly from
+    # the server's own timer; this one job is deliberately rare.
+    - cron: "17 16 * * 2"  # Wednesday ~00:17 AWST
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: [self-hosted, larder-home]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q --upgrade pip
+          .venv/bin/pip install -q -r requirements.txt
+          .venv/bin/playwright install chromium
+
+      - name: Run the Coles-only refresh
+        env:
+          LARDER_DATA: ${{ vars.LARDER_DATA_DIR }}
+        run: .venv/bin/python scripts/refresh_prices.py --coles-only

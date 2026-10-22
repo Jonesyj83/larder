@@ -139,6 +139,19 @@ class SchemaAndRefresh(unittest.TestCase):
         self.assertEqual(sleep.call_count, 2)
         self.assertEqual(result['circuit_breakers'], ['coles'])
 
+    def test_only_and_exclude_stores_scope_both_the_refresh_and_the_matching(self):
+        self.add_links('coles', 2)
+        self.db.execute("UPDATE store_settings SET enabled=1")
+        self.db.commit()
+        fetch = MagicMock(return_value=[CANDIDATE])
+        result = refresh_prices(self.db, fetch, lambda _: None, match_limit=10, only_stores=('coles',))
+        self.assertTrue(all(call.args[0] == 'coles' for call in fetch.call_args_list))
+        self.assertEqual(result['circuit_breakers'], [])
+        fetch.reset_mock()
+        result = refresh_prices(self.db, fetch, lambda _: None, match_limit=10, exclude_stores=('coles',))
+        self.assertTrue(all(call.args[0] != 'coles' for call in fetch.call_args_list))
+        self.assertEqual(result['circuit_breakers'], [])
+
     def test_exact_id_missing_id_and_append_only_history(self):
         link = pricing.link_product(self.db, 1, 'coles', '123', 'Milk 2L')
         self.db.commit()
@@ -475,6 +488,7 @@ class StoreParsers(unittest.TestCase):
         self.addCleanup(db.close)
         db.execute("UPDATE store_settings SET enabled=(store='coles')")
         with patch.object(stores, 'client', lambda: self.session(lambda _: httpx.Response(200, text='<html/>'))), \
+                patch.object(stores, 'search_coles_browser', side_effect=ValueError('no browser')), \
                 patch.object(stores.time, 'sleep'), self.assertLogs(level='WARNING'):
             result = pricing.auto_match_all(db)
         self.assertEqual(result['unmatched'], [{'product_id': 1, 'name': 'Milk 2L'}])
