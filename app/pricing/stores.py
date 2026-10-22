@@ -71,13 +71,20 @@ def search_woolworths(query: str, limit: int = 12):
 
 
 def search_coles(query: str, limit: int = 12):
-    with client() as session:
-        response = session.get("https://www.coles.com.au/search/products", params={"q": query})
-        response.raise_for_status()
-    data = payload(response.text, "__NEXT_DATA__")
-    search = data.get("props", {}).get("pageProps", {}).get("searchResults")
-    if not isinstance(search, dict) or "results" not in search:
-        raise ValueError("Missing Coles search results")
+    for attempt in range(2):
+        try:
+            with client() as session:
+                response = session.get("https://www.coles.com.au/search/products", params={"q": query})
+                response.raise_for_status()
+            data = payload(response.text, "__NEXT_DATA__")
+            search = data.get("props", {}).get("pageProps", {}).get("searchResults")
+            if not isinstance(search, dict) or "results" not in search:
+                raise ValueError("Missing Coles search results")
+            break
+        except (ValueError, httpx.HTTPError) as exc:
+            if attempt:
+                raise ValueError("Coles search unavailable after retry; the store may be blocking requests") from exc
+            time.sleep(0.5)
     out = []
     for p in (search.get("results") or [])[:max(1, min(limit, 36))]:
         if p.get("_type") != "PRODUCT":
@@ -172,14 +179,30 @@ def search_aldi(query: str, limit: int = 12):
     words = set(re.findall(r"[a-z]+", query.lower()))
     expanded = set(words)
     for word, aliases in {"pork": {"meat"}, "chops": {"pork"}, "potato": {"potatoes"},
-                          "potatoes": {"potato"}, "milk": {"dairy"}, "cream": {"dairy"}}.items():
+                          "potatoes": {"potato"}, "milk": {"dairy"}, "cream": {"dairy"},
+                          "onion": {"onions", "fruit", "vegetables"}, "onions": {"onion", "fruit", "vegetables"},
+                          "garlic": {"vegetables", "fruit"}, "capsicum": {"vegetables", "pepper"},
+                          "pepper": {"vegetables", "capsicum"}, "carrot": {"carrots", "vegetables"},
+                          "carrots": {"carrot", "vegetables"}, "tomato": {"tomatoes", "vegetables"},
+                          "tomatoes": {"tomato", "vegetables"}, "chicken": {"meat", "poultry"},
+                          "beef": {"meat"}, "mince": {"meat"}, "cheese": {"dairy", "fridge"},
+                          "bread": {"bakery"}, "butter": {"dairy", "fridge"},
+                          "egg": {"eggs", "dairy"}, "eggs": {"egg", "dairy"}}.items():
         if word in words:
             expanded.update(aliases)
     try:
         with client() as session:
             links = _categories(session)
+            if words & {"onion", "onions", "garlic", "capsicum", "pepper", "carrot", "carrots", "tomato", "tomatoes", "potato", "potatoes"}:
+                expanded.update({"fresh", "vegetables"})
             scored = sorted(((len(expanded & set(re.findall(r"[a-z]+", path))), path) for path in links), reverse=True)
             paths = [path for score, path in scored if score][:3]
+            if not paths:
+                # Broad departments cover more ground than eight unrelated leaf pages.
+                broad = [path for _, path in scored if len(path.strip("/").split("/")) == 4]
+                preferred = ("fruits-vegetables", "pantry", "dairy-eggs-fridge", "meat-seafood", "bakery", "cleaning-household")
+                broad.sort(key=lambda path: next((i for i, word in enumerate(preferred) if word in path), len(preferred)))
+                paths = (broad + [path for _, path in scored if path not in broad])[:8]
             out = {}
             for path in paths:
                 response = session.get("https://www.aldi.com.au" + path)
@@ -189,7 +212,7 @@ def search_aldi(query: str, limit: int = 12):
                     name = p.get("name") or p.get("displayName")
                     if not isinstance(name, str):
                         continue
-                    name_words = set(re.findall(r"[a-z]+", name.casefold()))
+                    name_words = set(re.findall(r"[a-z]+", re.sub(r"\bper\s+kg\b", "", name.casefold())))
                     overlap = len(words & name_words)
                     if overlap < max(1, len(words) - 1):
                         continue
@@ -202,7 +225,8 @@ def search_aldi(query: str, limit: int = 12):
                     item_id = str(p.get("sku") or p.get("productId") or p.get("code"))
                     out[item_id] = {"store_item_id": item_id, "name": name, "brand": p.get("brand") or "",
                                     "size": p.get("size") or "", "price": price,
-                                    "was_price": p.get("wasPrice"), "unit_price": None, "unit_measure": "",
+                                    "was_price": p.get("wasPrice"), "unit_price": price if re.search(r"\bper\s+kg\b", name, re.I) else None,
+                                    "unit_measure": "kg" if re.search(r"\bper\s+kg\b", name, re.I) else "",
                                     "on_special": bool(p.get("wasPrice")), "_score": score}
             return sorted(out.values(), key=lambda item: item["_score"], reverse=True)[:max(1, min(limit, 36))]
     except Exception:
@@ -242,7 +266,7 @@ def _iga_store_for_location(session, location):
 
 def search_iga(query: str, limit: int = 12, postcode: str = ""):
     if not postcode.strip():
-        return FailedResults()
+        raise ValueError("IGA matching requires an area or postcode in Settings")
     try:
         with client() as session:
             store_id = _iga_store_for_location(session, postcode)

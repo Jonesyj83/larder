@@ -153,10 +153,12 @@ def list_items(db=Depends(get_db), user=Depends(current_user), list_id: Optional
     for item in items:
         item['stock_covers_need'] = False
         item['purchase_size'] = None
+        item['stock_per_amount'] = None
         if item['product_id']:
             product = st.get_product(db, item['product_id'])
             try:
-                needed = st.to_stock_units(db, product, item['amount'], item['unit_id'])
+                item['stock_per_amount'] = st.to_stock_units(db, product, 1, item['unit_id'])
+                needed = item['stock_per_amount'] * item['amount']
                 item['stock_covers_need'] = st.in_stock(db, item['product_id']) + 1e-9 >= needed
             except st.StockError:
                 pass

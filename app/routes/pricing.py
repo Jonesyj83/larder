@@ -1,4 +1,5 @@
 import logging
+import re
 from statistics import median
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,6 +10,7 @@ from ..db import get_db, row, rows
 from .. import pricing
 from ..pricing.stores import STORES
 from ..stock import purchase_history
+from .. import stock as st
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/pricing", tags=["pricing"], dependencies=[Depends(current_user)])
@@ -62,6 +64,8 @@ def search_store(store: str, q: str = Query(min_length=1, max_length=200), db=De
     if not q.strip():
         raise HTTPException(400, "Search can't be empty")
     setting = db.execute("SELECT * FROM store_settings WHERE store=?", (store,)).fetchone()
+    if store == "iga" and (not setting or not setting["postcode"].strip()):
+        raise HTTPException(400, "IGA matching requires an area or postcode in Settings")
     try:
         return pricing.search(store, q.strip(), setting["postcode"] if setting else "")
     except Exception:
@@ -96,6 +100,43 @@ def delete_link(product_id: int, store: str, db=Depends(get_db)):
     return {"ok": True}
 
 
+def price_quantity(db, product, link):
+    """Describe one priced quantity in stock units using the stock conversion rules."""
+    check = link.get("latest_check") or {}
+    units = {u["name"].casefold(): u["id"] for u in db.execute("SELECT id,name FROM units")}
+    aliases = {"litre": "l", "litres": "l", "liter": "l", "liters": "l", "grams": "g", "kilograms": "kg"}
+
+    def quantity(text):
+        match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)?\s*([a-zA-Z]+)\s*", text or "")
+        if not match:
+            return None
+        unit = match[2].casefold()
+        unit_id = units.get(aliases.get(unit, unit))
+        if unit_id is None:
+            return None
+        try:
+            return st.to_stock_units(db, product, float(match[1] or 1), unit_id)
+        except st.StockError:
+            return None
+
+    size = link.get("size") or ""
+    pack = quantity(size)
+    if pack is None and not size.strip():
+        named_size = re.search(r"\b(\d+(?:\.\d+)?\s*(?:kg|g|ml|l))\b", link.get("store_name", ""), re.I)
+        if named_size:
+            pack = quantity(named_size[1])
+    per_unit = re.search(r"\bper\s+(kg|g|ml|l)\b|/\s*(kg|g|ml|l)\b", link.get("store_name", ""), re.I)
+    if pack is None and not size.strip() and (per_unit or check.get("unit_measure")):
+        measure = quantity(per_unit[1] or per_unit[2]) if per_unit else quantity(check["unit_measure"])
+        # Comparison prices on packaged goods must never turn a pack into a fraction.
+        if measure and (per_unit or check.get("unit_price") == check.get("price")
+                        or (check.get("unit_price") is None and not product["purchase_unit_id"])):
+            return {"stock_units": measure, "whole_packs": False}
+    if pack is None:
+        pack = product["purchase_factor"] if product["purchase_unit_id"] and product["purchase_unit_id"] != product["unit_id"] else 1
+    return {"stock_units": pack, "whole_packs": True}
+
+
 @router.get("/products/{product_id}")
 def product_prices(product_id: int, db=Depends(get_db)):
     check_product(db, product_id)
@@ -103,6 +144,7 @@ def product_prices(product_id: int, db=Depends(get_db)):
     for link in links:
         link["latest_check"] = row(db.execute("""SELECT * FROM store_price_checks WHERE link_id=?
             ORDER BY checked_at DESC,id DESC LIMIT 1""", (link["id"],)))
+        link["price_quantity"] = price_quantity(db, st.get_product(db, product_id), link)
     return links
 
 

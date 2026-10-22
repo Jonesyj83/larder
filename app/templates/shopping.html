@@ -66,7 +66,6 @@
           <input type="checkbox" class="check-item" :aria-label="'Tick off ' + i.label" :checked="i.done" @change="toggle(i)">
           <div class="thumb">
             <img x-show="i.picture" :src="pic(i.picture)" alt="">
-            <span x-show="!i.picture" aria-hidden="true">🛒</span>
           </div>
         </div>
         <div class="shop-product">
@@ -204,11 +203,18 @@ function shoppingPage() {
     get pricedItems() { return this.items.filter(i => i.product_id); },
     get doneCount() { return this.items.filter(i => i.done).length; },
     get matchedCount() { return this.pricedItems.filter(i => this.priceLinks(i).length).length; },
+    itemCost(i, link) {
+      const price = link.latest_check?.price;
+      if (price == null) return null;
+      const quantity = link.price_quantity || {stock_units: 1, whole_packs: true};
+      const packs = Number(i.amount || 1) * Number(i.stock_per_amount ?? 1) / quantity.stock_units;
+      return Number(price) * (quantity.whole_packs ? Math.ceil(packs - 1e-9) : packs);
+    },
     get splitTotal() {
       let total = 0;
       for (const i of this.pricedItems) {
-        const prices = this.priceLinks(i).map(l => l.latest_check?.price).filter(p => p != null).map(Number);
-        if (prices.length) total += Math.min(...prices) * (Number(i.amount) || 1);
+        const prices = this.priceLinks(i).map(l => this.itemCost(i, l)).filter(p => p != null);
+        if (prices.length) total += Math.min(...prices);
       }
       return total;
     },
@@ -220,7 +226,7 @@ function shoppingPage() {
         for (const link of this.priceLinks(i)) {
           const price = link.latest_check?.price;
           if (price == null || !totals[link.store]) continue;
-          totals[link.store].total += Number(price) * (Number(i.amount) || 1);
+          totals[link.store].total += this.itemCost(i, link);
           totals[link.store].count += 1;
         }
       }
