@@ -6,6 +6,10 @@
     <button class="btn-ghost" @click="addMissing()">Add what's running low</button>
   </div>
 
+  <p class="muted small" x-show="quantityHint" x-cloak>
+    <span x-text="quantityHint ? 'You usually get ' + quantityHint.typical_amount + ' ' + (quantityHint.typical_unit || '') + ' of ' + quantityHint.label : ''"></span>
+    <button type="button" class="small" @click="acceptQuantityHint()">Use usual quantity</button>
+  </p>
   <section class="summary-strip" aria-label="List summary" x-show="items.length">
     <div class="summary-metric">
       <span class="label">Estimated total</span>
@@ -157,7 +161,7 @@
 <script>
 function shoppingPage() {
   return {
-    drawHistory,
+    drawHistory, quantityHint: null,
     suggestions: [], suggestionsOpen: false, suggestionVersion: 0, historyItem: null, historyTrigger: null,
     liveSuggestions: [], suggestionStore: '', suggestionMessage: '', suggestionCache: {},
     liveSearchCount: 0, lastLiveSearch: 0, liveSearchBusy: false, suggestionTimer: null, adding: false,
@@ -385,8 +389,18 @@ function shoppingPage() {
         const item = await api(this.scoped(), { method: 'POST', body });
         if (item.product_id && !this.products.some(p => p.id === item.product_id)) this.products.push({id: item.product_id, name: item.label});
         this.text = ''; this.amount = 1; this.resetSuggestions(); this.liveSearchCount = 0;
-        this.load();
+        this.quantityHint = item.typical_amount != null ? item : null;
+        await this.load();
       } catch (e) { oops(e); } finally { this.adding = false; }
+    },
+    async acceptQuantityHint() {
+      const hint = this.quantityHint;
+      if (!hint) return;
+      try {
+        await api(this.scoped('/' + hint.id), {method: 'PUT', body: {amount: hint.typical_amount, unit_id: hint.typical_unit_id}});
+        this.quantityHint = null;
+        await this.load();
+      } catch (e) { oops(e); }
     },
     async toggle(i) {
       try {

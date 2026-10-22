@@ -302,3 +302,26 @@ const api = async (path, options) => {
   assert.equal(item.moveOpen, true);
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
+
+    def test_quantity_hint_requires_acceptance(self):
+        self.run_logic('shopping.html', r'''
+const oops = e => {throw e;};
+const calls = [];
+const api = async (path, options) => {
+  calls.push([path, options]);
+  if (options?.method === 'POST') return {id:4, product_id:2, label:'Water', amount:3, typical_amount:24, typical_unit_id:1, typical_unit:'bottle'};
+  return {};
+};
+(async () => {
+  const page = shoppingPage();
+  page.list_id = 1; page.text = 'Water'; page.amount = 3;
+  page.load = async () => {};
+  await page.add();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].body.amount, 3);
+  assert.equal(page.quantityHint.typical_amount, 24);
+  await page.acceptQuantityHint();
+  assert.deepEqual(calls[1], ['/api/shopping/4?list_id=1', {method:'PUT', body:{amount:24, unit_id:1}}]);
+  assert.equal(page.quantityHint, null);
+})().catch(e => {console.error(e); process.exit(1);});
+''')

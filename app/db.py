@@ -181,6 +181,18 @@ CREATE TABLE IF NOT EXISTS shopping_list (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS order_history (
+    id INTEGER PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    amount REAL NOT NULL,
+    unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
+    store TEXT,
+    size TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS order_history_product ON order_history(product_id, created_at);
+CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY);
+
 CREATE TABLE IF NOT EXISTS shopping_sources (
     id INTEGER PRIMARY KEY,
     item_id INTEGER NOT NULL REFERENCES shopping_list(id) ON DELETE CASCADE,
@@ -301,6 +313,10 @@ def init_db():
     # all of it under one write lock: two workers starting at once shouldn't both
     # try to add the same column or seed the same rows
     conn.executescript("BEGIN IMMEDIATE;\n" + SCHEMA)
+    if not conn.execute("SELECT 1 FROM schema_migrations WHERE name='order_history_backfill'").fetchone():
+        conn.execute("""INSERT INTO order_history(product_id,amount,unit_id)
+            SELECT product_id,amount,unit_id FROM shopping_list WHERE done=1 AND product_id IS NOT NULL""")
+        conn.execute("INSERT INTO schema_migrations(name) VALUES('order_history_backfill')")
     if "size" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
         conn.execute("ALTER TABLE product_store_links ADD COLUMN size TEXT NOT NULL DEFAULT ''")
     if "list_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(shopping_list)")}:

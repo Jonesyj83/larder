@@ -58,7 +58,41 @@ def name_words(name):
     return set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga"}
 
 
-def strongest_match(name, candidates):
+def pack_size(size):
+    text = size.casefold().strip().replace('×', 'x')
+    multi = re.search(r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\b", text)
+    if multi:
+        count, amount, unit = multi.groups()
+        factor = 1000 if unit in ('kg', 'l') else 1
+        return {'count': float(count), 'volume' if unit in ('ml', 'l') else 'mass': float(count) * float(amount) * factor}
+    count = re.search(r"(\d+(?:\.\d+)?)\s*[- ]?\s*(?:pack|pk|bottles?|pieces?|each)\b", text)
+    measure = re.search(r"(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\b", text)
+    result = {'count': float(count[1])} if count else {}
+    if measure:
+        unit = measure[2]
+        result['volume' if unit in ('ml', 'l') else 'mass'] = float(measure[1]) * (1000 if unit in ('kg', 'l') else 1)
+        result.setdefault('count', 1)
+    return result
+
+
+def size_preference(db, product_id, store):
+    from .. import order_history
+    entries = [e for e in order_history.recent(db, product_id, store) if pack_size(e['size'])]
+    entry = order_history.typical(entries, ('size',))
+    if entry:
+        return pack_size(entry['size'])
+    entry = order_history.typical(order_history.recent(db, product_id))
+    if not entry:
+        return {}
+    unit = (entry['unit'] or '').casefold()
+    if unit in ('g', 'kg', 'ml', 'l'):
+        return {'volume' if unit in ('ml', 'l') else 'mass': entry['amount'] * (1000 if unit in ('kg', 'l') else 1)}
+    if unit in ('bottle', 'bottles', 'piece', 'pieces', 'each', 'count'):
+        return {'count': entry['amount']}
+    return {}
+
+
+def strongest_match(name, candidates, preferred_size=None):
     words = name_words(name)
     if not words:
         return None
@@ -71,6 +105,15 @@ def strongest_match(name, candidates):
             continue
         other = name_words(candidate["name"])
         score = len(words & other) / len(words | other)
+        if score < .5:
+            continue
+        if preferred_size:
+            size = pack_size(candidate.get('size') or '')
+            similarities = [min(value, size[key]) / max(value, size[key])
+                            for key, value in preferred_size.items()
+                            if key in size and value > 0 and size[key] > 0]
+            if similarities:
+                score += .35 * sum(similarities) / len(similarities)
         scored[str(candidate["store_item_id"])] = (score, candidate)
     ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < .5:
@@ -92,7 +135,7 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
             if before_search and before_search() is False:
                 break
             candidates = (search_fn or search)(setting["store"], name, setting["postcode"])
-            candidate = strongest_match(name, candidates)
+            candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]))
             if candidate is None:
                 continue
             with db:

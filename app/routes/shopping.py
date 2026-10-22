@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from .. import pricing
+from .. import pricing, order_history
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -25,6 +25,7 @@ class ItemIn(BaseModel):
 
 
 class ItemEdit(BaseModel):
+    store: Optional[str] = None
     amount: Optional[float] = Field(default=None, gt=0, le=MAX_AMOUNT, allow_inf_nan=False)
     unit_id: Optional[int] = None
     note: Optional[str] = None
@@ -33,6 +34,7 @@ class ItemEdit(BaseModel):
 
 
 class BoughtIn(DatedInput):
+    store: Optional[str] = None
     location_id: Optional[int] = None
     expires_on: Optional[str] = None
 
@@ -196,6 +198,8 @@ def move(item_id: int, data: MoveIn, db=Depends(get_db), user=Depends(current_us
         target = db.execute("SELECT id FROM shopping_lists WHERE kind='plain' AND name=? COLLATE NOCASE ORDER BY id LIMIT 1", (name,)).fetchone()
         target_id = target['id'] if target else db.execute(
             "INSERT INTO shopping_lists(name,created_by) VALUES(?,?)", (name, user['id'])).lastrowid
+    if db.execute("SELECT kind FROM shopping_lists WHERE id=?", (item["list_id"],)).fetchone()["kind"] == "order":
+        order_history.record(db, item, data.store)
     db.execute("UPDATE shopping_list SET list_id=?, name=?, note=? WHERE id=?",
                (target_id, display_name, note, item_id))
     db.commit()
@@ -267,7 +271,20 @@ def add(data: ItemIn, db=Depends(get_db), user=Depends(current_user), list_id: O
         except Exception:
             db.rollback()
             logging.getLogger(__name__).warning("Shopping item pricing failed", exc_info=True)
-    return row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
+    result = row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
+    if product_id and not data.store_match:
+        hint = order_history.typical(order_history.recent(db, product_id))
+        if hint:
+            result.update(typical_amount=hint['amount'], typical_unit_id=hint['unit_id'], typical_unit=hint['unit'])
+    return result
+
+
+
+@router.get("/history/{product_id}")
+def history(product_id: int, db=Depends(get_db), user=Depends(current_user)):
+    if not db.execute("SELECT 1 FROM products WHERE id=?", (product_id,)).fetchone():
+        raise HTTPException(404, "Product not found")
+    return order_history.recent(db, product_id)
 
 
 @router.post("/add-missing")
@@ -302,10 +319,15 @@ def edit(item_id: int, data: ItemEdit, db=Depends(get_db), user=Depends(current_
         val = getattr(data, field)
         if val is not None:
             item[field] = val.strip() if field == "name" else val
+    newly_done = data.done is True and not item["done"]
+    if "unit_id" in data.model_fields_set:
+        item["unit_id"] = data.unit_id
     if data.done is not None:
         item["done"] = int(data.done)
     db.execute("UPDATE shopping_list SET amount = ?, unit_id = ?, note = ?, name = ?, done = ? WHERE id = ?",
                (item["amount"], item["unit_id"], item["note"], item["name"], item["done"], item_id))
+    if newly_done:
+        order_history.record(db, item, data.store)
     db.commit()
     return row(db.execute(ITEM_SQL + " WHERE i.id = ?", (item_id,)))
 
@@ -371,6 +393,7 @@ def bought(item_id: int, data: BoughtIn | None = None, db=Depends(get_db), user=
         except st.StockError as e:
             db.rollback()
             raise HTTPException(400, str(e))
+    order_history.record(db, item, data.store if data else None)
     db.execute("DELETE FROM shopping_list WHERE id = ?", (item_id,))
     db.commit()
     return {"ok": True, "stock": result}
