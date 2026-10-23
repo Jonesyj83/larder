@@ -73,12 +73,14 @@ ALDI_CATEGORY_BRANDS = {
 }
 
 # House labels confirmed in the stored ranges. Organic and dietary lines
-# are not plain defaults; Aldi's category labels are handled separately.
+# are not plain defaults; shared names stay category-specific.
 HOME_BRANDS = {
     "coles": ("Coles", "Coles Simply", "Coles Kitchen", "Coles Finest",
               "Coles Bakery", "Coles Ultra", "Coles Asia", "Coles Made Easy", "Coles Deli"),
     "woolworths": ("Woolworths", "Woolworths Essentials"),
-    "aldi": ("FARMDALE",),
+    "aldi": ("FARMDALE", "COLWAY", "REMANO", "CORALE", "SPRINTERS",
+             "BRAMWELLS", "FIZZI", "SUNLIT", "FLYING POWER", "HILLCREST",
+             "SIMPLEE", "BLACKSTONE GOURMET SNACK CO."),
     "iga": ("Community Co", "Black & Gold", "G-FRESH"),
 }
 
@@ -605,7 +607,9 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             plainest = [pair for pair in by_extra if extra_words(pair) == fewest_extra]
             if len(plainest) == 1:
                 return plainest[0][1]
-            if not preferred_size:
+            def everyday_size(finalists):
+                if preferred_size:
+                    return None
                 # A fourfold gap separates an everyday item from a bulk
                 # quantity without deciding between nearby everyday sizes.
                 # Require comparable sizes for every finalist; a missing
@@ -613,12 +617,12 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                 def total_size(c):
                     parsed = pack_size(c.get('size') or '')
                     return next((v for k, v in parsed.items() if k in ('volume', 'mass')), None)
-                sized = [pair for pair in plainest if total_size(pair[1]) is not None]
+                sized = [pair for pair in finalists if total_size(pair[1]) is not None]
                 by_size = sorted(sized, key=lambda pair: total_size(pair[1]))
-                dimensions = {key for pair in plainest
+                dimensions = {key for pair in finalists
                               for key in pack_size(pair[1].get('size') or '')
                               if key in ('volume', 'mass')}
-                if len(by_size) == len(plainest) and len(by_size) > 1 and len(dimensions) == 1:
+                if len(by_size) == len(finalists) and len(by_size) > 1 and len(dimensions) == 1:
                     smallest = total_size(by_size[0][1])
                     # An explicit single can also identifies the intended
                     # end of a bulk-size spread when another can sits between.
@@ -626,14 +630,24 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                     comparison = by_size[-1] if explicit_single else by_size[1]
                     if total_size(comparison[1]) >= 4 * smallest > 0 and total_size(by_size[1][1]) > smallest:
                         return by_size[0][1]
+            everyday = everyday_size(plainest)
+            if everyday is not None:
+                return everyday
             # A house label only settles the remaining tie, never a named
-            # brand, a remembered type, or several house variants/sizes.
+            # brand, a remembered type, or nearby house sizes.
             if not required_brand:
                 labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
                 home = [pair for pair in plainest
                         if normalized_name(pair[1].get('brand') or '') in labels]
                 if len(home) == 1:
                     return home[0][1]
+                if len(home) > 1 and len({normalized_name(pair[1].get('brand') or '')
+                                          for pair in home}) == 1:
+                    # Ownership narrows the brand; the same bulk-size
+                    # check can then settle its otherwise identical packs.
+                    everyday = everyday_size(home)
+                    if everyday is not None:
+                        return everyday
         # Full Cream still leaves brands and nearby sizes undecided.
         # Equally valid brands and nearby sizes remain ambiguous.
         return None

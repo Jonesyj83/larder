@@ -33,6 +33,39 @@ class CatalogueMatching(unittest.TestCase):
         self.assertIsNone(pricing.strongest_match('milk', [named,
             dict(home, brand='Macro', name='Macro Full Cream Milk')], store='woolworths'))
 
+    def test_aldi_plain_sauce_uses_confirmed_house_label(self):
+        self.db.executescript("""
+            INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
+                ('370683','Tomato Sauce 2L','COLWAY','2 l'),
+                ('370278','Tomato Pasta Sauce 500g','REMANO','500 g'),
+                ('364938','Spaghetti in Tomato Sauce 420g','CORALE','420 g'),
+                ('261610','Baked Beans in Tomato Sauce 420g','CORALE','420 g');
+        """)
+        self.assertEqual(self.match('aldi', 'tomato sauce')['store_item_id'], '370683')
+        # Regal also labels salmon and pet food outside Aldi; its soft
+        # drink substitution must remain category-specific.
+        self.assertNotIn('REGAL', pricing.HOME_BRANDS['aldi'])
+        self.db.execute("UPDATE aldi_catalogue SET brand='Other' WHERE item_id='370683'")
+        self.assertIsNone(self.match('aldi', 'tomato sauce'))
+
+    def test_home_brand_bulk_gap_uses_only_same_brand_finalists(self):
+        home = dict(store_item_id='7413417', name='Tomato Sauce',
+                    brand='Coles Simply', size='500mL')
+        bulk = dict(home, store_item_id='8849054', size='2L')
+        named = dict(store_item_id='3574040', name='Tomato Sauce',
+                     brand='Rosella', size='580mL')
+        for candidates in ([named, bulk, home], [home, bulk, named]):
+            self.assertEqual(pricing.strongest_match('tomato sauce', candidates,
+                             store='coles'), home)
+            self.assertEqual(pricing.strongest_match('tomato sauce 2L', candidates,
+                             store='coles'), bulk)
+            for size in ('1L', '', '2kg'):
+                self.assertIsNone(pricing.strongest_match('tomato sauce',
+                    [named, home, dict(bulk, size=size)], store='coles'))
+        # A bulk gap cannot decide between separate house labels.
+        self.assertIsNone(pricing.strongest_match('tomato sauce',
+            [named, home, dict(bulk, brand='Coles Finest')], store='coles'))
+
     def test_grated_and_shredded_are_the_same_word(self):
         self.db.executescript("""
             INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES
