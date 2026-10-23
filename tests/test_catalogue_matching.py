@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import sqlite3
 import unittest
 
@@ -13,6 +15,27 @@ class CatalogueMatching(unittest.TestCase):
 
     def match(self, store, query):
         return pricing.strongest_match(query, pricing.search(store, query, conn=self.db), store=store)
+
+    def test_soy_milk_house_label_needs_a_type_or_brand_signal(self):
+        candidates = json.loads((Path(__file__).parent / 'fixtures' / 'soy_milk_tie.json').read_text())
+        self.db.executemany(
+            'INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES(?,?,?,?)',
+            [(c['store_item_id'], c['name'], c['brand'], c['size']) for c in candidates])
+        # Shelf-life wording does not establish a household formulation
+        # preference among regular, lite, fortified and unsweetened lines.
+        for ordered in (candidates, list(reversed(candidates))):
+            self.assertIsNone(pricing.strongest_match('1l soy milk', ordered, store='woolworths'))
+            self.assertEqual(pricing.strongest_match('1l soy milk', ordered,
+                             preferred_type={'long', 'life', 'uht'},
+                             store='woolworths')['store_item_id'], '779130')
+        self.assertIsNone(self.match('woolworths', '1l soy milk'))
+        for query in ('1l woolworths soy milk', '1l soy milk long life uht'):
+            self.assertEqual(self.match('woolworths', query)['store_item_id'], '779130')
+        for query in ('1l soy milk lite', '1l soy milk calci plus'):
+            self.assertIsNone(self.match('woolworths', query))
+        for query, expected in (('1l vitasoy soy milky lite', '216826'),
+                                ('1l soy milk vanilla', '5535')):
+            self.assertEqual(self.match('woolworths', query)['store_item_id'], expected)
 
     def test_home_brand_only_settles_one_remaining_category_choice(self):
         home = dict(store_item_id='1', name='Woolworths Whole Milk Full Cream Milk',
