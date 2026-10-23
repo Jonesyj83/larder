@@ -101,15 +101,18 @@ class RetailerClassification(unittest.TestCase):
                              preferred_classification=remembered)['store_item_id'], wanted['store_item_id'])
 
     def test_missing_classification_preserves_existing_selection_and_partial_backfill(self):
+        # Soda is a word-level qualifier for 'water' regardless of whether
+        # classification data has reached this row yet, so rows without
+        # classification must still land on the plain spring candidate.
         pool = candidates('woolworths')[:2]
         for p in pool:
             p.pop('classification')
         before = pricing.strongest_match('water', pool, store='woolworths')
-        self.assertEqual(before['store_item_id'], pool[1]['store_item_id'])
+        self.assertEqual(before['store_item_id'], pool[0]['store_item_id'])
         for p in pool:
             p['classification'] = {}
         self.assertEqual(pricing.strongest_match('water', pool, store='woolworths'), before | {'classification': {}})
-        pool[0]['classification'] = candidates('woolworths')[0]['classification']
+        pool[1]['classification'] = candidates('woolworths')[1]['classification']
         self.assertEqual(pricing.strongest_match('water', pool, store='woolworths')['store_item_id'], before['store_item_id'])
 
     def test_noodle_segment_supplies_format_guard_when_title_omits_cup(self):

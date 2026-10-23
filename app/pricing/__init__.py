@@ -114,7 +114,7 @@ CATEGORY_QUALIFIERS = {
     frozenset({'cola', 'pepsi'}): frozenset({'diet', 'zero', 'max', 'no', 'free'}),
     frozenset({'noodle'}): frozenset({'cup', 'pot', 'bowl'}),
     frozenset({'water'}): frozenset({
-        'tonic', 'coconut', 'flavoured', 'infused', 'lemon', 'lime', 'berry',
+        'tonic', 'soda', 'coconut', 'flavoured', 'infused', 'lemon', 'lime', 'berry',
         'apple', 'orange', 'mango', 'pineapple', 'passionfruit', 'peach',
         'lychee', 'yuzu', 'raspberry', 'strawberry', 'watermelon',
     }),
@@ -122,9 +122,11 @@ CATEGORY_QUALIFIERS = {
 
 # Plain water titles use source and carbonation descriptions. Requiring
 # only these words after brand removal also excludes non-drink water goods.
+# Soda water sits in CATEGORY_QUALIFIERS instead -- it's a mixer, not a
+# source/carbonation description of plain water, same reasoning as tonic.
 PLAIN_CATEGORY_WORDS = {
     'water': frozenset({'water', 'spring', 'natural', 'still', 'sparkling',
-                        'lightly', 'mineral', 'soda', 'pure', 'artesian',
+                        'lightly', 'mineral', 'pure', 'artesian',
                         'australian', 'italian', 'bottle', 'can', 'single', 'pack'}),
 }
 
