@@ -124,7 +124,54 @@ class CatalogueMatching(unittest.TestCase):
         self.assertEqual(pricing.strongest_match('vegemite', candidates)['store_item_id'], '3')
         self.assertEqual(pricing.search('aldi', 'nutella', conn=self.db), [])
 
-    def test_aldi_partial_direct_results_do_not_trigger_substitution(self):
+        fixtures = [
+            ('10', 'Lemonade 1.25L', 'FIZZI', '1.25 l'),
+            ('11', 'Orange Soft Drink 1.25L', 'SUNLIT', '1.25 l'),
+            ('12', 'Mango Mojo No sugar Energy Drink 500ml', 'FLYING POWER', '500 ml'),
+            ('13', 'Sugar Free Original Energy Drink 4 Pack 250ml', 'FLYING POWER', '4 x 250 ml'),
+            ('14', 'Choc Hazelnut Spread 400g', 'BRAMWELLS', '400 g'),
+            ('15', 'Corn Chips Nacho Cheese 200g', 'SPRINTERS', '200 g'),
+            ('16', 'Sea Salt Flavoured Deli Style Potato Chips 175g', 'BLACKSTONE GOURMET SNACK CO.', '175 g'),
+            ('17', 'Corn Flakes 700g', 'HILLCREST', '700 g'),
+            ('18', 'Smooth Peanut Butter 500g', 'BRAMWELLS', '500 g'),
+            ('19', 'Baked Beans in Tomato Sauce 420g', 'CORALE', '420 g'),
+            ('20', 'Chicken Noodles 5 Pack 425g', 'SIMPLEE', '425 g'),
+            ('21', 'Mi Goreng Noodles 5 Pack 425g', 'SIMPLEE', '425 g'),
+            ('22', 'Choco Rice Cereal 650g', 'HILLCREST', '650 g'),
+            ('23', 'No Sugar Cola 1.25L', 'REGAL', '1.25 l'),
+            ('24', 'Cola 1.25L', 'REGAL', '1.25 l'),
+        ]
+        self.db.executemany('INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES(?,?,?,?)', fixtures)
+        for query, item_id in (
+                ('1.25l sprite', '10'), ('1.25l 7up', '10'), ('1.25l fanta', '11'),
+                ('monster mango 500ml', '12'), ('mother mango 500ml', '12'),
+                ('monster sugar free original 4x250ml', '13'), ('400g nutella', '14'),
+                ('200g doritos nacho cheese', '15'), ('175g kettle sea salt', '16'),
+                ('175g red rock deli sea salt', '16'), ('700g kelloggs corn flakes', '17'),
+                ("700g kellogg's corn flakes", '17'), ('500g skippy smooth', '18'),
+                ('500g kraft peanut butter smooth', '18'), ('heinz baked beans 420g', '19'),
+                ('maggi chicken noodles 425g', '20'), ('indomie mi goreng 425g', '21'),
+                ('coco pops cereal 650g', '22'), ('1.25l pepsi max', '23'), ('1.25l pepsi', '24')):
+            with self.subTest(query=query):
+                self.assertEqual(self.match('aldi', query)['store_item_id'], item_id)
+        # National labels really do occur in the range. They take
+        # precedence over the category retry, even at a different size.
+        self.db.executescript("""
+            INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
+                ('30','Pepsi Max 2L','PEPSI MAX','2 l'),
+                ('31','Nutella 400g','FERRERO','400 g'),
+                ('32','Weet-Bix 375g','SANITARIUM','375 g');
+        """)
+        self.assertEqual(self.match('aldi', '2l pepsi max')['store_item_id'], '30')
+        self.assertEqual(self.match('aldi', '400g nutella')['store_item_id'], '31')
+        self.assertIsNone(self.match('aldi', '1.25l pepsi max'))
+        self.assertIsNone(self.match('aldi', '1.12kg weet-bix'))
+        for query in ('2l sprite', 'doritos purple unicorn', '400g nutella dairy free',
+                      'monster mango lactose free 500ml'):
+            self.assertIsNone(self.match('aldi', query))
+        self.assertEqual(pricing.search('coles', '1.25l sprite', conn=self.db), [])
+
+    def test_aldi_partial_results_require_a_verified_category_and_label(self):
         self.db.executescript("""
             INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
                 ('1','Cola Soft Drink Zero','Store','2L'),
@@ -134,6 +181,13 @@ class CatalogueMatching(unittest.TestCase):
         self.assertIsNone(self.match('aldi', 'coca-cola zero'))
         self.assertTrue(all('_match_query' not in c for c in
             pricing.search('aldi', 'coca-cola zero', conn=self.db)))
+        self.db.execute("INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES('4','No Sugar Cola 1.25L','REGAL','1.25 l')")
+        self.assertEqual(self.match('aldi', '1.25l coca-cola zero')['store_item_id'], '4')
+        self.assertIsNone(self.match('aldi', '1.25l coca-cola zero cherry'))
+        self.db.execute("INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES('5','Coke Coca Cola Zero Sugar','COCA-COLA','600ml')")
+        self.assertIsNone(self.match('aldi', '1.25l coca-cola zero'))
+        self.assertTrue(all('_match_query' not in c for c in
+            pricing.search('aldi', '1.25l coca-cola zero', conn=self.db)))
 
     def test_size_tie_requires_complete_comparable_sizes(self):
         candidates = [dict(store_item_id='1', name='Water', size='600mL'),

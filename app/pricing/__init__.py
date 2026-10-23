@@ -15,12 +15,76 @@ log = logging.getLogger(__name__)
 # Only retry an absent brand with a narrow category, since an unrelated
 # substitute is worse than leaving the item unmatched.
 GENERIC_EQUIVALENTS = {
-    "pepsi": ("cola", "soft", "drink"),
-    "coke": ("cola", "soft", "drink"),
-    "coca-cola": ("cola", "soft", "drink"),
+    "pepsi": ("cola",),
+    "pepsi max": ("no", "sugar", "cola"),
+    "coke": ("cola",),
+    "coca-cola": ("cola",),
+    "coke zero": ("no", "sugar", "cola"),
+    "coke zero sugar": ("no", "sugar", "cola"),
+    "coca-cola zero": ("no", "sugar", "cola"),
+    "coca-cola zero sugar": ("no", "sugar", "cola"),
+    "sprite": ("lemonade",),
+    "7up": ("lemonade",),
+    "fanta": ("orange", "soft", "drink"),
+    "monster": ("energy", "drink"),
+    "mother": ("energy", "drink"),
+    "red bull": ("energy", "drink"),
     "vegemite": ("yeast", "spread"),
-    "nutella": ("hazelnut", "chocolate", "spread"),
+    "nutella": ("choc", "hazelnut", "spread"),
+    "doritos": ("corn", "chips"),
+    "kettle": ("deli", "style", "potato", "chips"),
+    "red rock deli": ("deli", "style", "potato", "chips"),
+    "pringles": ("snack", "stack", "chips"),
+    "weet-bix": ("wheat", "biscuits"),
+    "coco pops cereal": ("choco", "rice", "cereal"),
+    "kelloggs corn flakes": ("corn", "flakes"),
+    "kellogg's corn flakes": ("corn", "flakes"),
+    "skippy": ("peanut", "butter"),
+    "kraft peanut butter": ("peanut", "butter"),
+    "heinz baked beans": ("baked", "beans"),
+    "maggi chicken noodles": ("chicken", "noodles"),
+    "maggi beef noodles": ("beef", "noodles"),
+    "indomie mi goreng": ("mi", "goreng", "noodles"),
 }
+
+# Category names and private labels confirmed in the stored Aldi range.
+# Requiring both keeps soft drinks away from chocolate, and snack chips
+# away from frozen chips. A label leaving the range means no substitute.
+ALDI_CATEGORY_BRANDS = {
+    ("cola",): "REGAL",
+    ("no", "sugar", "cola"): "REGAL",
+    ("lemonade",): "FIZZI",
+    ("orange", "soft", "drink"): "SUNLIT",
+    ("energy", "drink"): "FLYING POWER",
+    ("choc", "hazelnut", "spread"): "BRAMWELLS",
+    ("corn", "chips"): "SPRINTERS",
+    ("deli", "style", "potato", "chips"): "BLACKSTONE GOURMET SNACK CO.",
+    ("snack", "stack", "chips"): "SPRINTERS",
+    ("wheat", "biscuits"): "HILLCREST",
+    ("choco", "rice", "cereal"): "HILLCREST",
+    ("corn", "flakes"): "HILLCREST",
+    ("peanut", "butter"): "BRAMWELLS",
+    ("baked", "beans"): "CORALE",
+    ("chicken", "noodles"): "SIMPLEE",
+    ("beef", "noodles"): "SIMPLEE",
+    ("mi", "goreng", "noodles"): "SIMPLEE",
+}
+
+
+def _aldi_equivalent(query):
+    # Match the longest named product after removing sizes. Keep all
+    # remaining flavour/dietary words and the original size for scoring.
+    sizes = [m.group() for m in re.finditer(SIZE_TOKEN, query, re.IGNORECASE)]
+    tokens = re.findall(r"\w+", re.sub(SIZE_TOKEN, " ", query, flags=re.IGNORECASE).casefold())
+    for alias in sorted(GENERIC_EQUIVALENTS, key=lambda a: len(re.findall(r"\w+", a)), reverse=True):
+        prefix = re.findall(r"\w+", alias)
+        if tokens[:len(prefix)] == prefix:
+            category = GENERIC_EQUIVALENTS[alias]
+            brand = ALDI_CATEGORY_BRANDS.get(category, "")
+            fallback = " ".join((*category, brand, *tokens[len(prefix):], *sizes)).strip()
+            return alias, fallback, brand
+    return None
+
 
 # Only aliases backed by a stored catalogue brand belong here.
 BRAND_ALIASES = {"coke": "coca-cola"}
@@ -100,36 +164,35 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
 
 def search(store, query, postcode="", conn=None):
     query = QUERY_CORRECTIONS.get(query.casefold().strip(), query)
+    equivalent = _aldi_equivalent(query) if store == "aldi" else None
     results = _fetch(store, query, postcode, conn=conn)
-    if results:
+    if results and not equivalent:
         return results
-    # A plain singular/plural miss shouldn't come back empty -- "carrot" has
-    # to find "Carrots" just as easily as it finds "Carrot". Best effort only:
-    # if the retry itself can't run (store genuinely has nothing, or a test
-    # double runs out of canned responses), fall back to what we already have.
-    variant = query[:-1] if query.endswith("s") and len(query) > 3 else query + "s"
-    if variant != query:
+    # A plain singular/plural miss shouldn't come back empty.
+    if not results:
+        variant = query[:-1] if query.endswith("s") and len(query) > 3 else query + "s"
         try:
             results = _fetch(store, variant, postcode, conn=conn) or results
         except Exception:
             pass
-    if results or store != "aldi":
+    if not equivalent:
         return results
-    # Named brands can exist in Aldi's range too. Only an empty search
-    # permits a category substitute; direct stock always takes precedence.
-    first = query.casefold().split()
-    generic = GENERIC_EQUIVALENTS.get(first[0]) if first else None
-    if not generic:
+    alias, fallback_query, brand = equivalent
+    # OR-based retrieval can return onions for Red Bull or chocolate for
+    # cola. Check the named product itself before deciding it is stocked.
+    # A real direct line keeps precedence even if its size doesn't fit.
+    identity = name_words(alias)
+    direct = results
+    if not any(identity <= (name_words(c['name']) | name_words(c.get('brand') or '')) for c in direct):
+        direct = _catalogue_lookup(store, alias, limit=200, conn=conn)
+    if any(identity <= (name_words(c['name']) | name_words(c.get('brand') or '')) for c in direct):
         return results
-    fallback_query = " ".join(generic) + " " + " ".join(first[1:])
     try:
         found = _fetch(store, fallback_query, postcode, conn=conn)
-        # OR-based retrieval alone is too broad for a category substitute.
-        # Preserve the category query for scoring instead of comparing the
-        # substitute against a brand it deliberately does not claim.
         wanted = name_words(fallback_query)
         return [dict(c, _match_query=fallback_query) for c in found
-                if wanted <= (name_words(c['name']) | name_words(c.get('brand') or ''))] or results
+                if (not brand or normalized_name(c.get('brand') or '') == normalized_name(brand))
+                and wanted <= (name_words(c['name']) | name_words(c.get('brand') or ''))] or results
     except Exception:
         return results
 
