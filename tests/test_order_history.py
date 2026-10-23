@@ -65,7 +65,9 @@ class OrderHistory(unittest.TestCase):
     def test_size_boost_and_name_floor(self):
         candidates = [dict(store_item_id='1', name='Water', size='600mL'),
                       dict(store_item_id='24', name='Water', size='24x600mL')]
-        self.assertIsNone(pricing.strongest_match('Water', candidates))
+        self.assertEqual(pricing.strongest_match('Water', candidates)['store_item_id'], '1')
+        self.assertIsNone(pricing.strongest_match('Water', [candidates[0],
+            dict(store_item_id='2', name='Water', size='1L')]))
         self.assertEqual(pricing.strongest_match('Water', candidates, {'count': 24})['store_item_id'], '24')
         self.assertIsNone(pricing.strongest_match('Water', [dict(store_item_id='x', name='Orange juice', size='24 pack')], {'count': 24}))
         self.db.execute('DELETE FROM product_store_links')

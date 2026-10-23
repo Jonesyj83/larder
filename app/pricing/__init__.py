@@ -12,6 +12,21 @@ from ..db import rows
 log = logging.getLogger(__name__)
 
 
+# Only retry an absent brand with a narrow category, since an unrelated
+# substitute is worse than leaving the item unmatched.
+GENERIC_EQUIVALENTS = {
+    "pepsi": ("cola", "soft", "drink"),
+    "coke": ("cola", "soft", "drink"),
+    "coca-cola": ("cola", "soft", "drink"),
+    "vegemite": ("yeast", "spread"),
+    "nutella": ("hazelnut", "chocolate", "spread"),
+}
+
+# Only aliases backed by a stored catalogue brand belong here.
+BRAND_ALIASES = {"coke": "coca-cola"}
+QUERY_CORRECTIONS = {"redbull": "red bull"}
+
+
 _CATALOGUE_TABLES = {
     "coles": ("coles_catalogue", "coles_id"),
     "woolworths": ("woolworths_catalogue", "stockcode"),
@@ -26,7 +41,7 @@ def _fetch(store, query, postcode, conn=None):
     return function(query, postcode=postcode) if store == "iga" else function(query)
 
 
-def _catalogue_lookup(store, query, limit=30, conn=None):
+def _catalogue_lookup(store, query, limit=None, conn=None):
     """Coles, Woolworths and Aldi all get matched against a locally
     crawled copy of their whole range instead of a live request per item
     (see scripts/*_catalogue_crawl.py) -- Coles because its live search is
@@ -43,6 +58,10 @@ def _catalogue_lookup(store, query, limit=30, conn=None):
     words = [w for w in re.findall(r"\w+", query.casefold()) if len(w) > 2]
     if not words:
         return []
+    # Broad staples need room for real variants beyond the first few rows.
+    # Keep the window bounded; ambiguity still belongs to strongest_match.
+    if limit is None:
+        limit = 200 if len(words) == 1 else 30
     owns_conn = conn is None
     if owns_conn:
         from .. import db as database
@@ -52,11 +71,20 @@ def _catalogue_lookup(store, query, limit=30, conn=None):
         # strips the brand clean out of the name itself ("Soft Drink Cola
         # Bottle" with brand="Pepsi" sitting separately), so a brand-only
         # query like "Pepsi" would otherwise never find it by name alone.
-        clause = " OR ".join("(name LIKE ? OR brand LIKE ?)" for _ in words)
+        #
+        # Order by how many of the typed words actually matched, not just
+        # whichever rows the table happens to hit first -- a common word
+        # like "red" alone matches hundreds of unrelated rows (Red Onion,
+        # Red Wine, Red Capsicum...), and with no ranking those can fill
+        # the whole result before a real "Red Bull" row ever gets seen.
+        match_clauses = ["(name LIKE ? OR brand LIKE ?)" for _ in words]
+        relevance = " + ".join(f"CASE WHEN {clause} THEN 1 ELSE 0 END" for clause in match_clauses)
         params = [p for w in words for p in (f"%{w}%", f"%{w}%")]
+        clause = " OR ".join(match_clauses)
         found = conn.execute(
-            f"SELECT {id_field} AS item_id, name, brand, size, price, was_price, unit_price, unit_measure FROM {table} "
-            f"WHERE {clause} LIMIT ?", (*params, limit)).fetchall()
+            f"SELECT {id_field} AS item_id, name, brand, size, price, was_price, unit_price, unit_measure, "
+            f"({relevance}) AS relevance FROM {table} "
+            f"WHERE {clause} ORDER BY relevance DESC LIMIT ?", (*params, *params, limit)).fetchall()
     finally:
         if owns_conn:
             conn.close()
@@ -66,6 +94,7 @@ def _catalogue_lookup(store, query, limit=30, conn=None):
 
 
 def search(store, query, postcode="", conn=None):
+    query = QUERY_CORRECTIONS.get(query.casefold().strip(), query)
     results = _fetch(store, query, postcode, conn=conn)
     if results:
         return results
@@ -74,10 +103,28 @@ def search(store, query, postcode="", conn=None):
     # if the retry itself can't run (store genuinely has nothing, or a test
     # double runs out of canned responses), fall back to what we already have.
     variant = query[:-1] if query.endswith("s") and len(query) > 3 else query + "s"
-    if variant == query:
+    if variant != query:
+        try:
+            results = _fetch(store, variant, postcode, conn=conn) or results
+        except Exception:
+            pass
+    if results or store != "aldi":
         return results
+    # Named brands can exist in Aldi's range too. Only an empty search
+    # permits a category substitute; direct stock always takes precedence.
+    first = query.casefold().split()
+    generic = GENERIC_EQUIVALENTS.get(first[0]) if first else None
+    if not generic:
+        return results
+    fallback_query = " ".join(generic) + " " + " ".join(first[1:])
     try:
-        return _fetch(store, variant, postcode, conn=conn) or results
+        found = _fetch(store, fallback_query, postcode, conn=conn)
+        # OR-based retrieval alone is too broad for a category substitute.
+        # Preserve the category query for scoring instead of comparing the
+        # substitute against a brand it deliberately does not claim.
+        wanted = name_words(fallback_query)
+        return [dict(c, _match_query=fallback_query) for c in found
+                if wanted <= (name_words(c['name']) | name_words(c.get('brand') or ''))] or results
     except Exception:
         return results
 
@@ -170,6 +217,9 @@ def size_preference(db, product_id, store):
 
 
 def strongest_match(name, candidates, preferred_size=None):
+    if candidates and all(c.get('_match_query') == candidates[0].get('_match_query') for c in candidates):
+        name = candidates[0].get('_match_query') or name
+    name = QUERY_CORRECTIONS.get(name.casefold().strip(), name)
     words = name_words(name)
     if not words:
         return None
@@ -187,7 +237,12 @@ def strongest_match(name, candidates, preferred_size=None):
     leading = re.findall(r"\w+", unicodedata.normalize("NFKC", stripped).casefold())
     first = leading[0] if leading else ""
     brands = {normalized_name(p.get("brand") or "") for p in candidates}
-    required_brand = first if first in brands else None
+    brand = normalized_name(BRAND_ALIASES.get(first, first))
+    required_brand = brand if brand in brands else None
+    if not required_brand:
+        required_brand = next((normalized_name(" ".join(leading[:n]))
+                               for n in range(len(leading), 1, -1)
+                               if normalized_name(" ".join(leading[:n])) in brands), None)
     def candidate_words(c):
         # Some stores (Coles especially) strip the brand clean out of the
         # name itself ("Soft Drink Cola Bottle" with brand="Pepsi" sitting
@@ -247,9 +302,36 @@ def strongest_match(name, candidates, preferred_size=None):
         # actually typed ("Pork Chops" vs "Pork Loin Chops") is a real
         # gap, not just a plainer name, and must stay a toss-up.
         if all(words <= candidate_words(pair[1]) for pair in tied):
-            by_extra = sorted(tied, key=lambda pair: len(candidate_words(pair[1]) - words))
-            if len(candidate_words(by_extra[0][1]) - words) < len(candidate_words(by_extra[1][1]) - words):
-                return by_extra[0][1]
+            # Container words are packaging, not flavours. Embedded pack
+            # sizes have already disappeared from the same comparison.
+            def extra_words(pair):
+                return candidate_words(pair[1]) - words - {'can', 'bottle', 'single'}
+            by_extra = sorted(tied, key=lambda pair: len(extra_words(pair)))
+            fewest_extra = len(extra_words(by_extra[0]))
+            plainest = [pair for pair in by_extra if len(extra_words(pair)) == fewest_extra]
+            if len(plainest) == 1:
+                return plainest[0][1]
+            if not preferred_size:
+                # A fourfold gap separates an everyday item from a bulk
+                # quantity without deciding between nearby everyday sizes.
+                # Require comparable sizes for every finalist; a missing
+                # size must not silently lose the tie.
+                def total_size(c):
+                    parsed = pack_size(c.get('size') or '')
+                    return next((v for k, v in parsed.items() if k in ('volume', 'mass')), None)
+                sized = [pair for pair in plainest if total_size(pair[1]) is not None]
+                by_size = sorted(sized, key=lambda pair: total_size(pair[1]))
+                dimensions = {key for pair in plainest
+                              for key in pack_size(pair[1].get('size') or '')
+                              if key in ('volume', 'mass')}
+                if len(by_size) == len(plainest) and len(by_size) > 1 and len(dimensions) == 1:
+                    smallest = total_size(by_size[0][1])
+                    # An explicit single can also identifies the intended
+                    # end of a bulk-size spread when another can sits between.
+                    explicit_single = 'single' in name_words(by_size[0][1]['name'])
+                    comparison = by_size[-1] if explicit_single else by_size[1]
+                    if total_size(comparison[1]) >= 4 * smallest > 0 and total_size(by_size[1][1]) > smallest:
+                        return by_size[0][1]
         return None
     return ranked[0][1]
 
