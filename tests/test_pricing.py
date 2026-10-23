@@ -618,6 +618,43 @@ class StoreParsers(unittest.TestCase):
             self.assertTrue(stores.search_iga('pork chops', postcode='Piara Waters').failed)
 
 
+class ColesCatalogueHistory(unittest.TestCase):
+    def setUp(self):
+        self.db = sqlite3.connect(':memory:')
+        self.db.row_factory = sqlite3.Row
+        self.db.executescript(database.SCHEMA)
+        self.addCleanup(self.db.close)
+        self.db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(1,'Coffee Beans',20)")
+        self.db.commit()
+
+    def record(self, price, was_price=None):
+        self.db.execute("""INSERT INTO coles_catalogue_history(coles_id,price,was_price,checked_at)
+            VALUES(1,?,?,datetime('now'))""", (price, was_price))
+        self.db.commit()
+
+    def test_a_special_that_matches_the_usual_price_is_flagged_fake(self):
+        # Permanently "on special" at the same price it always sells for --
+        # exactly the Reddit-tracker pattern this is meant to catch.
+        for _ in range(5):
+            self.record(38, was_price=60)
+        result = pricing.coles_catalogue_history(self.db, 1)
+        self.assertEqual(result['typical_price'], 38)
+        self.assertTrue(all(h['fake_special'] for h in result['history']))
+
+    def test_a_genuine_drop_below_the_usual_price_is_not_flagged(self):
+        for _ in range(4):
+            self.record(10)
+        self.record(6, was_price=10)
+        result = pricing.coles_catalogue_history(self.db, 1)
+        self.assertEqual(result['typical_price'], 10)
+        self.assertFalse(result['history'][-1]['fake_special'])
+
+    def test_no_history_yet_returns_no_typical_price(self):
+        result = pricing.coles_catalogue_history(self.db, 1)
+        self.assertIsNone(result['typical_price'])
+        self.assertEqual(result['history'], [])
+
+
 class ProductsHistoryLogic(unittest.TestCase):
     def test_lazy_history_empty_chart_and_plotting(self):
         import re

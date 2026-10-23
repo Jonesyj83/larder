@@ -83,6 +83,13 @@ def crawl(db, categories=None, delay=12.0, page_size=48, fetch=None, sleep=None,
                             unit_measure=excluded.unit_measure, category=excluded.category, updated_at=excluded.updated_at""",
                         (p["coles_id"], p["name"], p["brand"], p["size"], p["price"], p["was_price"],
                          p["unit_price"], p["unit_measure"], category))
+                    # Append-only -- this is what the price-history graph and
+                    # fake-special checks actually read from. The row above
+                    # only ever holds the latest snapshot for fast matching.
+                    db.execute("""INSERT INTO coles_catalogue_history
+                            (coles_id, price, was_price, unit_price, unit_measure, checked_at)
+                        VALUES (?,?,?,?,?,datetime('now'))""",
+                        (p["coles_id"], p["price"], p["was_price"], p["unit_price"], p["unit_measure"]))
                     total_written += 1
                 finished = page * page_size >= total or len(products) < 10
                 db.execute("""INSERT INTO coles_crawl_progress(category, next_page, done) VALUES(?,?,?)

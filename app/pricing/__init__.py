@@ -4,8 +4,10 @@ import math
 import re
 import time
 import unicodedata
+from statistics import median
 
 from . import stores
+from ..db import rows
 
 log = logging.getLogger(__name__)
 
@@ -313,3 +315,20 @@ def auto_match_all(db, *, search_fn=None, before_search=None, excluded_stores=()
                 (product["id"],)).fetchone():
             result["unmatched"].append({"product_id": product["id"], "name": product["name"]})
     return result
+
+
+def coles_catalogue_history(db, coles_id):
+    """Every price the crawl has ever seen for one Coles product, oldest
+    first, plus whether each "was $X" claim actually matches what the
+    product has really sold for -- same 5%-of-typical rule the household's
+    own price-history graph uses, just against the product's own full
+    history instead of one household's purchases."""
+    checks = rows(db.execute("""SELECT * FROM coles_catalogue_history WHERE coles_id=?
+        ORDER BY checked_at, id""", (coles_id,)))
+    prices = [c["price"] for c in checks if c["price"] is not None]
+    typical = median(prices) if prices else None
+    for check in checks:
+        claimed_special = check["was_price"] is not None and check["price"] is not None and check["was_price"] > check["price"]
+        check["fake_special"] = bool(claimed_special and typical is not None
+            and abs(check["price"] - typical) <= typical * .05 + 1e-9)
+    return {"typical_price": typical, "history": checks}

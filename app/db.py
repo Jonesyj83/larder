@@ -137,6 +137,23 @@ CREATE TABLE IF NOT EXISTS coles_catalogue (
 );
 CREATE INDEX IF NOT EXISTS coles_catalogue_name ON coles_catalogue(name);
 
+-- Every crawl run's observation, kept forever -- coles_catalogue above is
+-- only ever the latest snapshot (overwritten each run so matching stays
+-- fast), but the history graph and "is this special actually real" both
+-- need to see every price a product has ever shown, not just the newest
+-- one. Same append-only idea as store_price_checks, just for the raw
+-- catalogue instead of a household-matched product.
+CREATE TABLE IF NOT EXISTS coles_catalogue_history (
+    id INTEGER PRIMARY KEY,
+    coles_id INTEGER NOT NULL REFERENCES coles_catalogue(coles_id) ON DELETE CASCADE,
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS coles_catalogue_history_latest ON coles_catalogue_history(coles_id, checked_at DESC, id DESC);
+
 -- Coles' soft rate limit doesn't clear inside one run, so a crawl needs to
 -- pick up next time where this one got cut off, not restart from scratch
 -- and burn the same five pages for nothing.

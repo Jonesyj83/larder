@@ -32,6 +32,24 @@ class ColesCatalogueCrawl(unittest.TestCase):
         row = self.db.execute("SELECT done FROM coles_crawl_progress WHERE category='drinks'").fetchone()
         self.assertEqual(row["done"], 1)
 
+    def test_every_run_appends_a_history_row_instead_of_only_overwriting(self):
+        def fetch(category, page):
+            return ([product(1, "Rice", price=4.0)], 1) if page == 1 else ([], 1)
+        crawl(self.db, categories=["pantry"], delay=0, page_size=1, sleep=lambda s: None, fetch=fetch, log=lambda *a: None)
+        # Run it again later with a different price -- the old observation
+        # must still be there, not overwritten.
+        def fetch2(category, page):
+            return ([product(1, "Rice", price=5.0)], 1) if page == 1 else ([], 1)
+        self.db.execute("UPDATE coles_crawl_progress SET next_page=1, done=0 WHERE category='pantry'")
+        self.db.commit()
+        crawl(self.db, categories=["pantry"], delay=0, page_size=1, sleep=lambda s: None, fetch=fetch2, log=lambda *a: None)
+        prices = [r["price"] for r in self.db.execute(
+            "SELECT price FROM coles_catalogue_history WHERE coles_id=1 ORDER BY id").fetchall()]
+        self.assertEqual(prices, [4.0, 5.0])
+        # The catalogue itself only ever shows the latest snapshot.
+        latest = self.db.execute("SELECT price FROM coles_catalogue WHERE coles_id=1").fetchone()
+        self.assertEqual(latest["price"], 5.0)
+
     def test_repeated_failure_stops_the_whole_run_and_saves_the_spot(self):
         calls = []
         def fetch(category, page):
