@@ -233,6 +233,44 @@ CREATE TABLE IF NOT EXISTS aldi_crawl_progress (
     done INTEGER NOT NULL DEFAULT 0
 );
 
+-- IGA prices belong to one physical store, not a national range.
+CREATE TABLE IF NOT EXISTS iga_catalogue (
+    item_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT NOT NULL DEFAULT '',
+    size TEXT NOT NULL DEFAULT '',
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS iga_catalogue_name ON iga_catalogue(name);
+
+CREATE TABLE IF NOT EXISTS iga_catalogue_history (
+    id INTEGER PRIMARY KEY,
+    item_id TEXT NOT NULL REFERENCES iga_catalogue(item_id) ON DELETE CASCADE,
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS iga_catalogue_history_latest ON iga_catalogue_history(item_id, checked_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS iga_crawl_progress (
+    category TEXT PRIMARY KEY,
+    next_page INTEGER NOT NULL DEFAULT 1,
+    done INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS iga_catalogue_store (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    store_id TEXT NOT NULL,
+    location TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS barcodes (
     id INTEGER PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,

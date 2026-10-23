@@ -1,8 +1,8 @@
 """Shared walk-the-whole-catalogue logic, used by the Coles, Woolworths and
-Aldi crawlers. Each store's own script just supplies its category list,
+Aldi and IGA crawlers. Each store's own script just supplies its category list,
 its own fetch function, and which tables/id column to write into -- the
 resume-on-failure, backoff and append-only history bits are identical
-across all three so they live here once instead of three times."""
+across the stores so they live here once."""
 import time
 
 

@@ -515,27 +515,47 @@ def _iga_store_for_location(session, location):
     return store_id
 
 
-def search_iga(query: str, limit: int = 12, postcode: str = ""):
-    if not postcode.strip():
-        raise ValueError("IGA matching requires an area or postcode in Settings")
+def iga_categories(session):
+    response = session.get("https://www.igashop.com.au/categories/pantry")
+    response.raise_for_status()
+    categories = payload(response.text, "__NEXT_DATA__")["props"]["pageProps"]["staticCategories"]
+    if not categories:
+        raise ValueError("Missing IGA departments")
+    return [category["identifier"] for category in categories]
+
+
+def browse_iga_category(store_id, category, page=1, page_size=36, session=None):
+    """The storefront's department search uses skip/take, without a query.
+    Keep the store id fixed for every page because prices vary by owner."""
+    owns_session = session is None
+    session = session or client()
     try:
-        with client() as session:
-            store_id = _iga_store_for_location(session, postcode)
-            response = session.get(f"https://www.igashop.com.au/api/storefront/stores/{store_id}/search",
-                                   params={"q": query, "take": max(1, min(limit, 36))})
-            response.raise_for_status()
-            products = response.json().get("items") or []
-        results = []
-        for p in products:
-            size_info = p.get("unitOfSize") or {}
-            size = " ".join(str(size_info.get(key)).strip() for key in ("size", "abbreviation") if size_info.get(key))
-            results.append({"store_item_id": str(p.get("productId") or p.get("sku") or ""),
-                            "name": p.get("name", ""), "brand": p.get("brand") or "", "size": size,
-                            "price": p.get("priceNumeric"), "was_price": p.get("wasPriceNumeric"),
-                            "unit_price": p.get("wholePrice"),
-                            "unit_measure": (p.get("unitOfPrice") or {}).get("abbreviation", ""),
-                            "on_special": bool(p.get("tprPrice"))})
-        return [item for item in results if item["store_item_id"] and item["name"]]
-    except Exception:
-        log.warning("IGA lookup failed for location %s", postcode, exc_info=True)
-        return FailedResults()
+        response = session.get(
+            f"https://www.igashop.com.au/api/storefront/stores/{store_id}/categories/{category}/search",
+            params={"take": page_size, "skip": (page - 1) * page_size})
+        response.raise_for_status()
+        data = response.json()
+    finally:
+        if owns_session:
+            session.close()
+    if not isinstance(data.get("items"), list) or not isinstance(data.get("total"), int):
+        raise ValueError("Missing IGA category products or total")
+    results = []
+    for p in data["items"]:
+        size_info = p.get("unitOfSize") or {}
+        size = " ".join(str(size_info.get(key)).strip() for key in ("size", "abbreviation") if size_info.get(key))
+        item_id = str(p.get("productId") or p.get("sku") or "")
+        if not item_id or not p.get("name"):
+            raise ValueError("Missing IGA product identity")
+        results.append({"item_id": item_id, "name": p["name"], "brand": p.get("brand") or "", "size": size,
+                        "price": p.get("priceNumeric"), "was_price": p.get("wasPriceNumeric"),
+                        "unit_price": p.get("wholePrice"),
+                        "unit_measure": (p.get("unitOfPrice") or {}).get("abbreviation", "")})
+    if not results and (page - 1) * page_size < data["total"]:
+        raise ValueError("Incomplete IGA category page")
+    return results, data["total"]
+
+
+def search_iga(query: str, limit: int = 12, postcode: str = ""):
+    from . import _catalogue_lookup
+    return _catalogue_lookup("iga", query, limit=limit, postcode=postcode)

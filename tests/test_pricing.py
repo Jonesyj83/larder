@@ -247,9 +247,11 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len((await self.client.get('/api/pricing/stores')).json()), 4)
         response = await self.client.put('/api/pricing/stores/iga', json={'enabled': False, 'postcode': '6000'})
         self.assertEqual(response.json()['postcode'], '6000')
-        self.searches['iga'].return_value = [CANDIDATE]
-        self.assertEqual((await self.client.get('/api/pricing/search?store=iga&q=milk')).json(), [CANDIDATE])
-        self.searches['iga'].assert_called_once_with('milk', postcode='6000')
+        self.db.execute("INSERT INTO iga_catalogue_store VALUES(1,'48323','6000')")
+        self.db.execute("INSERT INTO iga_catalogue(item_id,name,price) VALUES('123','Milk',3.4)")
+        found = (await self.client.get('/api/pricing/search?store=iga&q=milk')).json()
+        self.assertEqual(found[0]['store_item_id'], '123')
+        self.searches['iga'].assert_not_called()
         # Woolworths and Aldi are matched against their own local
         # catalogues too, same as Coles below -- never a live request.
         self.db.execute("INSERT INTO woolworths_catalogue(stockcode,name,price) VALUES(1,'Milk 2L',3.4)")
@@ -314,13 +316,17 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(55,'Red Capsicum',2.5)")
         self.db.commit()
 
-        def iga_lookup(query, postcode=''):
+        lookup = pricing._catalogue_lookup
+
+        def catalogue_lookup(store, query, **kwargs):
+            if store != 'iga':
+                return lookup(store, query, **kwargs)
             if query.startswith('Milk'):
                 raise RuntimeError('offline')
             return {'Bread': [dict(CANDIDATE, name='Bread')]}.get(query, [])
 
-        self.searches['iga'].side_effect = iga_lookup
-        with patch.object(pricing.time, 'sleep') as sleep, self.assertLogs(level='WARNING'):
+        with patch.object(pricing, '_catalogue_lookup', side_effect=catalogue_lookup), \
+             patch.object(pricing.time, 'sleep') as sleep, self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/pricing/products/auto-match')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {
@@ -683,31 +689,32 @@ class StoreParsers(unittest.TestCase):
             with patch.object(stores, 'payload', side_effect=ValueError('bad data')), self.assertLogs(level='WARNING'):
                 self.assertTrue(stores.search_aldi('Dairy Milk').failed)
 
-    def test_iga_resolves_nearest_store_and_normalizes_results(self):
-        with self.assertRaisesRegex(ValueError, 'requires an area or postcode'):
-            stores.search_iga('Milk', postcode='')
+    def test_iga_resolves_nearest_store_and_browses_a_category(self):
+        stores._IGA_STORE_CACHE.clear()
 
         def handler(request):
             if 'nominatim' in str(request.url):
                 return httpx.Response(200, json=[{'lat': '-32.13', 'lon': '115.91'}])
             if '/near/' in str(request.url):
                 return httpx.Response(200, json={'items': [{'retailerStoreId': 48323}]})
-            self.assertEqual(request.url.params['q'], 'pork chops')
-            return httpx.Response(200, json={'items': [
-                {'productId': 80080037, 'name': 'Pork Loin Chops', 'brand': '', 'priceNumeric': 18.495,
+            self.assertTrue(request.url.path.endswith('/stores/48323/categories/Meat/search'))
+            self.assertEqual(request.url.params['skip'], '36')
+            self.assertEqual(request.url.params['take'], '36')
+            self.assertNotIn('q', request.url.params)
+            return httpx.Response(200, json={'total': 37, 'items': [
+                {'productId': '80080037', 'name': 'Pork Loin Chops', 'brand': '', 'priceNumeric': 18.495,
                  'wasPriceNumeric': None, 'wholePrice': 36.99, 'unitOfPrice': {'abbreviation': 'kg'},
-                 'unitOfSize': {'size': '500', 'abbreviation': 'g'}, 'tprPrice': None},
-                {'productId': '', 'name': '', 'priceNumeric': 1},
-            ]})
-        with patch.object(stores, 'client', lambda: self.session(handler)):
-            found = stores.search_iga('pork chops', postcode='Piara Waters')
-        self.assertEqual(len(found), 1)
-        self.assertEqual(found[0]['store_item_id'], '80080037')
+                 'unitOfSize': {'size': '500', 'abbreviation': 'g'}, 'tprPrice': []}]})
+        with self.session(handler) as session:
+            store_id = stores._iga_store_for_location(session, 'Piara Waters')
+            found, total = stores.browse_iga_category(store_id, 'Meat', page=2, session=session)
+        self.assertEqual(total, 37)
+        self.assertEqual(found[0]['item_id'], '80080037')
         self.assertEqual(found[0]['size'], '500 g')
         self.assertEqual(found[0]['price'], 18.495)
-        with patch.object(stores, 'client', lambda: self.session(lambda r: httpx.Response(500))), self.assertLogs(level='WARNING'):
-            stores._IGA_STORE_CACHE.clear()
-            self.assertTrue(stores.search_iga('pork chops', postcode='Piara Waters').failed)
+        with self.session(lambda r: httpx.Response(200, json={})) as session:
+            with self.assertRaisesRegex(ValueError, 'Missing IGA'):
+                stores.browse_iga_category(store_id, 'Meat', session=session)
 
 
 class ColesCatalogueHistory(unittest.TestCase):

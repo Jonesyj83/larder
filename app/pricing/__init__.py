@@ -34,24 +34,19 @@ _CATALOGUE_TABLES = {
     "coles": ("coles_catalogue", "coles_id"),
     "woolworths": ("woolworths_catalogue", "stockcode"),
     "aldi": ("aldi_catalogue", "item_id"),
+    "iga": ("iga_catalogue", "item_id"),
 }
 
 
 def _fetch(store, query, postcode, conn=None):
     if store in _CATALOGUE_TABLES:
-        return _catalogue_lookup(store, query, conn=conn)
+        return _catalogue_lookup(store, query, conn=conn, postcode=postcode)
     function = getattr(stores, "search_" + store)
     return function(query, postcode=postcode) if store == "iga" else function(query)
 
 
-def _catalogue_lookup(store, query, limit=None, conn=None):
-    """Coles, Woolworths and Aldi all get matched against a locally
-    crawled copy of their whole range instead of a live request per item
-    (see scripts/*_catalogue_crawl.py) -- Coles because its live search is
-    bot-walled, the other two just because asking live never builds real
-    history for anything beyond the household's own shortlist. Matching
-    an item just means searching the local copy, same shape of result as
-    any store's live search would give strongest_match to rank.
+def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
+    """Match against each store's locally crawled range.
 
     conn lets a caller that already has the right connection (the current
     request, a test's own db) use it directly; otherwise this opens and
@@ -73,6 +68,10 @@ def _catalogue_lookup(store, query, limit=None, conn=None):
         from .. import db as database
         conn = database.connect()
     try:
+        if store == "iga":
+            source = conn.execute("SELECT location FROM iga_catalogue_store WHERE id=1").fetchone()
+            if not source or source['location'] != postcode.strip().casefold():
+                return []
         # Match a word against either column -- Coles in particular often
         # strips the brand clean out of the name itself ("Soft Drink Cola
         # Bottle" with brand="Pepsi" sitting separately), so a brand-only

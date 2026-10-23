@@ -1,0 +1,10 @@
+# Adjust WorkingDirectory below if this isn't cloned to this exact path.
+[Unit]
+Description=Larder weekly IGA catalogue crawl
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/jonesy/larder
+ExecStart=/home/jonesy/larder/.venv/bin/python scripts/iga_catalogue_crawl.py
+StandardOutput=append:/home/jonesy/larder/data/iga-catalogue.log
+StandardError=append:/home/jonesy/larder/data/iga-catalogue.log
