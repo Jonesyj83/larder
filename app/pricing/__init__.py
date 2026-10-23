@@ -243,6 +243,11 @@ def strongest_match(name, candidates, preferred_size=None):
         required_brand = next((normalized_name(" ".join(leading[:n]))
                                for n in range(len(leading), 1, -1)
                                if normalized_name(" ".join(leading[:n])) in brands), None)
+    if required_brand and first in BRAND_ALIASES:
+        # "Coke" never shows up as a literal word on a candidate stored
+        # under its formal brand ("Coca-Cola Zero Sugar..."), only the
+        # alias's own words do -- swap it in so recall actually sees it.
+        words = (words - {first}) | name_words(BRAND_ALIASES[first])
     def candidate_words(c):
         # Some stores (Coles especially) strip the brand clean out of the
         # name itself ("Soft Drink Cola Bottle" with brand="Pepsi" sitting
