@@ -145,7 +145,7 @@ class CatalogueMatching(unittest.TestCase):
         extra = dict(store_item_id='1', name='English Shaved Ham', price=1)
         # A lower price cannot buy away an extra, unrequested description.
         for ordered in permutations([extra, same, plain]):
-            self.assertEqual(pricing.strongest_match('shaved ham', ordered), plain)
+            self.assertEqual(pricing.strongest_match('shaved ham', ordered), dict(plain, _ambiguous=True))
 
     def test_residual_price_tie_ignores_missing_and_invalid_prices(self):
         from itertools import permutations
@@ -154,16 +154,16 @@ class CatalogueMatching(unittest.TestCase):
         for price in (None, 0, -1, float('nan'), float('inf'), '1', True):
             unknown = dict(store_item_id='1', name='Shaved Ham', price=price)
             for ordered in permutations([unknown, dear, cheap]):
-                self.assertEqual(pricing.strongest_match('shaved ham', ordered), cheap)
+                self.assertEqual(pricing.strongest_match('shaved ham', ordered), dict(cheap, _ambiguous=True))
         missing = dict(store_item_id='1', name='Shaved Ham')
         for ordered in ([missing, cheap], [cheap, missing]):
-            self.assertEqual(pricing.strongest_match('shaved ham', ordered), cheap)
+            self.assertEqual(pricing.strongest_match('shaved ham', ordered), dict(cheap, _ambiguous=True))
         # Equal shelf prices, or no valid prices, use stable IDs as a last resort.
         for price in (None, 3):
             first = dict(missing, price=price)
             second = dict(first, store_item_id='2')
             for ordered in ([first, second], [second, first]):
-                self.assertEqual(pricing.strongest_match('shaved ham', ordered), first)
+                self.assertEqual(pricing.strongest_match('shaved ham', ordered), dict(first, _ambiguous=True))
 
     def test_residual_variant_tie_uses_fewer_words_then_price(self):
         parmesan = dict(store_item_id='3', name='Grated Parmesan Cheese', price=5)
@@ -172,7 +172,7 @@ class CatalogueMatching(unittest.TestCase):
         # No shared plain subset exists. Equal-length types use shelf price,
         # while the cheaper but longer description still loses.
         for ordered in ([parmesan, tasty, cheddar], [cheddar, tasty, parmesan]):
-            self.assertEqual(pricing.strongest_match('grated cheese', ordered), tasty)
+            self.assertEqual(pricing.strongest_match('grated cheese', ordered), dict(tasty, _ambiguous=True))
             self.assertEqual(pricing.strongest_match('grated parmesan cheese', ordered), parmesan)
 
     def test_residual_price_cannot_override_explicit_words_or_cola_variant(self):

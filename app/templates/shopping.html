@@ -69,6 +69,7 @@
                       :class="[storeLink(i, store.store) && cheapest(i, storeLink(i, store.store)) ? 'cheapest' : '', !storeLink(i, store.store) ? 'unmatched' : '']"
                       @click.stop="openPicker(i, store.store)">
                 <span class="store-label" x-text="storeName(store.store)"></span>
+                <span class="small" style="color:var(--warn)" x-show="storeLink(i, store.store)?.needs_review">Review</span>
                 <span class="store-price" x-text="badgePrice(i, store.store)"></span>
               </button>
               <template x-if="i.picker && i.picker.store === store.store">
@@ -82,7 +83,9 @@
                         <del class="muted small" x-show="storeLink(i, store.store).latest_check?.on_special && storeLink(i, store.store).latest_check?.was_price != null" x-text="priceText(storeLink(i, store.store).latest_check?.was_price)"></del>
                       </p>
                       <p class="muted small" x-text="checkedText(storeLink(i, store.store).latest_check?.checked_at)"></p>
-                      <button type="button" class="small" @click="i.picker.mode = 'search'">Change match</button>
+                      <p class="muted small" x-show="storeLink(i, store.store).needs_review">A few products matched. Choose once for this store.</p>
+                      <button type="button" class="small" x-show="storeLink(i, store.store).needs_review" :disabled="i.picker.busy" @click="confirmMatch(i, store.store)">Keep this match</button>
+                      <button type="button" class="small" @click="i.picker.mode = 'search'; searchMatches(i)">Change match</button>
                       <button type="button" class="small" @click="i.picker = null">Close</button>
                     </div>
                   </template>

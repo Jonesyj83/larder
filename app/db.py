@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS product_store_links (
     store_item_id TEXT NOT NULL,
     store_name TEXT NOT NULL DEFAULT '',
     size TEXT NOT NULL DEFAULT '',
+    needs_review INTEGER NOT NULL DEFAULT 0,
     matched_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(product_id, store)
@@ -520,6 +521,8 @@ def init_db():
             conn.execute(f"ALTER TABLE {table} ADD COLUMN classification TEXT NOT NULL DEFAULT '{{}}'")
             # A partial old pass has no classification on its earlier pages.
             conn.execute(f"UPDATE {store}_crawl_progress SET next_page=1, done=0")
+    if "needs_review" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
+        conn.execute("ALTER TABLE product_store_links ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0")
     if "size" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
         conn.execute("ALTER TABLE product_store_links ADD COLUMN size TEXT NOT NULL DEFAULT ''")
     if "list_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(shopping_list)")}:

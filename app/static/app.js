@@ -374,6 +374,12 @@ function storePricing(page) {
         unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
       };
     },
+    async confirmMatch(i, store) {
+      const link = this.storeLink(i, store);
+      if (!link) return;
+      await this.pickMatch(i, store, {...link.latest_check, store_item_id: link.store_item_id,
+        name: link.store_name, size: link.size});
+    },
     async pickMatch(i, store, candidate) {
       if (!i.picker) return;
       i.picker.busy = true;

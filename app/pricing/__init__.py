@@ -242,17 +242,18 @@ def search(store, query, postcode="", conn=None):
         return results
 
 
-def link_product(db, product_id, store, item_id, name, matched_by=None, size=""):
+def link_product(db, product_id, store, item_id, name, matched_by=None, size="", *, needs_review=False):
     existing = db.execute("SELECT id,store_item_id FROM product_store_links WHERE product_id=? AND store=?",
                           (product_id, store)).fetchone()
     if existing and existing["store_item_id"] != item_id:
         # A replacement identity must not inherit the previous item's history.
         db.execute("DELETE FROM product_store_links WHERE id=?", (existing["id"],))
-    db.execute("""INSERT INTO product_store_links(product_id,store,store_item_id,store_name,matched_by,size)
-        VALUES(?,?,?,?,?,?) ON CONFLICT(product_id,store) DO UPDATE SET
+    db.execute("""INSERT INTO product_store_links(product_id,store,store_item_id,store_name,matched_by,size,needs_review)
+        VALUES(?,?,?,?,?,?,?) ON CONFLICT(product_id,store) DO UPDATE SET
         store_name=excluded.store_name, matched_by=excluded.matched_by,
+        needs_review=excluded.needs_review,
         size=CASE WHEN excluded.size != '' THEN excluded.size ELSE product_store_links.size END""",
-        (product_id, store, item_id, name, matched_by, size or ""))
+        (product_id, store, item_id, name, matched_by, size or "", int(needs_review)))
     return db.execute("SELECT id FROM product_store_links WHERE product_id=? AND store=?",
                       (product_id, store)).fetchone()[0]
 
@@ -399,8 +400,9 @@ def type_preference(db, product_id, store):
     product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
     if not product:
         return set()
+    # A provisional choice must not teach later matches its guessed type.
     links = db.execute("""SELECT store,store_item_id,store_name FROM product_store_links
-        WHERE product_id=?""", (product_id,)).fetchall()
+        WHERE product_id=? AND needs_review=0""", (product_id,)).fetchall()
     choices = []
     all_choices = []
     for link in links:
@@ -455,7 +457,7 @@ def classification_preference(db, product_id, store):
     shared label. Conflicting choices supply no structural preference.
     """
     choices = []
-    for link in db.execute("SELECT store,store_item_id FROM product_store_links WHERE product_id=?",
+    for link in db.execute("SELECT store,store_item_id FROM product_store_links WHERE product_id=? AND needs_review=0",
                            (product_id,)):
         if link['store'] == store:
             continue
@@ -804,7 +806,9 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                            and math.isfinite(price) and price > 0)
             return (extra_words(pair)[2], price if valid_price else math.inf,
                     str(candidate['store_item_id']))
-        return min(plainest, key=closest)[1]
+        # Price has settled a remaining tie, not established intent. Return
+        # a copy because search results can be reused for another query.
+        return dict(min(plainest, key=closest)[1], _ambiguous=True)
     return ranked[0][1]
 
 
@@ -829,7 +833,8 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
             if candidate is None:
                 continue
             with db:
-                link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"))
+                link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"),
+                                       needs_review=candidate.get("_ambiguous", False))
                 record_price(db, link_id, candidate)
             matched.append({"product_id": product_id, "name": name, "store": setting["store"]})
         except Exception:
@@ -872,7 +877,8 @@ def auto_match_live(db, product_id, name, excluded_stores=()):
                 continue
             try:
                 with db:
-                    link_id = link_product(db, product_id, store, str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"))
+                    link_id = link_product(db, product_id, store, str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"),
+                                           needs_review=candidate.get("_ambiguous", False))
                     record_price(db, link_id, candidate)
                 matched.append({"product_id": product_id, "name": name, "store": store})
             except Exception:
