@@ -176,3 +176,75 @@ class HouseholdMatching(unittest.TestCase):
             dict(self.bought, name='Grated Parmesan Cheese')], store='coles')
         self.assertTrue(tied['_ambiguous'])
         self.assertFalse(pricing.substitute_pick('grated cheese', 'coles', tied))
+
+    def test_new_item_searches_other_stores_with_seed_description_without_brand(self):
+        self.db.execute('UPDATE store_settings SET enabled=1')
+        calls = []
+
+        def fetch(store, query, postcode='', conn=None):
+            calls.append((store, query))
+            brand = {'aldi': 'BERG', 'coles': 'Coles', 'iga': 'Community Co',
+                     'woolworths': 'Woolworths'}[store]
+            wanted = dict(self.bought, name=brand + ' Leg Shaved Ham', brand=brand)
+            return [wanted] if store == 'aldi' else [dict(self.plain, brand=brand), wanted]
+
+        for path in ('automatic', 'batch', 'live'):
+            with self.subTest(path=path):
+                self.db.execute('DELETE FROM product_store_links')
+                calls.clear()
+                with patch.object(pricing, 'search', side_effect=fetch):
+                    if path == 'automatic':
+                        matched = pricing.auto_match(self.db, 1, 'Ham', search_fn=fetch)
+                    elif path == 'batch':
+                        matched = pricing.auto_match_all(self.db, search_fn=fetch, before_search=lambda: True)['matched']
+                    else:
+                        matched = pricing.auto_match_live(self.db, 1, 'Ham')
+                self.assertEqual(len(matched), 4)
+                self.assertEqual(calls[0], ('aldi', 'Ham'))
+                for store, query in calls[1:]:
+                    self.assertEqual(pricing.name_words(query), {'leg', 'shaved', 'ham'})
+                    self.assertNotIn('berg', query.casefold())
+                self.assertEqual(len(calls), 4)
+                self.assertTrue(all('Leg Shaved Ham' in row[0] for row in self.db.execute(
+                    'SELECT store_name FROM product_store_links')))
+
+    def test_ambiguous_store_waits_for_a_clean_seed_and_is_searched_again(self):
+        self.db.execute('UPDATE store_settings SET enabled=1')
+        calls = []
+
+        def fetch(store, query, postcode):
+            calls.append((store, query))
+            if store == 'aldi' and query == 'Ham':
+                return [dict(self.plain, name='Smoked Ham'), self.bought]
+            return [self.bought]
+
+        matched = pricing.auto_match(self.db, 1, 'Ham', search_fn=fetch)
+        self.assertEqual(len(matched), 4)
+        self.assertEqual(calls[:2], [('aldi', 'Ham'), ('coles', 'Ham')])
+        self.assertEqual(calls[2], ('aldi', 'ham leg shaved'))
+        self.assertTrue(all(query == 'ham leg shaved' for _, query in calls[2:]))
+
+    def test_seed_retrieval_preserves_explicit_pack_request(self):
+        self.db.execute('UPDATE store_settings SET enabled=1')
+        calls = []
+        pack = dict(self.plain, name='Natural Spring Water 24x600ml', size='24x600ml')
+
+        def fetch(store, query, postcode):
+            calls.append(query)
+            return [pack] if store == 'aldi' else [dict(pack, size='600ml', name='Natural Spring Water')]
+
+        matched = pricing.auto_match(self.db, 1, 'water 24', search_fn=fetch)
+        self.assertEqual([m['store'] for m in matched], ['aldi'])
+        self.assertTrue(all(pricing.pack_size(q).get('count') == 24 for q in calls[1:]))
+
+    def test_existing_history_keeps_the_household_query(self):
+        order_history.record(self.db, dict(product_id=1, amount=1, unit_id=1))
+        self.db.execute('UPDATE store_settings SET enabled=1')
+        queries = []
+
+        def fetch(store, query, postcode):
+            queries.append(query)
+            return [self.bought]
+
+        pricing.auto_match(self.db, 1, 'Ham', search_fn=fetch)
+        self.assertEqual(queries, ['Ham'] * 4)

@@ -161,6 +161,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
     closes its own, since auto_match_live can call this from a worker
     thread that has no connection of its own to hand in."""
     table, id_field = _CATALOGUE_TABLES[store]
+    query, _ = _query_pack(query)
     words = sorted(name_words(query, singular=False))
     scoring_words = name_words(query)
     if not words:
@@ -397,7 +398,7 @@ SIZE_TOKEN = (rf"\d+(?:\.\d+)?\s*{SIZE_UNIT}\s*x\s*\d+\s*(?:pack|pk|case)?\b"
 # Coles/Woolworths call it Lite, IGA's Brownes/Country Dairy call it
 # Hi-Lo, Aldi's Farmdale calls it Light -- same product, same intent.
 SYNONYMS = {
-    "shredded": "grated", "sach": "sachet", "hilo": "lite", "light": "lite",
+    "multipack": "pack", "shredded": "grated", "sach": "sachet", "hilo": "lite", "light": "lite",
     "yogurt": "yoghurt", "chocolate": "choc", "bbq": "barbecue", "barbeque": "barbecue",
     "feta": "fetta", "fettucine": "fettuccine", "lasagna": "lasagne",
     "soya": "soy", "mayonnaise": "mayo", "smokey": "smoky", "chili": "chilli",
@@ -450,7 +451,8 @@ def name_words(name, *, singular=True):
     name = re.sub(r"(\d)\s+(?=(?:ml|kg|g|l)\b)", r"\1", name)
     name = re.sub(SIZE_TOKEN, " ", name, flags=re.IGNORECASE)
     # Supermarket names are scoring noise; keep stored names and brand guards intact.
-    words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga", "and"}
+    # Keep decimal measurements whole even when their unit is not a food size.
+    words = set(re.findall(r"\d+(?:\.\d+)+(?:[^\W\d_]+)?|\w+", name)) - {"woolworths", "coles", "aldi", "iga", "and"}
     # A plain trailing "s" shouldn't count as a different word -- "carrot"
     # and "carrots" are the same item, not a mismatch.
     if singular:
@@ -480,6 +482,32 @@ def pack_size(size):
         result['volume' if unit in ('ml', 'l') else 'mass'] = float(measure[1]) * (1000 if unit in ('kg', 'l') else 1)
         result.setdefault('count', 1)
     return result
+
+
+def _query_pack(name, candidates=()):
+    # A lone edge number is household pack shorthand. Leave numbers that
+    # belong to a catalogue description ("2 Minute Noodles") searchable.
+    if pack_size(name):
+        return name, False
+    match = re.fullmatch(r"\s*(?:(\d+)\s+(.+?)|(.+?)\s+(\d+))\s*", name)
+    if not match:
+        return name, False
+    number = match[1] or match[4]
+    item = match[2] or match[3]
+    if not name_words(item) or any(w.isdigit() for w in name_words(item)):
+        return name, False
+    adjacent = (number + ' ' + item.split()[0] if match[1]
+                else item.split()[-1] + ' ' + number)
+    for candidate in candidates:
+        if number not in name_words(candidate['name']):
+            continue
+        if name_words(name) == name_words(candidate['name']):
+            return name, False
+        tokens = re.findall(r'\w+', candidate['name'].casefold())
+        if any(name_words(' '.join(tokens[i:i + 2])) == name_words(adjacent)
+               for i in range(len(tokens) - 1)):
+            return name, False
+    return f"{item} {number} pack", True
 
 
 def size_preference(db, product_id, store):
@@ -625,6 +653,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     if candidates and all(c.get('_match_query') == candidates[0].get('_match_query') for c in candidates):
         name = candidates[0].get('_match_query') or name
     name = QUERY_CORRECTIONS.get(name.casefold().strip(), name)
+    name, bare_count = _query_pack(name, candidates)
     words = name_words(name)
     if not words:
         return None
@@ -733,8 +762,17 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         if preferred_size:
             size = pack_size(candidate.get('size') or '')
             embedded = pack_size(candidate['name'])
-            if embedded and (not size or ('count' in size and not {'mass', 'volume'} & size.keys())):
+            requested_count = bare_count or pack_size(name).get('count', 1) > 1
+            # A numeric retailer size can answer an explicit count request;
+            # it supplies no mass or volume preference on its own.
+            raw_size = (candidate.get('size') or '').strip()
+            if requested_count and not size and re.fullmatch(r'\d+', raw_size):
+                size = pack_size(raw_size + ' pack')
+            if embedded and (not size or ('count' in size and not {'mass', 'volume'} & size.keys())
+                             or requested_count and embedded.get('count', 1) > size.get('count', 1)):
                 size = embedded
+            if requested_count and size.get('count') != preferred_size['count']:
+                continue
             # A shared single-item count cannot make powder measured in
             # kilograms a size match for milk requested in litres.
             dimensions = {'mass', 'volume'}
@@ -932,42 +970,84 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     return ranked[0][1]
 
 
+def _new_match(db, product_id):
+    from .. import order_history
+    return (not db.execute("SELECT 1 FROM product_store_links WHERE product_id=?", (product_id,)).fetchone()
+            and not order_history.recent(db, product_id))
+
+
 def auto_match(db, product_id, name, before_search=None, search_fn=None, excluded_stores=()):
     matched = []
     settings = db.execute("""SELECT * FROM store_settings s WHERE enabled=1
         AND NOT EXISTS (SELECT 1 FROM product_store_links l
             WHERE l.product_id=? AND l.store=s.store) ORDER BY store""", (product_id,)).fetchall()
-    for setting in settings:
-        if setting["store"] in excluded_stores:
-            continue
+    pending = [s for s in settings if s['store'] not in excluded_stores]
+    propagate = _new_match(db, product_id)
+    query = name
+    seeded = False
+    deferred = []
+    known_brands = catalogue_brands(db)
+
+    def save(setting, candidate):
+        with db:
+            link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"),
+                                   needs_review=candidate.get("_ambiguous", False),
+                                   is_substitute=substitute_pick(name, setting["store"], candidate, known_brands))
+            record_price(db, link_id, candidate)
+        matched.append({"product_id": product_id, "name": name, "store": setting["store"]})
+
+    while pending:
+        setting = pending.pop(0)
         try:
             if before_search and before_search() is False:
                 break
             if search_fn:
-                candidates = search_fn(setting["store"], name, setting["postcode"])
+                candidates = search_fn(setting["store"], query, setting["postcode"])
             else:
-                candidates = search(setting["store"], name, setting["postcode"], conn=db)
-            candidate = household_match(db, product_id, name, setting["store"], candidates)
-            if candidate is None:
-                continue
-            with db:
-                link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"),
-                                       needs_review=candidate.get("_ambiguous", False),
-                                       is_substitute=substitute_pick(name, setting["store"], candidate, catalogue_brands(db)))
-                record_price(db, link_id, candidate)
-            matched.append({"product_id": product_id, "name": name, "store": setting["store"]})
+                candidates = search(setting["store"], query, setting["postcode"], conn=db)
+            # Retrieval uses the seed description; original explicit intent,
+            # history and classification still govern every selected result.
+            candidate = household_match(db, product_id, query, setting["store"], candidates)
+            if candidate is not None and query != name:
+                if strongest_match(name, [candidate], size_preference(db, product_id, setting['store']),
+                                   type_preference(db, product_id, setting['store']), store=setting['store'],
+                                   preferred_classification=classification_preference(db, product_id, setting['store'])) is None:
+                    candidate = None
+            if propagate and not seeded:
+                if (candidate is None or candidate.get('_ambiguous')
+                        or substitute_pick(name, setting['store'], candidate, known_brands)):
+                    deferred.append((setting, candidate))
+                    continue
+                generic = name_words(candidate['name']) - name_words(candidate.get('brand') or '')
+                if generic:
+                    seeded = True
+                    explicit, _ = _query_pack(name, candidates)
+                    sizes = [m.group() for m in re.finditer(SIZE_TOKEN, explicit, re.IGNORECASE)]
+                    query = ' '.join([*sorted(generic), *sizes])
+                    pending = [s for s, _ in deferred] + pending
+                    deferred = []
+            if candidate is not None:
+                save(setting, candidate)
         except Exception:
             db.rollback()
             log.warning("Product lookup failed for %s", setting["store"], exc_info=True)
+    for setting, candidate in deferred:
+        if candidate is not None:
+            try:
+                save(setting, candidate)
+            except Exception:
+                db.rollback()
+                log.warning("Saving a match failed for %s", setting['store'], exc_info=True)
     return matched
 
 
 def auto_match_live(db, product_id, name, excluded_stores=()):
-    """Same job as auto_match, but for the moment someone's actually sitting
-    there waiting on an "add item" click -- asks every store at once instead
-    of one after another, so it's one slow store's wait, not the sum of all
-    of them. Never used for the paced nightly/weekly batch jobs; those stay
-    sequential on purpose."""
+    """New items establish a seed before searching the remaining stores.
+    Existing items with household history can search concurrently; paced
+    nightly/weekly jobs continue to use auto_match directly."""
+    if _new_match(db, product_id):
+        return auto_match(db, product_id, name, excluded_stores=excluded_stores)
+
     from concurrent.futures import ThreadPoolExecutor
 
     settings = [s for s in db.execute("""SELECT * FROM store_settings s WHERE enabled=1

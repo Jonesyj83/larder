@@ -153,7 +153,8 @@ class SchemaAndRefresh(unittest.TestCase):
         self.assertTrue(all(call.args[0] != 'coles' for call in fetch.call_args_list))
         self.assertEqual(result['circuit_breakers'], [])
 
-    def test_auto_match_live_asks_every_store_concurrently(self):
+    def test_auto_match_live_with_history_asks_every_store_concurrently(self):
+        self.db.execute("INSERT INTO order_history(product_id,amount,unit_id) VALUES(1,1,1)")
         self.db.executescript("UPDATE store_settings SET enabled=1")
         self.db.commit()
         import time
@@ -183,7 +184,7 @@ class SchemaAndRefresh(unittest.TestCase):
         self.db.executescript("UPDATE store_settings SET enabled=1")
         self.db.commit()
 
-        def flaky_search(store, query, postcode=''):
+        def flaky_search(store, query, postcode='', conn=None):
             if store == 'coles':
                 raise AssertionError('coles must never be asked live')
             if store == 'aldi':
@@ -335,7 +336,8 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
                         {'product_id':3,'name':'Bread','store':'iga'}],
             'unmatched': [{'product_id':1,'name':'Milk 2L'}, {'product_id':2,'name':'Capsicum'},
                           {'product_id':3,'name':'Bread'}]})
-        self.assertEqual(sleep.call_count, 4)
+        # The new unlinked item retries its earlier empty store after a clean seed.
+        self.assertEqual(sleep.call_count, 5)
         sleep.assert_called_with(1.5)
         self.assertEqual(self.db.execute("SELECT store_item_id FROM product_store_links WHERE product_id=1").fetchone()[0], 'kept')
         self.searches['aldi'].assert_not_called()
