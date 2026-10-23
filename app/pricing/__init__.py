@@ -12,25 +12,34 @@ from ..db import rows
 log = logging.getLogger(__name__)
 
 
+_CATALOGUE_TABLES = {
+    "coles": ("coles_catalogue", "coles_id"),
+    "woolworths": ("woolworths_catalogue", "stockcode"),
+    "aldi": ("aldi_catalogue", "item_id"),
+}
+
+
 def _fetch(store, query, postcode, conn=None):
-    if store == "coles":
-        return _coles_catalogue_lookup(query, conn=conn)
+    if store in _CATALOGUE_TABLES:
+        return _catalogue_lookup(store, query, conn=conn)
     function = getattr(stores, "search_" + store)
     return function(query, postcode=postcode) if store == "iga" else function(query)
 
 
-def _coles_catalogue_lookup(query, limit=30, conn=None):
-    """Coles never gets asked live -- its search is bot-walled and its
-    plain browse pages only tolerate a request every several seconds, so
-    the whole catalogue gets crawled on a schedule instead (see
-    scripts/coles_catalogue_crawl.py) and cached locally. Matching an item
-    just means searching that local copy, same shape of result as any
-    other store's live search would give strongest_match to rank.
+def _catalogue_lookup(store, query, limit=30, conn=None):
+    """Coles, Woolworths and Aldi all get matched against a locally
+    crawled copy of their whole range instead of a live request per item
+    (see scripts/*_catalogue_crawl.py) -- Coles because its live search is
+    bot-walled, the other two just because asking live never builds real
+    history for anything beyond the household's own shortlist. Matching
+    an item just means searching the local copy, same shape of result as
+    any store's live search would give strongest_match to rank.
 
     conn lets a caller that already has the right connection (the current
     request, a test's own db) use it directly; otherwise this opens and
     closes its own, since auto_match_live can call this from a worker
     thread that has no connection of its own to hand in."""
+    table, id_field = _CATALOGUE_TABLES[store]
     words = [w for w in re.findall(r"\w+", query.casefold()) if len(w) > 2]
     if not words:
         return []
@@ -41,15 +50,15 @@ def _coles_catalogue_lookup(query, limit=30, conn=None):
     try:
         clause = " OR ".join("name LIKE ?" for _ in words)
         params = [f"%{w}%" for w in words]
-        rows = conn.execute(
-            f"SELECT coles_id, name, brand, size, price, was_price, unit_price, unit_measure FROM coles_catalogue "
+        found = conn.execute(
+            f"SELECT {id_field} AS item_id, name, brand, size, price, was_price, unit_price, unit_measure FROM {table} "
             f"WHERE {clause} LIMIT ?", (*params, limit)).fetchall()
     finally:
         if owns_conn:
             conn.close()
-    return [{"store_item_id": str(r["coles_id"]), "name": r["name"], "brand": r["brand"], "size": r["size"],
+    return [{"store_item_id": str(r["item_id"]), "name": r["name"], "brand": r["brand"], "size": r["size"],
              "price": r["price"], "was_price": r["was_price"], "unit_price": r["unit_price"],
-             "unit_measure": r["unit_measure"], "on_special": bool(r["was_price"])} for r in rows]
+             "unit_measure": r["unit_measure"], "on_special": bool(r["was_price"])} for r in found]
 
 
 def search(store, query, postcode="", conn=None):

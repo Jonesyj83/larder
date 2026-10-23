@@ -136,6 +136,57 @@ def search_woolworths(query: str, limit: int = 12):
              "on_special": bool(p.get("IsOnSpecial"))} for p in flat if p.get("Stockcode")]
 
 
+# The department-level category ids Woolworths' own category tree lists
+# (apis/ui/PiesCategoriesWithSpecials), minus the promotional/non-grocery
+# ones (Specials, seasonal gift pushes, Electronics, Front of Store) --
+# same idea as Coles' CATALOGUE_CATEGORIES, just department-sized instead
+# of leaf-sized since Woolworths has thousands of tiny leaf categories
+# that mostly overlap with each other anyway.
+WOOLWORTHS_CATALOGUE_CATEGORIES = (
+    "1-E5BEE36E", "1_D5A2236", "1_3151F6F", "1_6E4F4E4", "1_DEB537E", "1_ACA2FC2",
+    "1_717445A", "1_39FD49C", "1_F229FBE", "1_5AF3A0A", "1_8E4DA6F", "1_8D61DD6",
+    "1_894D0A8", "1_9851658", "1_2432B58", "1_717A94B", "1_61D6FEB", "1_DEA3ED5",
+)
+
+
+def woolworths_browse_session():
+    """One cookied session for a whole crawl run -- the category browse
+    endpoint isn't bot-walled, just needs a visitor cookie picked up from
+    the homepage first the same way the search API already does."""
+    session = client()
+    session.get("https://www.woolworths.com.au/").raise_for_status()
+    return session
+
+
+def browse_woolworths_category(category_id: str, page: int = 1, page_size: int = 36, session=None):
+    """One page of a Woolworths department listing. The Url param this
+    endpoint also wants is only used for breadcrumbs/SEO metadata -- the
+    actual results are driven entirely by CategoryId, confirmed by
+    requesting a mismatched Url and getting correct results anyway."""
+    owns_session = session is None
+    session = session or client()
+    try:
+        if owns_session:
+            session.get("https://www.woolworths.com.au/").raise_for_status()
+        response = session.get("https://www.woolworths.com.au/apis/ui/browse/category", params={
+            "Url": "/shop/browse/pantry", "FormatObject": "{}",
+            "CategoryId": category_id, "PageNumber": page, "PageSize": page_size})
+        response.raise_for_status()
+    finally:
+        if owns_session:
+            session.close()
+    data = response.json()
+    out = []
+    for bundle in data.get("Bundles") or []:
+        for p in bundle.get("Products") or []:
+            if not p.get("Stockcode"):
+                continue
+            out.append({"stockcode": p["Stockcode"], "name": p["Name"], "brand": p.get("Brand") or "",
+                        "size": p.get("PackageSize") or "", "price": p.get("Price"), "was_price": p.get("WasPrice"),
+                        "unit_price": p.get("CupPrice"), "unit_measure": p.get("CupMeasure") or ""})
+    return out, data.get("TotalRecordCount") or 0
+
+
 def search_coles(query: str, limit: int = 12):
     for attempt in range(2):
         try:
@@ -328,7 +379,10 @@ def _categories(session):
 
 def _product_dicts(value):
     if isinstance(value, dict):
-        if (value.get("sku") or value.get("productId") or value.get("code")) and (value.get("name") or value.get("displayName")):
+        # "sku" specifically -- Aldi's page data also carries small
+        # locale/currency objects (e.g. {"code":"AUD","name":"Australian
+        # Dollar"}) that otherwise pass this same shape check.
+        if value.get("sku") and (value.get("name") or value.get("displayName")):
             yield value
         for nested in value.values():
             yield from _product_dicts(nested)
@@ -385,8 +439,8 @@ def search_aldi(query: str, limit: int = 12):
                     if isinstance(price, int) and not isinstance(price, bool):
                         price = price / 100
                     item_id = str(p.get("sku") or p.get("productId") or p.get("code"))
-                    out[item_id] = {"store_item_id": item_id, "name": name, "brand": p.get("brand") or "",
-                                    "size": p.get("size") or "", "price": price,
+                    out[item_id] = {"store_item_id": item_id, "name": name, "brand": p.get("brandName") or "",
+                                    "size": p.get("sellingSize") or "", "price": price,
                                     "was_price": p.get("wasPrice"), "unit_price": price if re.search(r"\bper\s+kg\b", name, re.I) else None,
                                     "unit_measure": "kg" if re.search(r"\bper\s+kg\b", name, re.I) else "",
                                     "on_special": bool(p.get("wasPrice")), "_score": score}
@@ -394,6 +448,41 @@ def search_aldi(query: str, limit: int = 12):
     except Exception:
         log.warning("Aldi lookup failed", exc_info=True)
         return FailedResults()
+
+
+def browse_aldi_category(path: str, session=None):
+    """Every product on one Aldi category page, no relevance filtering --
+    search_aldi() above already does the heavy lifting of fetching and
+    parsing a category page, this just keeps everything instead of
+    throwing out anything that doesn't match a search term. Aldi's pages
+    render their whole category in one response, so there's no further
+    pagination to walk."""
+    owns_session = session is None
+    session = session or client()
+    try:
+        response = session.get("https://www.aldi.com.au" + path)
+        response.raise_for_status()
+        data = _unflatten(payload(response.text, "__NUXT_DATA__"))
+    finally:
+        if owns_session:
+            session.close()
+    out = {}
+    for p in _product_dicts(data):
+        name = p.get("name") or p.get("displayName")
+        if not isinstance(name, str):
+            continue
+        item_id = str(p.get("sku") or p.get("productId") or p.get("code"))
+        price = p.get("price")
+        if isinstance(price, dict):
+            price = price.get("amount", price.get("value"))
+        if isinstance(price, int) and not isinstance(price, bool):
+            price = price / 100
+        out[item_id] = {"item_id": item_id, "name": name, "brand": p.get("brandName") or "",
+                        "size": p.get("sellingSize") or "", "price": price, "was_price": p.get("wasPrice"),
+                        "unit_price": price if re.search(r"\bper\s+kg\b", name, re.I) else None,
+                        "unit_measure": "kg" if re.search(r"\bper\s+kg\b", name, re.I) else ""}
+    products = list(out.values())
+    return products, len(products)
 
 
 _IGA_STORE_CACHE = {}

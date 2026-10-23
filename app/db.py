@@ -163,6 +163,76 @@ CREATE TABLE IF NOT EXISTS coles_crawl_progress (
     done INTEGER NOT NULL DEFAULT 0
 );
 
+-- Same idea as the three Coles tables above, for Woolworths. Their search
+-- box isn't blocked at all, but crawling the whole range up front still
+-- beats asking live every time -- instant matching, and real history for
+-- every product instead of just the ones on someone's list.
+CREATE TABLE IF NOT EXISTS woolworths_catalogue (
+    stockcode INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT NOT NULL DEFAULT '',
+    size TEXT NOT NULL DEFAULT '',
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS woolworths_catalogue_name ON woolworths_catalogue(name);
+
+CREATE TABLE IF NOT EXISTS woolworths_catalogue_history (
+    id INTEGER PRIMARY KEY,
+    stockcode INTEGER NOT NULL REFERENCES woolworths_catalogue(stockcode) ON DELETE CASCADE,
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS woolworths_catalogue_history_latest ON woolworths_catalogue_history(stockcode, checked_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS woolworths_crawl_progress (
+    category TEXT PRIMARY KEY,
+    next_page INTEGER NOT NULL DEFAULT 1,
+    done INTEGER NOT NULL DEFAULT 0
+);
+
+-- Same idea again for Aldi. Aldi's own category pages already render
+-- their full contents in one go (no further pagination), so each
+-- category here only ever takes a single page -- the table shape stays
+-- identical to the other two stores regardless.
+CREATE TABLE IF NOT EXISTS aldi_catalogue (
+    item_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    brand TEXT NOT NULL DEFAULT '',
+    size TEXT NOT NULL DEFAULT '',
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS aldi_catalogue_name ON aldi_catalogue(name);
+
+CREATE TABLE IF NOT EXISTS aldi_catalogue_history (
+    id INTEGER PRIMARY KEY,
+    item_id TEXT NOT NULL REFERENCES aldi_catalogue(item_id) ON DELETE CASCADE,
+    price REAL,
+    was_price REAL,
+    unit_price REAL,
+    unit_measure TEXT NOT NULL DEFAULT '',
+    checked_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS aldi_catalogue_history_latest ON aldi_catalogue_history(item_id, checked_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS aldi_crawl_progress (
+    category TEXT PRIMARY KEY,
+    next_page INTEGER NOT NULL DEFAULT 1,
+    done INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS barcodes (
     id INTEGER PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,

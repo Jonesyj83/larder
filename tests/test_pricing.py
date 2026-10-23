@@ -250,9 +250,15 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.searches['iga'].return_value = [CANDIDATE]
         self.assertEqual((await self.client.get('/api/pricing/search?store=iga&q=milk')).json(), [CANDIDATE])
         self.searches['iga'].assert_called_once_with('milk', postcode='6000')
+        # Woolworths and Aldi are matched against their own local
+        # catalogues too, same as Coles below -- never a live request.
+        self.db.execute("INSERT INTO woolworths_catalogue(stockcode,name,price) VALUES(1,'Milk 2L',3.4)")
+        self.db.execute("INSERT INTO aldi_catalogue(item_id,name,price) VALUES('a1','Milk 2L',3.4)")
+        self.db.commit()
         for store in ('aldi', 'woolworths'):
-            self.searches[store].return_value = [CANDIDATE]
-            self.assertEqual((await self.client.get(f'/api/pricing/search?store={store}&q=milk')).json(), [CANDIDATE])
+            found = (await self.client.get(f'/api/pricing/search?store={store}&q=milk')).json()
+            self.assertEqual(found[0]['name'], 'Milk 2L')
+            self.searches[store].assert_not_called()
         # Coles doesn't go through its live search at all -- it's a lookup
         # against the catalogue crawled on a schedule (see
         # scripts/coles_catalogue_crawl.py), which is just the request's db.
@@ -261,7 +267,7 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         found = (await self.client.get('/api/pricing/search?store=coles&q=milk')).json()
         self.assertEqual(found[0]['name'], 'Milk 2L')
         self.searches['coles'].assert_not_called()
-        with patch.object(pricing, '_coles_catalogue_lookup', side_effect=ValueError('db error')), self.assertLogs(level='WARNING'):
+        with patch.object(pricing, '_catalogue_lookup', side_effect=ValueError('db error')), self.assertLogs(level='WARNING'):
             self.assertEqual((await self.client.get('/api/pricing/search?store=coles&q=milk')).status_code, 502)
         self.assertEqual((await self.client.put('/api/pricing/stores/unknown', json={'enabled': True})).status_code, 404)
         self.assertEqual((await self.client.get('/api/pricing/search?store=unknown&q=milk')).status_code, 404)
@@ -364,10 +370,12 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
 
     async def test_creation_matches_only_unambiguous_names_and_enabled_stores(self):
         self.db.execute("UPDATE store_settings SET enabled=0 WHERE store='iga'")
-        self.db.execute("INSERT INTO coles_catalogue(coles_id,name,price) VALUES(123,'MILK 2 L',3.4)")
+        self.db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,price) VALUES(123,'MILK 2 L',3.4);
+            INSERT INTO woolworths_catalogue(stockcode,name,price) VALUES(1,'Milk 2L',3.5),(2,'Milk 2L',3.6);
+            INSERT INTO aldi_catalogue(item_id,name,price) VALUES('a1','Dark Chocolate Block',4.0);
+        """)
         self.db.commit()
-        self.searches['woolworths'].return_value = [CANDIDATE, dict(CANDIDATE, store_item_id='456')]
-        self.searches['aldi'].return_value = [dict(CANDIDATE, name='Dark Chocolate Block')]
         response = await self.client.post('/api/products', json={'name': 'Milk 2L', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
         product_id = response.json()['id']
@@ -377,14 +385,20 @@ class PricingAPI(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(links[0]['store_item_id'], '123')
         self.searches['iga'].assert_not_called()
         self.searches['coles'].assert_not_called()
+        self.searches['woolworths'].assert_not_called()
+        self.searches['aldi'].assert_not_called()
         await self.client.put(f'/api/products/{product_id}', json={'name': 'Milk', 'unit_id': 1})
         self.searches['coles'].assert_not_called()
 
     async def test_creation_survives_site_and_whole_hook_failure(self):
-        with patch.object(pricing, '_coles_catalogue_lookup', side_effect=ValueError('db error')), self.assertLogs(level='WARNING'):
+        with patch.object(pricing, '_catalogue_lookup', side_effect=ValueError('db error')), self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Milk', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
-        self.searches['woolworths'].assert_called()
+        # Coles, Woolworths and Aldi all go through the same local lookup
+        # now -- one failing there must not stop the product from being
+        # created, it just means none of those three end up linked.
+        links = (await self.client.get(f"/api/pricing/products/{response.json()['id']}")).json()
+        self.assertEqual([l['store'] for l in links if l['store'] in ('coles', 'woolworths', 'aldi')], [])
         with patch.object(pricing, 'auto_match', side_effect=RuntimeError('offline')), self.assertLogs(level='WARNING'):
             response = await self.client.post('/api/products', json={'name': 'Bread', 'unit_id': 1})
         self.assertEqual(response.status_code, 201)
@@ -417,7 +431,7 @@ class ScoredMatching(unittest.TestCase):
         self.assertEqual(calls, ['carrot', 'carrots'])
         self.assertEqual(result, [self.candidate('Carrots')])
 
-    def test_coles_matches_against_the_local_catalogue_not_a_live_request(self):
+    def test_catalogue_stores_match_locally_never_live(self):
         import sqlite3
         from app import db as database
         db = sqlite3.connect(':memory:')
@@ -426,21 +440,27 @@ class ScoredMatching(unittest.TestCase):
         db.executescript("""
             INSERT INTO coles_catalogue(coles_id,name,brand,size,price) VALUES
                 (1,'Carrots 1kg','',  '1kg', 2.1),
-                (2,'Baby Spinach 120g','','120g', 3.5)
+                (2,'Baby Spinach 120g','','120g', 3.5);
+            INSERT INTO woolworths_catalogue(stockcode,name,brand,size,price) VALUES
+                (10,'Carrots 1kg','','1kg', 2.2);
+            INSERT INTO aldi_catalogue(item_id,name,brand,size,price) VALUES
+                ('a1','Carrots 1kg','','1kg', 1.9);
         """)
         db.commit()
-        with patch.object(pricing.stores, 'search_coles') as live, \
-             patch.object(pricing.stores, 'search_coles_browser') as browser:
-            result = pricing.search('coles', 'carrot', conn=db)
-        live.assert_not_called()
-        browser.assert_not_called()
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['name'], 'Carrots 1kg')
-        # Other stores are unaffected -- only Coles is redirected to the
-        # local catalogue.
-        with patch.object(pricing.stores, 'search_woolworths', return_value=[CANDIDATE]) as live:
-            pricing.search('woolworths', 'carrot')
-        live.assert_called_once()
+        with patch.object(pricing.stores, 'search_coles') as coles_live, \
+             patch.object(pricing.stores, 'search_coles_browser') as coles_browser, \
+             patch.object(pricing.stores, 'search_woolworths') as ww_live, \
+             patch.object(pricing.stores, 'search_aldi') as aldi_live:
+            coles = pricing.search('coles', 'carrot', conn=db)
+            woolworths = pricing.search('woolworths', 'carrot', conn=db)
+            aldi = pricing.search('aldi', 'carrot', conn=db)
+        coles_live.assert_not_called()
+        coles_browser.assert_not_called()
+        ww_live.assert_not_called()
+        aldi_live.assert_not_called()
+        self.assertEqual([r['name'] for r in coles if r['name'] == 'Carrots 1kg'], ['Carrots 1kg'])
+        self.assertEqual(woolworths[0]['name'], 'Carrots 1kg')
+        self.assertEqual(aldi[0]['name'], 'Carrots 1kg')
 
     def test_wildly_different_size_is_rejected_not_just_scored_lower(self):
         # Same words, very different pack -- a known-size history must stop
@@ -565,6 +585,27 @@ class StoreParsers(unittest.TestCase):
         self.assertEqual(result[0]['name'], 'Brown Onions per kg')
         self.assertEqual(result[0]['unit_measure'], 'kg')
         self.assertEqual(result[0]['unit_price'], 2.49)
+
+    def test_browse_aldi_category_reads_real_field_names_and_skips_junk(self):
+        # Real Aldi product dicts use brandName/sellingSize, not brand/size
+        # -- and the page data also carries small locale/currency objects
+        # ({"code":"AUD","name":"Australian Dollar"}) that look just enough
+        # like a product to slip through without the sku check. Nuxt's
+        # devalue format treats every int as an index into this same
+        # array, not a literal -- same convention the other Aldi tests
+        # above already follow.
+        arr = [{'junk': 1, 'product': 2},
+               {'code': 3, 'name': 4},
+               {'sku': 5, 'name': 6, 'brandName': 7, 'sellingSize': 8, 'price': 9},
+               'AUD', 'Australian Dollar', '123', 'Full Cream Milk', 'MAMIA', '2 L', {'amount': 10}, 350]
+        def handler(request):
+            return httpx.Response(200, text='<script id="__NUXT_DATA__">' + json.dumps(arr) + '</script>')
+        with patch.object(stores, 'client', lambda: self.session(handler)):
+            products, total = stores.browse_aldi_category('/products/dairy/k/1')
+        self.assertEqual(len(products), 1)
+        self.assertEqual(products[0]['brand'], 'MAMIA')
+        self.assertEqual(products[0]['size'], '2 L')
+        self.assertEqual(products[0]['price'], 3.5)
 
     def test_nuxt_references_shared_slots_wrappers_and_cycle(self):
         data = [{'product': 1, 'same': 1, 'cycle': 5}, {'name': 2, 'price': 3}, 'Milk', 3.4, None, {'self': 5}]
