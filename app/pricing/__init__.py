@@ -521,13 +521,8 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         if len(tied) == 1:
             return tied[0][1]
     if len(tied) > 1:
-        # Several real products tie -- usually different flavour/variant
-        # lines of the same thing ("Pepsi Max", "Pepsi Vanilla") that all
-        # genuinely contain every word that was typed, just with extra
-        # words tacked on. Only worth breaking the tie when that's true
-        # for every one of them -- a candidate missing a word that was
-        # actually typed ("Pork Chops" vs "Pork Loin Chops") is a real
-        # gap, not just a plainer name, and must stay a toss-up.
+        # Only full-recall products can participate in title preferences;
+        # a missing typed word is not evidence of a plainer match.
         if all(words <= candidate_words(pair[1]) for pair in tied):
             # Container words are packaging, not flavours. Embedded pack
             # sizes have already disappeared from the same comparison.
@@ -556,9 +551,9 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                 return premium, multipack, len(extra)
             priority = min(extra_words(pair)[:2] for pair in tied)
             tied = [pair for pair in tied if extra_words(pair)[:2] == priority]
-            # Title length cannot decide between distinct unrequested types.
-            # Compare residual descriptions after removing owned brand words
-            # and packaging; only a shared type or a true plain subset wins.
+            # Try shared types and true plain subsets before the final
+            # title/price preference. Compare residual descriptions after
+            # removing owned brand words and packaging.
             def variant_words(pair):
                 c = pair[1]
                 extra = name_words(c['name']) - words - name_words(c.get('brand') or '') - remembered
@@ -577,18 +572,9 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                      if all(variant <= other for other in variants)]
             if not plain and remembered:
                 plain = [pair for pair in tied if remembered <= candidate_words(pair[1])]
-            if not plain:
-                return None
-            if (len(plain) == 1 and len(tied) > 1 and not required_brand
-                    and not default_type and not remembered):
-                candidate = plain[0][1]
-                labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
-                # An unspecified brand's short title is not a confirmed
-                # category default when other real variants are present.
-                if (candidate.get('brand') and normalized_name(candidate['brand']) not in labels
-                        and not variant_words(plain[0])):
-                    return None
-            tied = plain
+            # Without a shared plain subset, retain the real alternatives
+            # for the final closest-title and price preference.
+            tied = plain or tied
             if len(tied) == 1:
                 return tied[0][1]
             if generic_type or remembered:
@@ -662,9 +648,19 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                     everyday = everyday_size(home)
                     if everyday is not None:
                         return everyday
-        # Full Cream still leaves brands and nearby sizes undecided.
-        # Equally valid brands and nearby sizes remain ambiguous.
-        return None
+        # All remaining products have survived explicit intent and size
+        # checks. Prefer fewer unrequested words, then the lowest valid
+        # shelf price: it is the smaller household spend for an equal title.
+        # Missing prices lose; stable IDs settle equal or absent prices so
+        # catalogue retrieval order cannot change the result.
+        def closest(pair):
+            candidate = pair[1]
+            price = candidate.get('price')
+            valid_price = (isinstance(price, (int, float)) and not isinstance(price, bool)
+                           and math.isfinite(price) and price > 0)
+            return (extra_words(pair)[2], price if valid_price else math.inf,
+                    str(candidate['store_item_id']))
+        return min(plainest, key=closest)[1]
     return ranked[0][1]
 
 

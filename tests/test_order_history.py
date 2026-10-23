@@ -66,8 +66,9 @@ class OrderHistory(unittest.TestCase):
         candidates = [dict(store_item_id='1', name='Water', size='600mL'),
                       dict(store_item_id='24', name='Water', size='24x600mL')]
         self.assertEqual(pricing.strongest_match('Water', candidates)['store_item_id'], '1')
-        self.assertIsNone(pricing.strongest_match('Water', [candidates[0],
-            dict(store_item_id='2', name='Water', size='1L')]))
+        # Equal residual titles and missing prices settle by stable ID.
+        self.assertEqual(pricing.strongest_match('Water', [candidates[0],
+            dict(store_item_id='2', name='Water', size='1L')])['store_item_id'], '1')
         self.assertEqual(pricing.strongest_match('Water', candidates, {'count': 24})['store_item_id'], '24')
         self.assertIsNone(pricing.strongest_match('Water', [dict(store_item_id='x', name='Orange juice', size='24 pack')], {'count': 24}))
         self.db.execute('DELETE FROM product_store_links')
@@ -92,8 +93,9 @@ class OrderHistory(unittest.TestCase):
         self.assertEqual(self.db.execute("SELECT store_item_id FROM product_store_links WHERE store='aldi'").fetchone()[0], '1')
         self.assertEqual(pricing.strongest_match('full cream milk', candidates,
             preferred_type={'skim', 'long', 'life'}), full)
-        self.assertIsNone(pricing.strongest_match('Milk', [skim, dict(skim, store_item_id='3')],
-            preferred_type={'skim', 'long', 'life'}))
+        # Equal residual titles and missing prices settle by stable ID.
+        self.assertEqual(pricing.strongest_match('Milk', [skim, dict(skim, store_item_id='3')],
+            preferred_type={'skim', 'long', 'life'})['store_item_id'], '1')
 
     def test_conflicting_links_only_remember_shared_words(self):
         self.db.execute("UPDATE products SET name='Milk' WHERE id=1")

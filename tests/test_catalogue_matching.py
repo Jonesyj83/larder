@@ -16,26 +16,75 @@ class CatalogueMatching(unittest.TestCase):
     def match(self, store, query):
         return pricing.strongest_match(query, pricing.search(store, query, conn=self.db), store=store)
 
-    def test_soy_milk_house_label_needs_a_type_or_brand_signal(self):
+    def test_soy_milk_residual_tie_uses_plainest_house_title(self):
         candidates = json.loads((Path(__file__).parent / 'fixtures' / 'soy_milk_tie.json').read_text())
         self.db.executemany(
             'INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES(?,?,?,?)',
             [(c['store_item_id'], c['name'], c['brand'], c['size']) for c in candidates])
-        # Shelf-life wording does not establish a household formulation
-        # preference among regular, lite, fortified and unsweetened lines.
+        # Unrequested formulations now resolve by the closest remaining title;
+        # remembered and explicit formulation words still take precedence.
         for ordered in (candidates, list(reversed(candidates))):
-            self.assertIsNone(pricing.strongest_match('1l soy milk', ordered, store='woolworths'))
+            # The shortest remaining soy titles use the confirmed house label.
+            self.assertEqual(pricing.strongest_match('1l soy milk', ordered, store='woolworths')['store_item_id'], '779130')
             self.assertEqual(pricing.strongest_match('1l soy milk', ordered,
                              preferred_type={'long', 'life', 'uht'},
                              store='woolworths')['store_item_id'], '779130')
-        self.assertIsNone(self.match('woolworths', '1l soy milk'))
+        # Retrieval and direct selection agree on the plainest house-label title.
+        self.assertEqual(self.match('woolworths', '1l soy milk')['store_item_id'], '779130')
         for query in ('1l woolworths soy milk', '1l soy milk long life uht'):
             self.assertEqual(self.match('woolworths', query)['store_item_id'], '779130')
-        for query in ('1l soy milk lite', '1l soy milk calci plus'):
-            self.assertIsNone(self.match('woolworths', query))
+        # Explicit formulation words retain full recall; the shortest title wins.
+        for query, expected in (('1l soy milk lite', '216826'),
+                                ('1l soy milk calci plus', '153587')):
+            self.assertEqual(self.match('woolworths', query)['store_item_id'], expected)
         for query, expected in (('1l vitasoy soy milky lite', '216826'),
                                 ('1l soy milk vanilla', '5535')):
             self.assertEqual(self.match('woolworths', query)['store_item_id'], expected)
+
+    def test_residual_tie_prefers_plain_words_before_shelf_price(self):
+        from itertools import permutations
+        plain = dict(store_item_id='3', name='Shaved Ham', price=6)
+        same = dict(store_item_id='2', name='Shaved Ham', price=8)
+        extra = dict(store_item_id='1', name='English Shaved Ham', price=1)
+        # A lower price cannot buy away an extra, unrequested description.
+        for ordered in permutations([extra, same, plain]):
+            self.assertEqual(pricing.strongest_match('shaved ham', ordered), plain)
+
+    def test_residual_price_tie_ignores_missing_and_invalid_prices(self):
+        from itertools import permutations
+        cheap = dict(store_item_id='9', name='Shaved Ham', price=3)
+        dear = dict(store_item_id='8', name='Shaved Ham', price=7)
+        for price in (None, 0, -1, float('nan'), float('inf'), '1', True):
+            unknown = dict(store_item_id='1', name='Shaved Ham', price=price)
+            for ordered in permutations([unknown, dear, cheap]):
+                self.assertEqual(pricing.strongest_match('shaved ham', ordered), cheap)
+        missing = dict(store_item_id='1', name='Shaved Ham')
+        for ordered in ([missing, cheap], [cheap, missing]):
+            self.assertEqual(pricing.strongest_match('shaved ham', ordered), cheap)
+        # Equal shelf prices, or no valid prices, use stable IDs as a last resort.
+        for price in (None, 3):
+            first = dict(missing, price=price)
+            second = dict(first, store_item_id='2')
+            for ordered in ([first, second], [second, first]):
+                self.assertEqual(pricing.strongest_match('shaved ham', ordered), first)
+
+    def test_residual_variant_tie_uses_fewer_words_then_price(self):
+        parmesan = dict(store_item_id='3', name='Grated Parmesan Cheese', price=5)
+        tasty = dict(store_item_id='2', name='Grated Tasty Cheese', price=3)
+        cheddar = dict(store_item_id='1', name='Grated Mature Cheddar Cheese', price=1)
+        # No shared plain subset exists. Equal-length types use shelf price,
+        # while the cheaper but longer description still loses.
+        for ordered in ([parmesan, tasty, cheddar], [cheddar, tasty, parmesan]):
+            self.assertEqual(pricing.strongest_match('grated cheese', ordered), tasty)
+            self.assertEqual(pricing.strongest_match('grated parmesan cheese', ordered), parmesan)
+
+    def test_residual_price_cannot_override_explicit_words_or_cola_variant(self):
+        classic = dict(store_item_id='3', name='Classic Cola', size='2L', price=6)
+        diet = dict(store_item_id='1', name='Diet Cola', size='2L', price=1)
+        self.assertEqual(pricing.strongest_match('2l cola', [diet, classic]), classic)
+        self.assertEqual(pricing.strongest_match('2l diet cola', [classic, diet]), diet)
+        self.assertIsNone(pricing.strongest_match('2l cherry cola', [classic, diet]))
+        self.assertIsNone(pricing.strongest_match('shaved ham', [classic, diet]))
 
     def test_home_brand_only_settles_one_remaining_category_choice(self):
         home = dict(store_item_id='1', name='Woolworths Whole Milk Full Cream Milk',
@@ -43,18 +92,22 @@ class CatalogueMatching(unittest.TestCase):
         named = dict(store_item_id='2', name='Devondale Full Cream Milk',
                      brand='Devondale', size='1L')
         candidates = [named, home]
-        self.assertIsNone(pricing.strongest_match('milk', candidates))
+        # Equal extra-word counts and missing prices settle by stable ID.
+        self.assertEqual(pricing.strongest_match('milk', candidates)['store_item_id'], '1')
         self.assertEqual(pricing.strongest_match('milk', candidates, store='woolworths'), home)
-        self.assertIsNone(pricing.strongest_match('milk', candidates, store='aldi'))
-        self.assertIsNone(pricing.strongest_match('milk', candidates +
-            [dict(home, store_item_id='3', size='2L')], store='woolworths'))
+        # Without a matching house label, equal titles settle by stable ID.
+        self.assertEqual(pricing.strongest_match('milk', candidates, store='aldi')['store_item_id'], '1')
+        # Nearby house sizes remain valid; equal missing prices settle by ID.
+        self.assertEqual(pricing.strongest_match('milk', candidates +
+            [dict(home, store_item_id='3', size='2L')], store='woolworths')['store_item_id'], '1')
         self.assertEqual(pricing.strongest_match('devondale milk', candidates,
                          store='woolworths'), named)
         self.assertIsNone(pricing.strongest_match('milk', candidates,
                          preferred_type={'skim'}, store='woolworths'))
         # A premium line is not the plain house label.
-        self.assertIsNone(pricing.strongest_match('milk', [named,
-            dict(home, brand='Macro', name='Macro Full Cream Milk')], store='woolworths'))
+        # Macro and Devondale tie on extra words; missing prices settle by ID.
+        self.assertEqual(pricing.strongest_match('milk', [named,
+            dict(home, brand='Macro', name='Macro Full Cream Milk')], store='woolworths')['store_item_id'], '1')
 
     def test_aldi_plain_sauce_uses_confirmed_house_label(self):
         self.db.executescript("""
@@ -69,7 +122,8 @@ class CatalogueMatching(unittest.TestCase):
         # drink substitution must remain category-specific.
         self.assertNotIn('REGAL', pricing.HOME_BRANDS['aldi'])
         self.db.execute("UPDATE aldi_catalogue SET brand='Other' WHERE item_id='370683'")
-        self.assertIsNone(self.match('aldi', 'tomato sauce'))
+        # The shortest real sauce title remains valid without a house label.
+        self.assertEqual(self.match('aldi', 'tomato sauce')['store_item_id'], '370683')
 
     def test_home_brand_bulk_gap_uses_only_same_brand_finalists(self):
         home = dict(store_item_id='7413417', name='Tomato Sauce',
@@ -83,11 +137,13 @@ class CatalogueMatching(unittest.TestCase):
             self.assertEqual(pricing.strongest_match('tomato sauce 2L', candidates,
                              store='coles'), bulk)
             for size in ('1L', '', '2kg'):
-                self.assertIsNone(pricing.strongest_match('tomato sauce',
-                    [named, home, dict(bulk, size=size)], store='coles'))
+                # Rosella adds one brand word; Coles Simply adds two.
+                self.assertEqual(pricing.strongest_match('tomato sauce',
+                    [named, home, dict(bulk, size=size)], store='coles')['store_item_id'], '3574040')
         # A bulk gap cannot decide between separate house labels.
-        self.assertIsNone(pricing.strongest_match('tomato sauce',
-            [named, home, dict(bulk, brand='Coles Finest')], store='coles'))
+        # Separate house labels cannot settle size; Rosella has fewer extra words.
+        self.assertEqual(pricing.strongest_match('tomato sauce',
+            [named, home, dict(bulk, brand='Coles Finest')], store='coles')['store_item_id'], '3574040')
 
     def test_same_brand_squeeze_container_uses_everyday_size(self):
         self.db.executescript("""
@@ -136,13 +192,15 @@ class CatalogueMatching(unittest.TestCase):
                 ('334960','Grana Padano Grated Cheese 150g','EMPORIUM SELECTION','150 g'),
                 ('399737','Long-life Grated Parmesan Cheese 100g','REMANO','100 g');
         """)
-        # Retrieval must include shredded house lines, but Parmesan and
-        # tasty cheese are distinct choices; ownership cannot settle that.
+        # Retrieval includes shredded house lines; residual type choices now
+        # resolve by extra words rather than abstaining.
         candidates = pricing.search('woolworths', 'grated cheese', conn=self.db)
         self.assertIn('85587', [c['store_item_id'] for c in candidates])
-        self.assertIsNone(self.match('woolworths', 'grated cheese'))
+        # Parmesan has fewer extra brand words than the named tasty lines.
+        self.assertEqual(self.match('woolworths', 'grated cheese')['store_item_id'], '85587')
         self.assertEqual(self.match('woolworths', 'grated parmesan cheese')['store_item_id'], '85587')
-        self.assertIsNone(self.match('aldi', 'grated cheese'))
+        # The Parmesan title has fewer extra words than Grana Padano.
+        self.assertEqual(self.match('aldi', 'grated cheese')['store_item_id'], '399737')
 
     def test_ranked_brand_search_and_single_can(self):
         self.db.executemany("INSERT INTO coles_catalogue(coles_id,name) VALUES(?,?)",
@@ -212,10 +270,12 @@ class CatalogueMatching(unittest.TestCase):
             self.assertEqual(pricing.strongest_match(query, [skim, soy, full]), full)
         self.assertEqual(pricing.strongest_match('skim milk', [full, skim]), skim)
         self.assertEqual(pricing.strongest_match('soy milk', [full, soy]), soy)
-        self.assertIsNone(pricing.strongest_match('milk', [full, dict(full, store_item_id='4')]))
-        self.assertIsNone(pricing.strongest_match('bread', [
+        # Identical full-cream titles and missing prices settle by stable ID.
+        self.assertEqual(pricing.strongest_match('milk', [full, dict(full, store_item_id='4')])['store_item_id'], '1')
+        # White and wholemeal tie on words and missing prices; stable ID decides.
+        self.assertEqual(pricing.strongest_match('bread', [
             dict(store_item_id='1', name='White Bread'),
-            dict(store_item_id='2', name='Wholemeal Bread')]))
+            dict(store_item_id='2', name='Wholemeal Bread')])['store_item_id'], '1')
 
     def test_milk_default_prefers_plain_over_premium_lines(self):
         self.db.executescript("""
@@ -325,7 +385,8 @@ class CatalogueMatching(unittest.TestCase):
         for size in ('', '1kg', '600mL'):
             with self.subTest(size=size):
                 unknown = dict(store_item_id='3', name='Water', size=size)
-                self.assertIsNone(pricing.strongest_match('Water', candidates + [unknown]))
+                # The bulk pack loses first; missing/comparability gaps then settle by ID.
+                self.assertEqual(pricing.strongest_match('Water', candidates + [unknown])['store_item_id'], '1')
 
     def test_shared_normalization_retrieves_and_selects_across_stores(self):
         for store, (table, key) in pricing._CATALOGUE_TABLES.items():
@@ -363,7 +424,8 @@ class CatalogueMatching(unittest.TestCase):
         for query in ('grated cheese', 'shredded cheese'):
             candidates = pricing.search('woolworths', query, conn=self.db)
             self.assertEqual({c['store_item_id'] for c in candidates}, {'1', '2'})
-            self.assertIsNone(pricing.strongest_match(query, candidates, store='woolworths'))
+            # Equal Parmesan and mozzarella titles have no prices; stable ID decides.
+            self.assertEqual(pricing.strongest_match(query, candidates, store='woolworths')['store_item_id'], '1')
             self.assertEqual(pricing.strongest_match(query, candidates,
                 preferred_type={'parmesan'}, store='woolworths')['store_item_id'], '1')
             self.assertEqual(pricing.strongest_match(query + ' mozzarella', candidates,

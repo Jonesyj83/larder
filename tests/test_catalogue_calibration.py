@@ -54,12 +54,14 @@ class CatalogueCalibration(unittest.TestCase):
         self.assertEqual(pricing.name_words('a2 Milk'),{'a2','milk'})
         self.assertEqual(pricing.name_words('2 Minute Noodles'),{'2','minute','noodle'})
 
-    def test_title_length_and_house_label_do_not_choose_a_cheese_type(self):
+    def test_unrequested_cheese_type_uses_plainest_title(self):
         candidates=[dict(store_item_id='1',name='Shredded Parmesan Cheese',brand='Woolworths',size='250g'),
                     dict(store_item_id='2',name='Tasty Grated Cheese',brand='Dairyworks',size='250g')]
-        self.assertIsNone(pricing.strongest_match('grated cheese',candidates,store='woolworths'))
+        # The house Parmesan title has fewer extra words than Dairyworks tasty.
+        self.assertEqual(pricing.strongest_match('grated cheese',candidates,store='woolworths')['store_item_id'], '1')
         unspecified = dict(store_item_id='3',name='Shredded Cheese',brand='Example Dairy',size='250g')
-        self.assertIsNone(pricing.strongest_match('grated cheese',candidates+[unspecified],store='woolworths'))
+        # The unspecified title is a plain subset with no unrequested cheese type.
+        self.assertEqual(pricing.strongest_match('grated cheese',candidates+[unspecified],store='woolworths')['store_item_id'], '3')
         self.assertEqual(pricing.strongest_match('grated tasty cheese',candidates,
             preferred_type={'parmesan'},store='woolworths')['store_item_id'],'2')
 

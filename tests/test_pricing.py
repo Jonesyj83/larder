@@ -433,15 +433,15 @@ class ScoredMatching(unittest.TestCase):
         self.assertIsNotNone(pricing.strongest_match('400g Nutella', [dict(self.candidate(
             'Nutella Hazelnut Spread', brand='Nutella'), size='400g')]))
 
-    def test_bare_brand_with_no_size_claim_still_abstains_on_real_variants(self):
-        # Without a size to anchor on, "vegemite" alone genuinely can't
-        # tell two different real products apart -- this is the case the
-        # single-word floor was protecting against, and it still should.
+    def test_bare_brand_residual_variants_use_price_then_id(self):
+        # Both full-recall variants clear the single-word floor. With no
+        # further intent signal, the residual tie must resolve.
         candidates = [self.candidate('Vegemite Spread 220g', item='1', brand='Vegemite'),
                       self.candidate('Vegemite Cheesybite 220g', item='2', brand='Vegemite')]
         for c in candidates:
             c['size'] = '220g'
-        self.assertIsNone(pricing.strongest_match('Vegemite', candidates))
+        # Both real spread variants tie on words and price; stable ID decides.
+        self.assertEqual(pricing.strongest_match('Vegemite', candidates)['store_item_id'], '1')
 
     def test_ambiguous_variants_match_the_plainest_one_not_a_guess(self):
         # Several Pepsi lines all genuinely contain "pepsi" at the exact
@@ -546,8 +546,9 @@ class ScoredMatching(unittest.TestCase):
         self.assertIsNone(pricing.strongest_match('Vegemite', [own, other]))
         own = self.candidate('Vegemite Spread', brand='Vegemite')
         self.assertEqual(pricing.strongest_match('Vegemite', [own, other]), own)
-        self.assertIsNone(pricing.strongest_match('Capsicum', [self.candidate('Red Capsicum'),
-            self.candidate('Green Capsicum', '2')]))
+        # Both colours tie on words and price; stable ID decides.
+        self.assertEqual(pricing.strongest_match('Capsicum', [self.candidate('Red Capsicum'),
+            self.candidate('Green Capsicum', '2')])['store_item_id'], '1')
         self.assertIsNone(pricing.strongest_match('Milk', [self.candidate('Dark Chocolate')]))
         self.assertEqual(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
             self.candidate('Pork Loin Chops Boneless', '2')])['store_item_id'], '2')

@@ -4509,14 +4509,15 @@
           "brand": "Moccona"
         }
       ],
-      "expected_id": null,
+      "expected_id": "4405536",
       "candidate_ids": [
         "4405536",
         "4405591",
         "1049399",
         "1049490",
         "1513077"
-      ]
+      ],
+      "reason": "Exact pack size and brand survive; Cafe Classics has fewer extra words than sugar free."
     },
     {
       "query": "Moccona Caramel Latte Coffee Sach 10Pk",
@@ -4610,7 +4611,7 @@
           "brand": "Woolworths"
         }
       ],
-      "expected_id": null,
+      "expected_id": "2677830",
       "candidate_ids": [
         "318214",
         "3339232",
@@ -4618,7 +4619,8 @@
         "333207",
         "2677830",
         "4419687"
-      ]
+      ],
+      "reason": "Conflicting history supplies no type; the shortest exact-size house title is ground pepper."
     },
     {
       "query": "Pepper Black",
@@ -4642,7 +4644,7 @@
           "brand": "Woolworths"
         }
       ],
-      "expected_id": null,
+      "expected_id": "334639",
       "candidate_ids": [
         "1124857091",
         "94618",
@@ -4654,7 +4656,8 @@
         "1111165187",
         "1122270619",
         "1125468077"
-      ]
+      ],
+      "reason": "Conflicting history supplies no type; equally short exact-size titles resolve to the house grinder."
     },
     {
       "query": "water",
@@ -5313,7 +5316,7 @@
           "brand": "Pura"
         }
       ],
-      "expected_id": null,
+      "expected_id": "208064",
       "candidate_ids": [
         "807385",
         "807386",
@@ -5343,7 +5346,8 @@
         "1130934015",
         "204746",
         "239521"
-      ]
+      ],
+      "reason": "Full cream is remembered; equally plain a2 and Pura titles lack prices, so stable ID decides."
     }
   ]
 }
