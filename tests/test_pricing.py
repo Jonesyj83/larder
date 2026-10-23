@@ -436,6 +436,35 @@ class ScoredMatching(unittest.TestCase):
             c['size'] = '220g'
         self.assertIsNone(pricing.strongest_match('Vegemite', candidates))
 
+    def test_ambiguous_variants_match_the_plainest_one_not_a_guess(self):
+        # Several Pepsi lines all genuinely contain "pepsi" at the exact
+        # size typed -- real Coles/Woolworths data looks just like this.
+        # No flavour was named, so the plain one wins; naming a flavour
+        # should still pick that flavour specifically.
+        plain = self.candidate('Soft Drink Cola Bottle', item='1', brand='Pepsi')
+        maxx = self.candidate('Max No Sugar Cola Soft Drink Bottle', item='2', brand='Pepsi')
+        vanilla = self.candidate('Max No Sugar Cola Vanilla Soft Drink Bottle', item='3', brand='Pepsi')
+        for c in (plain, maxx, vanilla):
+            c['size'] = '1.25L'
+        self.assertEqual(pricing.strongest_match('1.25L Pepsi', [plain, maxx, vanilla]), plain)
+        self.assertEqual(pricing.strongest_match('1.25L Pepsi Max', [plain, maxx, vanilla]), maxx)
+
+    def test_brand_stripped_clean_out_of_the_name_still_counts_for_recall(self):
+        # Coles in particular often stores the brand separately from a
+        # plain descriptive name ("Soft Drink Cola Bottle", brand="Pepsi")
+        # -- a brand-only query has to recall that word from the brand
+        # field, not just the name text, or it can never match at all.
+        candidate = self.candidate('Soft Drink Cola Bottle', brand='Pepsi')
+        candidate['size'] = '1.25L'
+        self.assertEqual(pricing.strongest_match('1.25L Pepsi', [candidate]), candidate)
+
+    def test_a_candidate_missing_a_typed_word_stays_a_real_toss_up(self):
+        # "Pork Chops" is missing "loin" entirely, not just carrying one
+        # extra harmless word -- that's a real gap, so no amount of
+        # "pick the plainest" logic should paper over it.
+        self.assertIsNone(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
+            self.candidate('Pork Loin Chops Boneless', '2')]))
+
     def test_plain_plural_isnt_treated_as_a_different_word(self):
         # A household item typed as "carrot" has to find a store listing
         # that only ever says "Carrots" -- same thing, not a name mismatch.

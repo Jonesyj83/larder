@@ -48,8 +48,12 @@ def _catalogue_lookup(store, query, limit=30, conn=None):
         from .. import db as database
         conn = database.connect()
     try:
-        clause = " OR ".join("name LIKE ?" for _ in words)
-        params = [f"%{w}%" for w in words]
+        # Match a word against either column -- Coles in particular often
+        # strips the brand clean out of the name itself ("Soft Drink Cola
+        # Bottle" with brand="Pepsi" sitting separately), so a brand-only
+        # query like "Pepsi" would otherwise never find it by name alone.
+        clause = " OR ".join("(name LIKE ? OR brand LIKE ?)" for _ in words)
+        params = [p for w in words for p in (f"%{w}%", f"%{w}%")]
         found = conn.execute(
             f"SELECT {id_field} AS item_id, name, brand, size, price, was_price, unit_price, unit_measure FROM {table} "
             f"WHERE {clause} LIMIT ?", (*params, limit)).fetchall()
@@ -184,11 +188,19 @@ def strongest_match(name, candidates, preferred_size=None):
     first = leading[0] if leading else ""
     brands = {normalized_name(p.get("brand") or "") for p in candidates}
     required_brand = first if first in brands else None
+    def candidate_words(c):
+        # Some stores (Coles especially) strip the brand clean out of the
+        # name itself ("Soft Drink Cola Bottle" with brand="Pepsi" sitting
+        # separately) -- count the brand's own words too everywhere a
+        # candidate's words get checked, or a brand-only query like
+        # "Pepsi" could never recall a word it's genuinely claiming, just
+        # not inside the name text.
+        return name_words(c["name"]) | name_words(c.get("brand") or "")
     scored = {}
     for candidate in candidates:
         if required_brand and normalized_name(candidate.get("brand") or "") != required_brand:
             continue
-        other = name_words(candidate["name"])
+        other = candidate_words(candidate)
         score = len(words & other) / len(words | other)
         # A confirmed brand match is strong enough on its own that a long,
         # marketing-heavy store title ("Pepsi Max Cola No Sugar Soft Drink
@@ -225,7 +237,19 @@ def strongest_match(name, candidates, preferred_size=None):
     ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < .5:
         return None
-    if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < .15:
+    tied = [pair for pair in ranked if ranked[0][0] - pair[0] < .15]
+    if len(tied) > 1:
+        # Several real products tie -- usually different flavour/variant
+        # lines of the same thing ("Pepsi Max", "Pepsi Vanilla") that all
+        # genuinely contain every word that was typed, just with extra
+        # words tacked on. Only worth breaking the tie when that's true
+        # for every one of them -- a candidate missing a word that was
+        # actually typed ("Pork Chops" vs "Pork Loin Chops") is a real
+        # gap, not just a plainer name, and must stay a toss-up.
+        if all(words <= candidate_words(pair[1]) for pair in tied):
+            by_extra = sorted(tied, key=lambda pair: len(candidate_words(pair[1]) - words))
+            if len(candidate_words(by_extra[0][1]) - words) < len(candidate_words(by_extra[1][1]) - words):
+                return by_extra[0][1]
         return None
     return ranked[0][1]
 
