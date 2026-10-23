@@ -2,6 +2,16 @@
 
 What's changed, newest first. Not bothering with version numbers yet, just dates.
 
+## 2026-10-24
+
+- Empty store matches now use remembered purchases and types before a cold
+  catalogue guess. Existing links stay locked until changed by hand.
+- Bare water searches no longer prefer a short branded title over the store's
+  plain spring water. Descriptive ham and bread titles remain eligible, while
+  prepared meals and baking mixes stay out of those bare searches.
+- Store chips distinguish substitutes with a small ≈, separately from a match
+  needing review. Confirming a substitute keeps that distinction.
+
 ## 2026-10-22
 
 - Fixed matched items losing their price - picking a match now keeps the

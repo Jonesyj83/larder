@@ -61,6 +61,20 @@ Full setup, the JSON config example, and what each tool expects: [mcp_server/REA
 
 ## Keeping store prices fresh
 
+An existing product/store link is kept until someone changes or removes it.
+Automatic matching never searches that store again, even if its catalogue changes.
+For an empty store slot, a remembered purchase at that store comes first, then
+remembered brand/type and retailer classification from the household's other
+choices. Explicit details in the item name still apply. With no usable history,
+it picks the closest plain option and uses shelf price to settle a tie.
+
+A quiet ≈ on a store chip means a substitute rather than the same product, such
+as a private label standing in for a national brand. It is separate from Review,
+which means several candidates remained tied. Keeping a match clears Review;
+a substitute stays marked as a substitute. New shopping-history entries retain
+the chosen store item so that removing a link does not erase the buying choice.
+Older quantity-only history cannot supply an item identity it never recorded.
+
 Matching a product to a store (via the shopping list) is a one-off search.
 After that, `scripts/refresh_prices.py` re-checks every matched item's
 price directly by its known ID - no searching, no browsing a catalogue,

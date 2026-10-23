@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS product_store_links (
     store_name TEXT NOT NULL DEFAULT '',
     size TEXT NOT NULL DEFAULT '',
     needs_review INTEGER NOT NULL DEFAULT 0,
+    is_substitute INTEGER NOT NULL DEFAULT 0,
     matched_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE(product_id, store)
@@ -344,6 +345,10 @@ CREATE TABLE IF NOT EXISTS order_history (
     unit_id INTEGER REFERENCES units(id) ON DELETE SET NULL,
     store TEXT,
     size TEXT NOT NULL DEFAULT '',
+    store_item_id TEXT NOT NULL DEFAULT '',
+    store_name TEXT NOT NULL DEFAULT '',
+    store_brand TEXT NOT NULL DEFAULT '',
+    is_substitute INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS order_history_product ON order_history(product_id, created_at);
@@ -521,6 +526,21 @@ def init_db():
             conn.execute(f"ALTER TABLE {table} ADD COLUMN classification TEXT NOT NULL DEFAULT '{{}}'")
             # A partial old pass has no classification on its earlier pages.
             conn.execute(f"UPDATE {store}_crawl_progress SET next_page=1, done=0")
+    if "is_substitute" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
+        conn.execute("ALTER TABLE product_store_links ADD COLUMN is_substitute INTEGER NOT NULL DEFAULT 0")
+        from .pricing import substitute_pick, catalogue_brands, _CATALOGUE_TABLES
+        brands = catalogue_brands(conn)
+        for link in conn.execute("SELECT l.*,p.name AS query FROM product_store_links l JOIN products p ON p.id=l.product_id").fetchall():
+            table, key = _CATALOGUE_TABLES[link['store']]
+            item = conn.execute(f"SELECT brand FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
+            if substitute_pick(link['query'], link['store'], {'name': link['store_name'], 'brand': item['brand'] if item else ''}, brands):
+                conn.execute("UPDATE product_store_links SET is_substitute=1 WHERE id=?", (link['id'],))
+    for column, declaration in (('store_item_id', "TEXT NOT NULL DEFAULT ''"),
+                                ('store_name', "TEXT NOT NULL DEFAULT ''"),
+                                ('store_brand', "TEXT NOT NULL DEFAULT ''"),
+                                ('is_substitute', 'INTEGER NOT NULL DEFAULT 0')):
+        if column not in {r["name"] for r in conn.execute("PRAGMA table_info(order_history)")}:
+            conn.execute(f"ALTER TABLE order_history ADD COLUMN {column} {declaration}")
     if "needs_review" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
         conn.execute("ALTER TABLE product_store_links ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0")
     if "size" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
