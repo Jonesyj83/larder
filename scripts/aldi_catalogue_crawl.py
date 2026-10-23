@@ -39,7 +39,7 @@ def crawl(db, categories=None, delay=1.0, fetch=None, sleep=None, log=print, max
             fetch = lambda category, page: stores.browse_aldi_category(category, session=session)
         return _crawl(db, catalogue_table="aldi_catalogue", history_table="aldi_catalogue_history",
                       progress_table="aldi_crawl_progress", id_field="item_id", categories=categories,
-                      fetch=fetch, delay=delay, page_size=PAGE_SIZE, sleep=sleep, log=log, max_retries=max_retries)
+                      fetch=fetch, delay=delay, page_size=PAGE_SIZE, sleep=sleep, log=log, max_retries=max_retries, classification=True)
     finally:
         if session is not None:
             session.close()

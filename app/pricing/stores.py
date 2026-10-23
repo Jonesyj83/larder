@@ -120,6 +120,17 @@ def payload(text, script_id):
     return json.loads("".join(page.parts))
 
 
+def aldi_classification(category):
+    """The stored crawl URL retains Aldi's ordered category breadcrumb."""
+    if not isinstance(category, str):
+        return {}
+    match = re.fullmatch(r'/products/([^?#]+)/k/\d+/?', category)
+    if not match:
+        return {}
+    labels = [part.replace('-', ' ').strip() for part in match[1].split('/') if part]
+    return {'primary': [labels], 'secondary': [], 'retailer': {'category': category}}
+
+
 def _classification(store, product):
     """Retain retailer identities as well as ordered, comparable names.
 

@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from pathlib import Path
@@ -222,6 +223,7 @@ CREATE TABLE IF NOT EXISTS aldi_catalogue (
     unit_measure TEXT NOT NULL DEFAULT '',
     price_basis TEXT NOT NULL DEFAULT '{}',
     category TEXT NOT NULL DEFAULT '',
+    classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS aldi_catalogue_name ON aldi_catalogue(name);
@@ -543,6 +545,12 @@ def init_db():
             conn.execute(f"ALTER TABLE {table} ADD COLUMN classification TEXT NOT NULL DEFAULT '{{}}'")
             # A partial old pass has no classification on its earlier pages.
             conn.execute(f"UPDATE {store}_crawl_progress SET next_page=1, done=0")
+    if "classification" not in {r["name"] for r in conn.execute("PRAGMA table_info(aldi_catalogue)")}:
+        conn.execute("ALTER TABLE aldi_catalogue ADD COLUMN classification TEXT NOT NULL DEFAULT '{}'")
+        from .pricing.stores import aldi_classification
+        conn.executemany("UPDATE aldi_catalogue SET classification=? WHERE item_id=?", [
+            (json.dumps(aldi_classification(row['category'])), row['item_id'])
+            for row in conn.execute("SELECT item_id,category FROM aldi_catalogue")])
     if "is_substitute" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
         conn.execute("ALTER TABLE product_store_links ADD COLUMN is_substitute INTEGER NOT NULL DEFAULT 0")
         from .pricing import substitute_pick, catalogue_brands, _CATALOGUE_TABLES

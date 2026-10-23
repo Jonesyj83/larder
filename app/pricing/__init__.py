@@ -171,7 +171,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
         return []
     if limit is None:
         limit = 200
-    classification_sql = "c.classification" if store != "aldi" else "'{}'"
+    classification_sql = "c.classification"
     owns_conn = conn is None
     if owns_conn:
         from .. import db as database
@@ -188,6 +188,9 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
                         "coca": ("coca", "coke"), "cola": ("cola", "coke")}
         for alias, canonical in SYNONYMS.items():
             alternatives[canonical] = (*alternatives.get(canonical, (canonical,)), alias)
+        for word in words:
+            if '&' in word:
+                alternatives[word] = (word, word + 's', word + "'s")
         def quoted(word):
             return '"' + word.replace('"', '""') + '"'
         terms = ["(" + " OR ".join(quoted(term) for term in alternatives.get(word, (word,))) + ")"
@@ -456,6 +459,11 @@ def name_words(name, *, singular=True):
     name = unicodedata.normalize("NFKC", name).casefold().replace("×", "x")
     name = re.sub(r"\b(\w+)[’']n\b", r"\1 n", name)
     name = re.sub(r"[’']", "", name)
+    # Initials joined by an ampersand form one identity, even when stores
+    # add spaces or a possessive/plural suffix. Ordinary word pairs keep
+    # their existing words (Ben & Jerry's, salt & vinegar).
+    name = re.sub(r"\b([a-z](?:\s*&\s*[a-z])+)s?\b",
+                  lambda m: re.sub(r"\s+", "", m[1]), name)
     name = re.sub(r"\bhi[ -]+lo\b", "hilo", name)
     name = re.sub(r"\bww\b", "woolworths", name)
     for alias, formal in BRAND_ALIASES.items():
@@ -464,7 +472,7 @@ def name_words(name, *, singular=True):
     name = re.sub(SIZE_TOKEN, " ", name, flags=re.IGNORECASE)
     # Supermarket names are scoring noise; keep stored names and brand guards intact.
     # Keep decimal measurements whole even when their unit is not a food size.
-    words = set(re.findall(r"\d+(?:\.\d+)+(?:[^\W\d_]+)?|\w+", name)) - {"woolworths", "coles", "aldi", "iga", "and"}
+    words = set(re.findall(r"[a-z](?:&[a-z])+|\d+(?:\.\d+)+(?:[^\W\d_]+)?|\w+", name)) - {"woolworths", "coles", "aldi", "iga", "and"}
     # A plain trailing "s" shouldn't count as a different word -- "carrot"
     # and "carrots" are the same item, not a mismatch.
     if singular:
@@ -605,8 +613,6 @@ def classification_preference(db, product_id, store):
         if link['store'] == store:
             continue
         table, key = _CATALOGUE_TABLES[link['store']]
-        if link['store'] == 'aldi':
-            continue
         item = db.execute(f"SELECT classification FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
         if not item:
             continue
@@ -615,6 +621,38 @@ def classification_preference(db, product_id, store):
         if labels:
             choices.append(labels)
     return set.intersection(*choices) if choices else set()
+
+
+# Department labels are retailer vocabulary, not product-name exceptions.
+# Require an explicit context before crossing from groceries into these aisles.
+DEPARTMENT_CONTEXTS = (
+    ('Pets|Dog and Puppy|Cat and Kitten|Birds, Fish and Small Pets|Dog Food|Cat Food|Bird Food|Fresh Pet Food DY|Pet Accessories',
+     'pet dog cat kitten puppy bird animal'),
+    ('Baby|Baby Food|Baby Formula|Baby Toiletries|Baby Accessories|Nappies and Wipes|Babywear|Infant Food|Infant Formula|Infant Nappies|Infant Personal',
+     'baby infant toddler nappy nappies wipe formula'),
+    ('Health Beauty|Health Care|Toiletries|Cosmetics|Makeup|Dental Health|Dental Care|Hair Care|Skin Care|Bath and Soap|Soaps & Body Wash|Sanitary Protection|Female Deodorants and Bodysprays|Mens Deos & Grooming|Womens Deos & Groom|Personal Care and Hygiene|Men\'s Grooming|Vitamins|Medicinal Products|First Aid and Medicinal|Beauty/Trial Travel',
+     'soap shampoo conditioner hair skin dental toothpaste toothbrush cosmetic makeup deodorant sanitary period vitamin supplement medicinal medicine health beauty hygiene sunscreen wash grooming'),
+    ('Cleaning Household|Cleaning Products|Cleaning Goods|Household Gloves|Laundry|Laundry Accessories|Dishwashing|Aircare|Pest Control|Brushware|Toilet Paper|Facial Tissues|Paper Towels|Bathroom',
+     'cleaning cleaner detergent laundry dishwashing soap disinfectant bleach household pest insect toilet paper tissue towel freshener bathroom'),
+    ('Liquor|Liquor RTD|Beer|Wine|Red Wine|White Wine|Spirits|Champagne & Sparkling|Cider|Premix Drinks',
+     'liquor beer wine spirit champagne cider premix alcoholic alcohol vodka gin rum whisky whiskey'),
+    ('Homewares|Kitchen|Kitchenware|Kitchen Needs/Bags|Electrical|Hardware|Stationery|Hosiery|Family Underwear|Family Socks|Seasonal Apparel|Toys & Hobbies|Garden Non Greens|Garden and Lawn Care|Auto|Car Care|Telco|Tech Accessories|Disposable Tableware|Picnic Pool BBQ Acc|Picnic and Party|Party Goods|Shoe Care|Household Appliances|Heating & Cooling|Floral|Floral & Hampers|Shopping Bags',
+     'homeware kitchen electrical hardware stationery sock underwear toy hobby garden auto car telco accessory tableware picnic party shoe heating cooling flower floral shopping bag utensil bottle container'),
+)
+DEPARTMENT_WORDS = tuple(({frozenset(name_words(label)) for label in labels.split('|')}, name_words(context))
+                         for labels, context in DEPARTMENT_CONTEXTS)
+
+
+def _department_allowed(words, candidate):
+    paths = _classification_paths(candidate.get('classification'))
+    if not paths:
+        return True
+    def allowed(path):
+        for departments, context in DEPARTMENT_WORDS:
+            if frozenset(path[0]) in departments:
+                return bool(words & context)
+        return True
+    return any(allowed(path) for path in paths)
 
 
 def _classification_filter(words, candidates, preferred=(), plain_category=None):
@@ -669,6 +707,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     words = name_words(name)
     if not words:
         return None
+    candidates = [c for c in candidates if _department_allowed(words, c)]
     default_type = name_words(DEFAULT_VARIANT.get(next(iter(words)), "")) if len(words) == 1 else set()
     remembered = set(preferred_type or ())
     if len(words) == 1 and next(iter(words)) in PLAIN_CATEGORY_WORDS:
@@ -1011,6 +1050,11 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
                 candidates = search_fn(setting["store"], query, setting["postcode"])
             else:
                 candidates = search(setting["store"], query, setting["postcode"], conn=db)
+            if query != name:
+                original_words = name_words(name)
+                candidates = _classification_filter(original_words, candidates,
+                    plain_category=PLAIN_CATEGORY_WORDS.get(next(iter(original_words))) if len(original_words) == 1 else None)
+                candidates = [c for c in candidates if _department_allowed(original_words, c)]
             # Retrieval uses the seed description; original explicit intent,
             # history and classification still govern every selected result.
             candidate = household_match(db, product_id, query, setting["store"], candidates)
@@ -1019,6 +1063,15 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
                                    type_preference(db, product_id, setting['store']), store=setting['store'],
                                    preferred_classification=classification_preference(db, product_id, setting['store'])) is None:
                     candidate = None
+            if candidate is None and propagate and seeded and query != name:
+                # A seed adds a possible description, not a new household
+                # requirement. Stores without that wording retry the request.
+                original_query, _ = _query_pack(name)
+                if search_fn:
+                    original = search_fn(setting["store"], original_query, setting["postcode"])
+                else:
+                    original = search(setting["store"], original_query, setting["postcode"], conn=db)
+                candidate = household_match(db, product_id, name, setting["store"], original)
             if propagate and not seeded:
                 if (candidate is None or candidate.get('_ambiguous')
                         or substitute_pick(name, setting['store'], candidate, known_brands)):

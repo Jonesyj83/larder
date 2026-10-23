@@ -53,6 +53,9 @@ def crawl(db, *, catalogue_table, history_table, progress_table, id_field,
                     db.commit()
                     break
                 for p in products:
+                    if catalogue_table == 'aldi_catalogue':
+                        from app.pricing.stores import aldi_classification
+                        p = dict(p, classification=aldi_classification(category))
                     db.execute(f"""INSERT INTO {catalogue_table}
                             ({id_field}, name, brand, size, price, was_price, unit_price, unit_measure, price_basis, category{extra_column}, updated_at)
                         VALUES (?,?,?,?,?,?,?,?,?,?{extra_value},datetime('now'))
