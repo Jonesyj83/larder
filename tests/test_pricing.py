@@ -477,15 +477,15 @@ class ScoredMatching(unittest.TestCase):
         self.assertIsNotNone(pricing.strongest_match('carrot', [self.candidate('Carrots')]))
         self.assertIsNotNone(pricing.strongest_match('onion', [self.candidate('Brown Onions')]))
 
-    def test_search_retries_the_other_plural_form_on_an_empty_result(self):
-        calls = []
-        def fake_search(store, query, postcode='', conn=None):
-            calls.append(query)
-            return [self.candidate('Carrots')] if query == 'carrots' else []
-        with patch.object(pricing, '_fetch', side_effect=fake_search):
-            result = pricing.search('woolworths', 'carrot')
-        self.assertEqual(calls, ['carrot', 'carrots'])
-        self.assertEqual(result, [self.candidate('Carrots')])
+    def test_catalogue_plural_retrieval_needs_no_retry(self):
+        with sqlite3.connect(':memory:') as conn:
+            conn.row_factory = sqlite3.Row
+            conn.executescript(database.SCHEMA)
+            conn.execute("INSERT INTO woolworths_catalogue(stockcode,name) VALUES(1,'Carrots')")
+            with patch.object(pricing, '_fetch', wraps=pricing._fetch) as fetch:
+                result = pricing.search('woolworths', 'carrot', conn=conn)
+            self.assertEqual(fetch.call_count, 1)
+            self.assertEqual(result[0]['name'], 'Carrots')
 
     def test_catalogue_stores_match_locally_never_live(self):
         import sqlite3

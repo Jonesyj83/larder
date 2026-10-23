@@ -129,7 +129,8 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
     closes its own, since auto_match_live can call this from a worker
     thread that has no connection of its own to hand in."""
     table, id_field = _CATALOGUE_TABLES[store]
-    words = sorted(name_words(query))
+    words = sorted(name_words(query, singular=False))
+    scoring_words = name_words(query)
     if not words:
         return []
     if limit is None:
@@ -143,28 +144,45 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
             source = conn.execute("SELECT location FROM iga_catalogue_store WHERE id=1").fetchone()
             if not source or source['location'] != postcode.strip().casefold():
                 return []
-        # Match a word against either column -- Coles in particular often
-        # strips the brand clean out of the name itself ("Soft Drink Cola
-        # Bottle" with brand="Pepsi" sitting separately), so a brand-only
-        # query like "Pepsi" would otherwise never find it by name alone.
-        #
-        # Order by how many of the typed words actually matched, not just
-        # whichever rows the table happens to hit first -- a common word
-        # like "red" alone matches hundreds of unrelated rows (Red Onion,
-        # Red Wine, Red Capsicum...), and with no ranking those can fill
-        # the whole result before a real "Red Bull" row ever gets seen.
-        # Use exactly the same token normalization for retrieval and selection.
-        conn.create_function("matching_words", 1, lambda text: " " + " ".join(sorted(name_words(text or ""))) + " ")
-        match_clauses = ["(match_name LIKE ? OR match_brand LIKE ?)" for _ in words]
-        relevance = " + ".join(f"CASE WHEN {clause} THEN 1 ELSE 0 END" for clause in match_clauses)
-        params = [p for w in words for p in (f"% {w} %", f"% {w} %")]
-        clause = " OR ".join(match_clauses)
+        # Expand canonical synonyms back to their catalogue spellings. Porter
+        # handles regular plurals; phrases preserve retailer token boundaries.
+        alternatives = {"hilo": ("hilo", "hi lo"),
+                        "coca": ("coca", "coke"), "cola": ("cola", "coke")}
+        for alias, canonical in SYNONYMS.items():
+            alternatives[canonical] = (*alternatives.get(canonical, (canonical,)), alias)
+        def quoted(word):
+            return '"' + word.replace('"', '""') + '"'
+        terms = ["(" + " OR ".join(quoted(term) for term in alternatives.get(word, (word,))) + ")"
+                 for word in words]
+        index = f"{table}_fts"
+        # Keep the established coverage and title-length window. Partial
+        # matches can carry brand guards used by selection, so changing that
+        # window can turn an abstention into a different product choice.
+        conn.create_function("matching_length", 1,
+                             lambda text: len(" " + " ".join(sorted(name_words(text or ""))) + " "))
+        conn.create_function("matching_coverage", 2,
+                             lambda name, brand: len(scoring_words &
+                                 (name_words(name or "") | name_words(brand or ""))))
         found = conn.execute(
-            f"WITH catalogue AS MATERIALIZED (SELECT *, matching_words(name) AS match_name, "
-            f"matching_words(brand) AS match_brand FROM {table}) "
-            f"SELECT {id_field} AS item_id, name, brand, size, price, was_price, unit_price, unit_measure, "
-            f"({relevance}) AS relevance FROM catalogue "
-            f"WHERE {clause} ORDER BY relevance DESC, length(match_name) ASC LIMIT ?", (*params, *params, limit)).fetchall()
+            f"WITH candidates AS MATERIALIZED (SELECT c.{id_field} AS item_id, c.name, c.brand, c.size, c.price, "
+            f"c.was_price, c.unit_price, c.unit_measure, matching_coverage(c.name,c.brand) AS coverage, "
+            f"bm25({index}) AS retrieval_rank FROM {index} "
+            f"JOIN {table} c ON c.rowid={index}.rowid "
+            f"WHERE {index} MATCH ? ORDER BY coverage DESC, matching_length(c.name), "
+            f"c.rowid LIMIT ?) SELECT * FROM candidates ORDER BY retrieval_rank, item_id", (" OR ".join(terms), limit)).fetchall()
+        if not found and not (store == "aldi" and _aldi_equivalent(query)):
+            # Porter is not a spelling corrector. Trigrams can surface a
+            # misspelled title, but never change the words selection checks.
+            fragments = sorted({word[i:i + 3] for word in words if len(word) >= 4
+                                for i in range(len(word) - 2)})
+            if fragments:
+                index = f"{table}_trigrams"
+                found = conn.execute(
+                    f"SELECT c.{id_field} AS item_id, c.name, c.brand, c.size, c.price, "
+                    f"c.was_price, c.unit_price, c.unit_measure FROM {index} "
+                    f"JOIN {table} c ON c.rowid={index}.rowid WHERE {index} MATCH ? "
+                    f"ORDER BY bm25({index}), c.rowid LIMIT ?",
+                    (" OR ".join(quoted(fragment) for fragment in fragments), limit)).fetchall()
     finally:
         if owns_conn:
             conn.close()
@@ -177,15 +195,6 @@ def search(store, query, postcode="", conn=None):
     query = QUERY_CORRECTIONS.get(query.casefold().strip(), query)
     equivalent = _aldi_equivalent(query) if store == "aldi" else None
     results = _fetch(store, query, postcode, conn=conn)
-    if results and not equivalent:
-        return results
-    # A plain singular/plural miss shouldn't come back empty.
-    if not results:
-        variant = query[:-1] if query.endswith("s") and len(query) > 3 else query + "s"
-        try:
-            results = _fetch(store, variant, postcode, conn=conn) or results
-        except Exception:
-            pass
     if not equivalent:
         return results
     alias, fallback_query, brand = equivalent
@@ -256,7 +265,7 @@ SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\s*x\s*\d+\s*(?:pack|pk)?\b"
 SYNONYMS = {"shredded": "grated", "sach": "sachet"}
 
 
-def name_words(name):
+def name_words(name, *, singular=True):
     # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
     name = unicodedata.normalize("NFKC", name).casefold().replace("×", "x")
     name = re.sub(r"\b(\w+)[’']n\b", r"\1 n", name)
@@ -271,8 +280,9 @@ def name_words(name):
     words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga", "and"}
     # A plain trailing "s" shouldn't count as a different word -- "carrot"
     # and "carrots" are the same item, not a mismatch.
-    words = {w[:-2] if w in {"potatoes", "tomatoes"} else
-             w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
+    if singular:
+        words = {w[:-2] if w in {"potatoes", "tomatoes"} else
+                 w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
     # Collapse swapped naming onto one canonical word.
     return {SYNONYMS.get(w, w) for w in words}
 

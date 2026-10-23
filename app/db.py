@@ -449,6 +449,46 @@ BUILTIN_CONVERSIONS = [("kg", "g", 1000), ("l", "ml", 1000),
                        ("fl oz (US)", "ml", 29.5735295625)]
 
 
+# Remember the previous rowid because INSERT OR REPLACE can give text-keyed
+# catalogue rows a new rowid without firing their delete triggers.
+for _store, _key in (("coles", "coles_id"), ("woolworths", "stockcode"),
+                     ("aldi", "item_id"), ("iga", "item_id")):
+    _table = f"{_store}_catalogue"
+    _mapping = f"{_table}_search_rows"
+    SCHEMA += f"""
+CREATE TABLE IF NOT EXISTS {_mapping}(item_id TEXT PRIMARY KEY, source_rowid INTEGER NOT NULL);
+"""
+    _indexes = []
+    for _suffix, _tokenizer in (("fts", "porter unicode61 remove_diacritics 2"),
+                                ("trigrams", "trigram")):
+        _fts = f"{_table}_{_suffix}"
+        _indexes.append(_fts)
+        SCHEMA += f"""
+CREATE VIRTUAL TABLE IF NOT EXISTS {_fts} USING fts5(name, brand, tokenize='{_tokenizer}');
+INSERT OR REPLACE INTO {_fts}(rowid,name,brand) SELECT rowid,name,brand FROM {_table}
+    WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name='{_fts}_v1');
+INSERT OR IGNORE INTO schema_migrations(name) VALUES('{_fts}_v1');
+"""
+    # Populate the rowid map once; subsequent writes maintain it with both indexes.
+    SCHEMA += f"""
+INSERT OR REPLACE INTO {_mapping}(item_id,source_rowid) SELECT {_key},rowid FROM {_table}
+    WHERE NOT EXISTS (SELECT 1 FROM schema_migrations WHERE name='{_mapping}_v1');
+INSERT OR IGNORE INTO schema_migrations(name) VALUES('{_mapping}_v1');
+"""
+    for _event in ("INSERT", "UPDATE", "DELETE"):
+        _body = ""
+        if _event != "INSERT":
+            for _fts in _indexes:
+                _body += f"DELETE FROM {_fts} WHERE rowid=old.rowid;\n"
+            _body += f"DELETE FROM {_mapping} WHERE item_id=old.{_key};\n"
+        if _event != "DELETE":
+            for _fts in _indexes:
+                _body += f"DELETE FROM {_fts} WHERE rowid=(SELECT source_rowid FROM {_mapping} WHERE item_id=new.{_key});\n"
+                _body += f"INSERT OR REPLACE INTO {_fts}(rowid,name,brand) VALUES(new.rowid,new.name,new.brand);\n"
+            _body += f"INSERT OR REPLACE INTO {_mapping}(item_id,source_rowid) VALUES(new.{_key},new.rowid);\n"
+        SCHEMA += f"CREATE TRIGGER IF NOT EXISTS {_table}_search_{_event.lower()} AFTER {_event} ON {_table} BEGIN\n{_body}END;\n"
+
+
 def connect():
     # fastapi may run the dependency and the endpoint on different threads
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
