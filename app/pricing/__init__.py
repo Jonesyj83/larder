@@ -107,6 +107,26 @@ DEFAULT_VARIANT = {"milk": "full cream"}
 
 QUERY_CORRECTIONS = {"redbull": "red bull"}
 
+# These qualifiers change the product rather than its brand or pack size.
+# A category alone must not acquire one through title or price preferences.
+CATEGORY_QUALIFIERS = {
+    frozenset({'cola', 'pepsi'}): frozenset({'diet', 'zero', 'max', 'no', 'free'}),
+    frozenset({'noodle'}): frozenset({'cup', 'pot', 'bowl'}),
+    frozenset({'water'}): frozenset({
+        'tonic', 'coconut', 'flavoured', 'infused', 'lemon', 'lime', 'berry',
+        'apple', 'orange', 'mango', 'pineapple', 'passionfruit', 'peach',
+        'lychee', 'yuzu', 'raspberry', 'strawberry', 'watermelon',
+    }),
+}
+
+# Plain water titles use source and carbonation descriptions. Requiring
+# only these words after brand removal also excludes non-drink water goods.
+PLAIN_CATEGORY_WORDS = {
+    'water': frozenset({'water', 'spring', 'natural', 'still', 'sparkling',
+                        'lightly', 'mineral', 'soda', 'pure', 'artesian',
+                        'australian', 'italian', 'bottle', 'can', 'single', 'pack'}),
+}
+
 
 _CATALOGUE_TABLES = {
     "coles": ("coles_catalogue", "coles_id"),
@@ -461,6 +481,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         # "Pepsi" could never recall a word it's genuinely claiming, just
         # not inside the name text.
         return name_words(c["name"]) | name_words(c.get("brand") or "")
+    plain_category = PLAIN_CATEGORY_WORDS.get(next(iter(words))) if len(words) == 1 else None
     scored = {}
     exact_sizes = set()
     for candidate in candidates:
@@ -475,9 +496,15 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         if type_words and not type_words <= other:
             if not remembered and not other <= words | default_type:
                 continue
-        # Unqualified cola means the regular line, including Classic titles.
-        if words & {'cola', 'pepsi'} and not words & {'diet', 'zero', 'max', 'no', 'free'}:
-            if other & {'diet', 'zero', 'max', 'no', 'free'}:
+        if any(words & category and not words & qualifiers and other & qualifiers
+               for category, qualifiers in CATEGORY_QUALIFIERS.items()):
+            continue
+        # A noodle soup sachet is not a packet of instant noodles either.
+        if 'noodle' in words and 'soup' not in words and 'soup' in other:
+            continue
+        if plain_category:
+            plain_title = name_words(candidate['name']) - name_words(candidate.get('brand') or '')
+            if not plain_title <= plain_category:
                 continue
         # A confirmed brand match is strong enough on its own that a long,
         # marketing-heavy store title ("Pepsi Max Cola No Sugar Soft Drink
@@ -487,6 +514,8 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         # Full recall clears the name floor. Extra title words settle ties
         # only after intent and size have been checked.
         if required_brand and (len(words) > 1 or size_in_name) and recall == 1:
+            score = .5
+        elif plain_category and recall == 1:
             score = .5
         elif type_words and recall == 1 and type_overlap(candidate):
             score = .5

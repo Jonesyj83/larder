@@ -3966,14 +3966,15 @@
           "brand": "Maggi"
         }
       ],
-      "expected_id": "224906",
+      "expected_id": null,
       "candidate_ids": [
         "224906",
         "343896",
         "343900",
         "224905",
         "224909"
-      ]
+      ],
+      "reason": "The frozen 58g size belongs to an unrequested cup; packet noodles do not fit that size preference."
     },
     {
       "query": "Tomato paste",
@@ -4715,7 +4716,7 @@
           "brand": "Woolworths"
         }
       ],
-      "expected_id": null,
+      "expected_id": "770183",
       "candidate_ids": [
         "799637",
         "756045",
@@ -4759,7 +4760,8 @@
         "1121994835",
         "1123982895",
         "1124514631"
-      ]
+      ],
+      "reason": "Plain spring-water wording clears the category floor; the exact linked pack size wins."
     },
     {
       "query": "carrot",

@@ -16,6 +16,70 @@ class CatalogueMatching(unittest.TestCase):
     def match(self, store, query):
         return pricing.strongest_match(query, pricing.search(store, query, conn=self.db), store=store)
 
+    def test_bare_water_excludes_changed_drinks(self):
+        fixture = json.loads((Path(__file__).parent / 'fixtures' / 'category_formats.json').read_text())
+        for store, groups in fixture.items():
+            candidates = groups['water']
+            table, key = pricing._CATALOGUE_TABLES[store]
+            self.db.executemany(
+                f'INSERT INTO {table}({key},name,brand,size,price) VALUES(?,?,?,?,?)',
+                [(c['store_item_id'], c['name'], c['brand'], c['size'], c['price']) for c in candidates])
+            if store == 'iga':
+                self.db.execute("INSERT INTO iga_catalogue_store(id,store_id,location) VALUES(1,'local','piara waters')")
+            found = pricing.search(store, 'water', 'Piara Waters', conn=self.db)
+            self.assertIsNotNone(pricing.strongest_match('water', found, store=store))
+            with self.subTest(store=store):
+                for ordered in (candidates, list(reversed(candidates))):
+                    best = pricing.strongest_match('water', ordered, store=store)
+                    self.assertIsNotNone(best)
+                    self.assertFalse(pricing.name_words(best['name']) & {'tonic', 'coconut', 'lime', 'lemon', 'flavoured'})
+                tonic = pricing.strongest_match('tonic water', candidates, store=store)
+                self.assertIn('tonic', pricing.name_words(tonic['name']))
+                changed = [c for c in candidates if pricing.name_words(c['name']) & {'tonic', 'coconut', 'lime', 'lemon', 'flavoured'}]
+                self.assertIsNone(pricing.strongest_match('water', changed, store=store))
+                for c in changed:
+                    self.assertEqual(pricing.strongest_match(' '.join(pricing.name_words(c['name'])), [c], store=store), c)
+
+    def test_noodles_require_serving_format_words(self):
+        fixture = json.loads((Path(__file__).parent / 'fixtures' / 'category_formats.json').read_text())
+        changed_words = {'cup', 'pot', 'bowl', 'soup'}
+        for store, groups in fixture.items():
+            candidates = groups['noodles']
+            table, key = pricing._CATALOGUE_TABLES[store]
+            self.db.executemany(
+                f'INSERT INTO {table}({key},name,brand,size,price) VALUES(?,?,?,?,?)',
+                [(c['store_item_id'], c['name'], c['brand'], c['size'], c['price']) for c in candidates])
+            if store == 'iga':
+                self.db.execute("INSERT INTO iga_catalogue_store(id,store_id,location) VALUES(1,'local','piara waters')")
+            for query in ('noodles', 'maggi chicken noodles'):
+                with self.subTest(store=store, query=query):
+                    found = pricing.search(store, query, 'Piara Waters', conn=self.db)
+                    best = pricing.strongest_match(query, found, store=store)
+                    if query != 'noodles':
+                        self.assertIsNotNone(best)
+                    if best:
+                        self.assertFalse(pricing.name_words(best['name']) & changed_words)
+            for word in ('cup', 'pot', 'bowl'):
+                if any(word in pricing.name_words(c['name']) for c in candidates):
+                    query = word + ' noodles'
+                    found = pricing.search(store, query, 'Piara Waters', conn=self.db)
+                    best = pricing.strongest_match(query, found, store=store)
+                    self.assertIsNotNone(best)
+                    self.assertIn(word, pricing.name_words(best['name']))
+            for c in candidates:
+                formats = pricing.name_words(c['name']) & changed_words
+                if not formats:
+                    continue
+                with self.subTest(store=store, title=c['name']):
+                    self.assertIsNone(pricing.strongest_match('noodles', [c], store=store))
+                    # The same stored product stays available on explicit request.
+                    query = ' '.join(pricing.name_words(c['name']))
+                    self.assertEqual(pricing.strongest_match(query, [c], store=store), c)
+            if store == 'coles':
+                self.assertEqual(self.match(store, 'Maggi BEEF FLAVOUR NOODLES')['store_item_id'], '1616637')
+            if store == 'aldi':
+                self.assertEqual(self.match(store, 'Maggi CHICKEN NOODLES')['store_item_id'], '000000000000548906')
+
     def test_shorter_stored_brand_keeps_longer_word_prefix_eligible(self):
         chips = dict(store_item_id='1786160', name='Honey Soy Chicken Potato Chips',
                      brand='Red Rock Deli', size='165g', price=4)

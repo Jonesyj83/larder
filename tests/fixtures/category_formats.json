@@ -1,0 +1,873 @@
+{
+  "coles": {
+    "water": [
+      {
+        "store_item_id": "324385",
+        "name": "Lightly Sparkling Water Natural Bottle",
+        "brand": "Mount Franklin",
+        "size": "1.25L",
+        "price": 2.0
+      },
+      {
+        "store_item_id": "1057069",
+        "name": "Sparkling Natural Water 375ml",
+        "brand": "Schweppes",
+        "size": "10 Pack",
+        "price": 9.0
+      },
+      {
+        "store_item_id": "1828410",
+        "name": "Still Mineral Water",
+        "brand": "Yaru",
+        "size": "1L",
+        "price": 1.7
+      },
+      {
+        "store_item_id": "2577279",
+        "name": "Lightly Sparkling Spring Water 12x500ml",
+        "brand": "Coles",
+        "size": "12 Pack",
+        "price": 8.2
+      },
+      {
+        "store_item_id": "2778066",
+        "name": "Lightly Sparkling Natural Water",
+        "brand": "Coles",
+        "size": "1.25L",
+        "price": 1.25
+      },
+      {
+        "store_item_id": "3014974",
+        "name": "Natural Mineral Water Bottle",
+        "brand": "Schweppes",
+        "size": "1.1L",
+        "price": 3.3
+      },
+      {
+        "store_item_id": "1051991",
+        "name": "Flavoured Coconut Water Coffee",
+        "brand": "Cocobella",
+        "size": "1L",
+        "price": 5.5
+      },
+      {
+        "store_item_id": "1056168",
+        "name": "Chocolate Flavoured Coconut Water",
+        "brand": "H2coco",
+        "size": "500mL",
+        "price": 2.5
+      },
+      {
+        "store_item_id": "1056554",
+        "name": "Mineral Water Infused Lemon Lime",
+        "brand": "Schweppes",
+        "size": "1.1L",
+        "price": 3.3
+      },
+      {
+        "store_item_id": "1327797",
+        "name": "Sparkling Water Lime Cans 4x250ml",
+        "brand": "Rova",
+        "size": "1L",
+        "price": 3.95
+      },
+      {
+        "store_item_id": "1881412",
+        "name": "Coconut Water",
+        "brand": "Innocent",
+        "size": "1L",
+        "price": 2.75
+      },
+      {
+        "store_item_id": "1914282",
+        "name": "Coconut Water Natural",
+        "brand": "Casa Coco",
+        "size": "1L",
+        "price": 5.7
+      },
+      {
+        "store_item_id": "3014806",
+        "name": "Mixers Tonic Water",
+        "brand": "Schweppes",
+        "size": "1.1L",
+        "price": 1.65
+      }
+    ],
+    "noodles": [
+      {
+        "store_item_id": "129696",
+        "name": "Cup A Soup Chicken Noodle Soup Serves 4",
+        "brand": "Continental",
+        "size": "40g",
+        "price": 3.2
+      },
+      {
+        "store_item_id": "202435",
+        "name": "Noodles Cup Curry Prawn",
+        "brand": "Suimin",
+        "size": "70g",
+        "price": 2.4
+      },
+      {
+        "store_item_id": "255646",
+        "name": "Cup A Soup Creamy Chicken With Lots Of Noodles Serves 2",
+        "brand": "Continental",
+        "size": "60g",
+        "price": 1.8
+      },
+      {
+        "store_item_id": "356472",
+        "name": "Cup A Soup Chicken With Lots Of Noodles Serves 2",
+        "brand": "Continental",
+        "size": "60g",
+        "price": 1.8
+      },
+      {
+        "store_item_id": "1034154",
+        "name": "2 Minute Instant Noodles Honey Soy Chicken 5 Pack",
+        "brand": "Maggi",
+        "size": "350g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "1034289",
+        "name": "2 Minute Curry Instant Noodles 5 Pack",
+        "brand": "Maggi",
+        "size": "395g",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "1369946",
+        "name": "2 Minute Instant Noodles Wholegrain Chicken Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "345g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "1616626",
+        "name": "2 Minute Instant Noodles Chicken Flavour 12 Pack",
+        "brand": "Maggi",
+        "size": "864g",
+        "price": 9.0
+      },
+      {
+        "store_item_id": "1616637",
+        "name": "2 Minute Beef Flavour Noodles 12 Pack",
+        "brand": "Maggi",
+        "size": "888g",
+        "price": 9.0
+      },
+      {
+        "store_item_id": "1851932",
+        "name": "Noodles Sweet Chilli & Sour Cream 5 Pack",
+        "brand": "Maggi",
+        "size": "345g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "1852039",
+        "name": "Noodles Sweet & Smokey BBQ 5 Pack",
+        "brand": "Maggi",
+        "size": "360g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "3336187",
+        "name": "2 Minute Noodles Masala",
+        "brand": "Maggi",
+        "size": "560g",
+        "price": 4.5
+      },
+      {
+        "store_item_id": "3993042",
+        "name": "2 Minute Instant Noodles Spicy Chicken Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "380g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "5366972",
+        "name": "2 Minute Instant Noodles Chicken Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "360g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "5366983",
+        "name": "2 Minute Instant Noodles Beef Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "370g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "7259703",
+        "name": "Chicken & Mushroom Flavour Noodles",
+        "brand": "Pot Noodle",
+        "size": "94g",
+        "price": 4.5
+      },
+      {
+        "store_item_id": "7560965",
+        "name": "2 Minute Instant Noodles Oriental Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "370g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "8097710",
+        "name": "Mi Goreng Hot & Spicy Instant Cup Noodles",
+        "brand": "Maggi",
+        "size": "65g",
+        "price": 2.5
+      },
+      {
+        "store_item_id": "8097720",
+        "name": "Mi Goreng Sweet Soy Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "64g",
+        "price": 2.5
+      },
+      {
+        "store_item_id": "8097800",
+        "name": "Mi Goreng Sweet Soy Instant Noodles S Pack",
+        "brand": "Maggi",
+        "size": "360g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "8097811",
+        "name": "Mi Goreng Hot & Spicy Instant Noodles 5 Pack",
+        "brand": "Maggi",
+        "size": "365g",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "8100950",
+        "name": "Instant Noodles Cups Chicken Flavour 4 Pack",
+        "brand": "Maggi",
+        "size": "240g",
+        "price": 8.0
+      },
+      {
+        "store_item_id": "8109229",
+        "name": "Instant Noodles Cup Oriental Flavour",
+        "brand": "Maggi",
+        "size": "60g",
+        "price": 2.5
+      },
+      {
+        "store_item_id": "8109273",
+        "name": "Instant Noodles Cup Beef Flavour",
+        "brand": "Maggi",
+        "size": "58g",
+        "price": 2.5
+      },
+      {
+        "store_item_id": "8109284",
+        "name": "Instant Noodles Cup Chicken Flavour",
+        "brand": "Maggi",
+        "size": "60g",
+        "price": 2.5
+      },
+      {
+        "store_item_id": "2017434",
+        "name": "Sweet Potato Noodles",
+        "brand": "OBAP",
+        "size": "100g",
+        "price": 1.8
+      },
+      {
+        "store_item_id": "1447733",
+        "name": "Bowl Noodle Braised Beef",
+        "brand": "KSF",
+        "size": "110g",
+        "price": 2.7
+      }
+    ]
+  },
+  "woolworths": {
+    "water": [
+      {
+        "store_item_id": "15806",
+        "name": "San Pellegrino Natural Mineral Water",
+        "brand": "San Pellegrino",
+        "size": "250mL x 6 pack",
+        "price": 16.0
+      },
+      {
+        "store_item_id": "15917",
+        "name": "Mount Franklin Spring Water Bottle",
+        "brand": "Mount Franklin",
+        "size": "1.5L",
+        "price": 3.5
+      },
+      {
+        "store_item_id": "38724",
+        "name": "Pureau Pure Water",
+        "brand": "Pureau",
+        "size": "5L",
+        "price": 5.85
+      },
+      {
+        "store_item_id": "45533",
+        "name": "Mount Franklin Spring Water Bottle",
+        "brand": "Mount Franklin",
+        "size": "600mL",
+        "price": 2.55
+      },
+      {
+        "store_item_id": "81274",
+        "name": "Nu Pure Still Spring Water",
+        "brand": "Nu Pure",
+        "size": "600mL x 20 pack",
+        "price": 9.85
+      },
+      {
+        "store_item_id": "94005",
+        "name": "Pureau Pure Water Water",
+        "brand": "Pureau",
+        "size": "10L",
+        "price": 9.6
+      },
+      {
+        "store_item_id": "77387",
+        "name": "Woolworths Lightly Sparkling Water Cans Lime",
+        "brand": "Woolworths",
+        "size": "250mL x 6 pack",
+        "price": 6.0
+      },
+      {
+        "store_item_id": "77938",
+        "name": "Mount Franklin Lightly Sparkling Water lime Cans",
+        "brand": "Mount Franklin",
+        "size": "375mL x 10 pack",
+        "price": 23.0
+      },
+      {
+        "store_item_id": "172439",
+        "name": "H2Coco Pure Coconut Water",
+        "brand": "H2Coco",
+        "size": "2L",
+        "price": 6.0
+      },
+      {
+        "store_item_id": "242317",
+        "name": "Mount Franklin Lightly Sparkling Water Lime Cans",
+        "brand": "Mount Franklin",
+        "size": "250mL x 6 pack",
+        "price": 7.7
+      },
+      {
+        "store_item_id": "325530",
+        "name": "Pump Lime Rush Water Bottle Lime Rush Bottle",
+        "brand": "Pump",
+        "size": "750mL",
+        "price": 4.45
+      },
+      {
+        "store_item_id": "332732",
+        "name": "Mount Franklin Lightly Sparkling Water Lemon Bottle",
+        "brand": "Mount Franklin",
+        "size": "1.25L",
+        "price": 2.0
+      },
+      {
+        "store_item_id": "109276",
+        "name": "Fever-Tree Indian Tonic Water Cans",
+        "brand": "Fever-Tree",
+        "size": "150mL x 8 pack",
+        "price": 9.75
+      }
+    ],
+    "noodles": [
+      {
+        "store_item_id": "26649",
+        "name": "Continental Classics Cup A Soup Creamy Chicken With Lots Of Noodles",
+        "brand": "Continental",
+        "size": "60g",
+        "price": 3.0
+      },
+      {
+        "store_item_id": "32924",
+        "name": "Continental Classics Cup A Soup Chicken With Lots Of Noodles",
+        "brand": "Continental",
+        "size": "60g",
+        "price": 3.0
+      },
+      {
+        "store_item_id": "32926",
+        "name": "Continental Classics Cup A Soup Original Chicken Noodle",
+        "brand": "Continental",
+        "size": "40g",
+        "price": 3.2
+      },
+      {
+        "store_item_id": "36859",
+        "name": "Maggi Chicken Noodle Soup",
+        "brand": "Maggi",
+        "size": "26g",
+        "price": 1.5
+      },
+      {
+        "store_item_id": "37493",
+        "name": "Fantastic Crispy Bacon Noodle Cup",
+        "brand": "Fantastic",
+        "size": "70g",
+        "price": 1.75
+      },
+      {
+        "store_item_id": "224905",
+        "name": "Maggi Chicken Flavour Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "60g",
+        "price": 1.25
+      },
+      {
+        "store_item_id": "224906",
+        "name": "Maggi Beef Flavour Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "58g",
+        "price": 1.25
+      },
+      {
+        "store_item_id": "224909",
+        "name": "Maggi Oriental Flavour Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "60g",
+        "price": 1.25
+      },
+      {
+        "store_item_id": "337238",
+        "name": "Pot Noodle Chicken & Mushroom",
+        "brand": "Pot Noodle",
+        "size": "94g",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "343890",
+        "name": "Maggi 2 Minute Chicken Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "360g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "343892",
+        "name": "Maggi 2 Minute Chicken Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "864g 12 pack",
+        "price": 9.0
+      },
+      {
+        "store_item_id": "343896",
+        "name": "Maggi 2 Minute Beef Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "370g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "343897",
+        "name": "Maggi 2 Minute Oriental Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "370g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "343900",
+        "name": "Maggi 2 Minute Beef Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "888g 12 pack",
+        "price": 9.0
+      },
+      {
+        "store_item_id": "700019",
+        "name": "Maggi Fusian Instant Noodles Hot & Spicy Flavour Cup",
+        "brand": "Maggi",
+        "size": "65g",
+        "price": 1.25
+      },
+      {
+        "store_item_id": "700075",
+        "name": "Maggi Fusian Mi Goreng Hot & Spicy Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "360g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "700105",
+        "name": "Maggi Fusian Instant Noodles Soy & Mild Spice Flavour Cup",
+        "brand": "Maggi",
+        "size": "64g",
+        "price": 1.25
+      },
+      {
+        "store_item_id": "700110",
+        "name": "Maggi Fusian Mi Goreng Soy & Mild Spice Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "360g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "755561",
+        "name": "Maggi 2 Minute Wholegrain Chicken Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "345g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "6025799",
+        "name": "Maggi 2 Minute Noodles Honey Soy Chicken",
+        "brand": "Maggi",
+        "size": "350g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "6076253",
+        "name": "Maggi 2 Minute Noodles Sweet & Smokey Barbecue",
+        "brand": "Maggi",
+        "size": "360g 5 pack",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "48883",
+        "name": "Fantastic Chicken Noodle Bowl",
+        "brand": "Fantastic",
+        "size": "85g",
+        "price": 2.5
+      }
+    ]
+  },
+  "aldi": {
+    "water": [
+      {
+        "store_item_id": "000000000000365307",
+        "name": "Italian Mineral Water 1.5L",
+        "brand": "SAN BENEDETTO",
+        "size": "1.5 l",
+        "price": 2.29
+      },
+      {
+        "store_item_id": "000000000000365872",
+        "name": "Natural Australian Still Spring Water 1.5L",
+        "brand": "NORTHBROOK",
+        "size": "1.5 l",
+        "price": 0.89
+      },
+      {
+        "store_item_id": "000000000000366001",
+        "name": "Natural Sparkling Mineral Water 1.25L",
+        "brand": "NORTHBROOK",
+        "size": "1.25 l",
+        "price": 1.09
+      },
+      {
+        "store_item_id": "000000000000366005",
+        "name": "Soda Water 1.25L",
+        "brand": "REGAL",
+        "size": "1.25 l",
+        "price": 1.09
+      },
+      {
+        "store_item_id": "000000000000370722",
+        "name": "Natural Spring Water 10L",
+        "brand": "AUSSIE PURE",
+        "size": "10 l",
+        "price": 4.69
+      },
+      {
+        "store_item_id": "000000000000524282",
+        "name": "Natural Australian Spring Water 24x350ml",
+        "brand": "NORTHBROOK",
+        "size": "8.4 l",
+        "price": 9.49
+      },
+      {
+        "store_item_id": "000000000000366379",
+        "name": "Coconut Water 1L",
+        "brand": "COCOLICIOUS",
+        "size": "1 l",
+        "price": 2.59
+      },
+      {
+        "store_item_id": "000000000000369887",
+        "name": "Tonic Water 1.25L",
+        "brand": "REGAL",
+        "size": "1.25 l",
+        "price": 1.09
+      },
+      {
+        "store_item_id": "000000000000576113",
+        "name": "Sparkling Water with Lime 8 Pack 330ml",
+        "brand": "NORTHBROOK",
+        "size": "8 x 330 ml",
+        "price": 6.99
+      }
+    ],
+    "noodles": [
+      {
+        "store_item_id": "000000000000365320",
+        "name": "Mi Goreng Noodles 5 Pack 425g",
+        "brand": "SIMPLEE",
+        "size": "425 g",
+        "price": 2.39
+      },
+      {
+        "store_item_id": "000000000000370621",
+        "name": "Instant Cup Mi Goreng Noodles 75g",
+        "brand": "SIMPLEE",
+        "size": "75 g",
+        "price": 0.99
+      },
+      {
+        "store_item_id": "000000000000370622",
+        "name": "Instant Cup Chicken Noodles 70g",
+        "brand": "SIMPLEE",
+        "size": "70 g",
+        "price": 0.99
+      },
+      {
+        "store_item_id": "000000000000370623",
+        "name": "Instant Cup Beef Noodles 70g",
+        "brand": "SIMPLEE",
+        "size": "70 g",
+        "price": 0.99
+      },
+      {
+        "store_item_id": "000000000000548906",
+        "name": "Chicken Noodles 5 Pack 425g",
+        "brand": "SIMPLEE",
+        "size": "425 g",
+        "price": 1.79
+      },
+      {
+        "store_item_id": "000000000000548917",
+        "name": "Beef Noodles 5 Pack 425g",
+        "brand": "SIMPLEE",
+        "size": "425 g",
+        "price": 1.79
+      },
+      {
+        "store_item_id": "000000000370624001",
+        "name": "Gluten Free Beef Cup Noodle 70g",
+        "brand": "SIMPLEE",
+        "size": "70 g",
+        "price": 1.95
+      },
+      {
+        "store_item_id": "000000000370624002",
+        "name": "Gluten Free Chicken Cup Noodle 70g",
+        "brand": "SIMPLEE",
+        "size": "70 g",
+        "price": 1.95
+      },
+      {
+        "store_item_id": "000000000370648001",
+        "name": "Red Curry Coconut Noodle Bowl 100g",
+        "brand": "URBAN EATS",
+        "size": "100 g",
+        "price": 1.99
+      }
+    ]
+  },
+  "iga": {
+    "water": [
+      {
+        "store_item_id": "848437",
+        "name": "Aquench Spring Water",
+        "brand": "Aquench",
+        "size": "6",
+        "price": 1.49
+      },
+      {
+        "store_item_id": "190000004214",
+        "name": "Aussie Natural Spring Water",
+        "brand": "Aussie Natural",
+        "size": "1.5 l",
+        "price": 1.49
+      },
+      {
+        "store_item_id": "20000002173",
+        "name": "Aussie Natural Spring Water",
+        "brand": "Aussie Natural",
+        "size": "20",
+        "price": 16.8
+      },
+      {
+        "store_item_id": "20000002174",
+        "name": "Aussie Natural Spring Water",
+        "brand": "Aussie Natural",
+        "size": "10 l",
+        "price": 5.5
+      },
+      {
+        "store_item_id": "472634",
+        "name": "Aussie Natural Spring Water",
+        "brand": "Aussie Natural",
+        "size": "600 ml",
+        "price": 1.5
+      },
+      {
+        "store_item_id": "668638",
+        "name": "Australian Natural Spring Water",
+        "brand": "Australian Natural",
+        "size": "1 l",
+        "price": 1.8
+      },
+      {
+        "store_item_id": "150000007995",
+        "name": "CocoCoast Natural Coconut Water",
+        "brand": "CocoCoast",
+        "size": "1.25 l",
+        "price": 4.99
+      },
+      {
+        "store_item_id": "313380",
+        "name": "Coconut Collective Coconut Water",
+        "brand": "Coconut Collective",
+        "size": "1 l",
+        "price": 6.18
+      },
+      {
+        "store_item_id": "964123",
+        "name": "Community Co Coconut Water",
+        "brand": "Community Co",
+        "size": "1 l",
+        "price": 2.85
+      },
+      {
+        "store_item_id": "1800000067604",
+        "name": "H2Coco Chocolate Flavoured Coconut Water",
+        "brand": "H2Coco",
+        "size": "500 ml",
+        "price": 3.4
+      },
+      {
+        "store_item_id": "339116",
+        "name": "Pump Lime Rush Water Bottle",
+        "brand": "Pumped",
+        "size": "750 ml",
+        "price": 4.25
+      },
+      {
+        "store_item_id": "190000005145",
+        "name": "Raw C Coconut Water Can",
+        "brand": "Raw C",
+        "size": "325 ml",
+        "price": 3.49
+      },
+      {
+        "store_item_id": "415187",
+        "name": "Fever-Tree Premium Indian Tonic Water",
+        "brand": "Fever-Tree",
+        "size": "4",
+        "price": 10.99
+      }
+    ],
+    "noodles": [
+      {
+        "store_item_id": "458017",
+        "name": "Continental Cup A Soup Chicken With Lots Of Noodles",
+        "brand": "Continental",
+        "size": "2",
+        "price": 3.0
+      },
+      {
+        "store_item_id": "457914",
+        "name": "Continental Cup A Soup Chinese Chicken & Corn With Lots Of Noodles",
+        "brand": "CONTINENTAL",
+        "size": "2",
+        "price": 3.0
+      },
+      {
+        "store_item_id": "331257",
+        "name": "Continental Cup A Soup Classic Chicken Noodle",
+        "brand": "Continental",
+        "size": "4",
+        "price": 3.95
+      },
+      {
+        "store_item_id": "458130",
+        "name": "Continental Cup A Soup Creamy Chicken With Lots Of Noodles",
+        "brand": "Continental",
+        "size": "2",
+        "price": 3.0
+      },
+      {
+        "store_item_id": "92730",
+        "name": "Fantastic Beef Noodle Bowl",
+        "brand": "Fantastic",
+        "size": "85 g",
+        "price": 2.85
+      },
+      {
+        "store_item_id": "40796",
+        "name": "Maggi 2 Minute Instant Beef Noodles",
+        "brand": "MAGGI",
+        "size": "5",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "81784",
+        "name": "Maggi 2 Minute Instant Cup Noodle Chicken",
+        "brand": "MAGGI",
+        "size": "60 g",
+        "price": 2.85
+      },
+      {
+        "store_item_id": "40819",
+        "name": "Maggi 2 Minute Instant Noodles Chicken",
+        "brand": "MAGGI",
+        "size": "360 g",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "40788",
+        "name": "Maggi 2 Minute Instant Noodles Oriental",
+        "brand": "MAGGI",
+        "size": "5",
+        "price": 5.0
+      },
+      {
+        "store_item_id": "409762",
+        "name": "Maggi 2 Minute Instant Value Pack Chicken Noodles",
+        "brand": "MAGGI",
+        "size": "12",
+        "price": 9.9
+      },
+      {
+        "store_item_id": "409754",
+        "name": "Maggi 2 Minute Instant Value Pack Noodles Beef",
+        "brand": "MAGGI",
+        "size": "12",
+        "price": 9.9
+      },
+      {
+        "store_item_id": "81776",
+        "name": "Maggi Beef Noodle Cup",
+        "brand": "MAGGI",
+        "size": "58 g",
+        "price": 2.85
+      },
+      {
+        "store_item_id": "81734",
+        "name": "Maggi Fusian 2 Minute Instant Mi Goreng Noodle Hot & Spicy Cup",
+        "brand": "MAGGI",
+        "size": "65 g",
+        "price": 2.85
+      },
+      {
+        "store_item_id": "81687",
+        "name": "Maggi Fusian Noodles Soy Mild Spice",
+        "brand": "MAGGI",
+        "size": "5",
+        "price": 5.7
+      },
+      {
+        "store_item_id": "851582",
+        "name": "Obap Sweet Potato Noodles",
+        "brand": "Obap",
+        "size": "100 g",
+        "price": 2.65
+      }
+    ]
+  }
+}
