@@ -66,6 +66,43 @@ class CatalogueMatching(unittest.TestCase):
         self.assertIsNone(pricing.strongest_match('tomato sauce',
             [named, home, dict(bulk, brand='Coles Finest')], store='coles'))
 
+    def test_same_brand_squeeze_container_uses_everyday_size(self):
+        self.db.executescript("""
+            INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES
+                (18040,'Woolworths Tomato Sauce','Woolworths','2L'),
+                (230519,'Woolworths Tomato Sauce Squeeze','Woolworths','500mL');
+        """)
+        self.assertEqual(self.match('woolworths', 'tomato sauce')['store_item_id'], '230519')
+        self.assertEqual(self.match('woolworths', 'tomato sauce 2L')['store_item_id'], '18040')
+        self.assertEqual(self.match('woolworths', 'tomato sauce squeeze')['store_item_id'], '230519')
+        candidates = pricing.search('woolworths', 'tomato sauce', conn=self.db)
+        for ordered in (candidates, list(reversed(candidates))):
+            self.assertEqual(pricing.strongest_match('tomato sauce', ordered,
+                             store='woolworths')['store_item_id'], '230519')
+        for size in ('1L', '', '500g'):
+            self.db.execute("UPDATE woolworths_catalogue SET size=? WHERE stockcode=230519", (size,))
+            self.assertEqual(self.match('woolworths', 'tomato sauce')['store_item_id'], '18040')
+
+    def test_same_brand_flavour_is_not_a_container_difference(self):
+        bulk = dict(store_item_id='18040', name='Woolworths Tomato Sauce',
+                    brand='Woolworths', size='2L')
+        spicy = dict(store_item_id='2', name='Woolworths Spicy Tomato Sauce Squeeze',
+                     brand='Woolworths', size='500mL')
+        self.assertEqual(pricing.strongest_match('tomato sauce', [spicy, bulk],
+                         store='woolworths'), bulk)
+        self.assertEqual(pricing.strongest_match('spicy tomato sauce', [bulk, spicy],
+                         store='woolworths'), spicy)
+        other = dict(spicy, name='Other Tomato Sauce Squeeze', brand='Other')
+        self.assertEqual(pricing.strongest_match('tomato sauce', [other, bulk],
+                         store='woolworths'), bulk)
+        for brand in ('', 'Other'):
+            plain = dict(bulk, brand=brand)
+            squeeze = dict(other, brand=brand, name='Tomato Sauce Squeeze')
+            if brand:
+                squeeze['brand'] = 'Another'
+            self.assertEqual(pricing.strongest_match('tomato sauce', [plain, squeeze],
+                             store='woolworths'), plain)
+
     def test_grated_and_shredded_are_the_same_word(self):
         self.db.executescript("""
             INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES

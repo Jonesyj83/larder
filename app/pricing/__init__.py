@@ -605,8 +605,6 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             by_extra = sorted(tied, key=extra_words)
             fewest_extra = extra_words(by_extra[0])
             plainest = [pair for pair in by_extra if extra_words(pair) == fewest_extra]
-            if len(plainest) == 1:
-                return plainest[0][1]
             def everyday_size(finalists):
                 if preferred_size:
                     return None
@@ -630,6 +628,22 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                     comparison = by_size[-1] if explicit_single else by_size[1]
                     if total_size(comparison[1]) >= 4 * smallest > 0 and total_size(by_size[1][1]) > smallest:
                         return by_size[0][1]
+            # A squeeze title can describe another container of the same
+            # product. Require the same nonempty brand and every remaining
+            # product word before letting a bulk gap precede title length.
+            def container_identity(pair):
+                c = pair[1]
+                return (normalized_name(c.get('brand') or ''),
+                        frozenset(name_words(c['name']) - name_words(c.get('brand') or '')
+                                  - {'can', 'bottle', 'single', 'pack', 'squeeze'}))
+            identity = container_identity(plainest[0])
+            if identity[0] and all(container_identity(pair) == identity for pair in plainest):
+                packs = [pair for pair in tied if container_identity(pair) == identity]
+                everyday = everyday_size(packs)
+                if everyday is not None:
+                    return everyday
+            if len(plainest) == 1:
+                return plainest[0][1]
             everyday = everyday_size(plainest)
             if everyday is not None:
                 return everyday
