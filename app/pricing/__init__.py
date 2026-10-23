@@ -81,7 +81,7 @@ HOME_BRANDS = {
     "woolworths": ("Woolworths", "Woolworths Essentials"),
     "aldi": ("FARMDALE", "COLWAY", "REMANO", "CORALE", "SPRINTERS",
              "BRAMWELLS", "FIZZI", "SUNLIT", "FLYING POWER", "HILLCREST",
-             "SIMPLEE", "BLACKSTONE GOURMET SNACK CO."),
+             "SIMPLEE", "BLACKSTONE GOURMET SNACK CO.", "NORTHBROOK", "BERG", "BAKERS LIFE"),
     "iga": ("Community Co", "Black & Gold", "G-FRESH"),
 }
 
@@ -112,6 +112,13 @@ QUERY_CORRECTIONS = {"redbull": "red bull"}
 # A category alone must not acquire one through title or price preferences.
 CATEGORY_QUALIFIERS = {
     frozenset({'cola', 'pepsi'}): frozenset({'diet', 'zero', 'max', 'no', 'free'}),
+    frozenset({'bread'}): frozenset({
+        'banana', 'garlic', 'mix', 'crumb', 'naan', 'roti', 'souvlaki',
+        'lebanese', 'roll', 'choc', 'chocolate', 'brownie',
+    }),
+    frozenset({'ham'}): frozenset({
+        'soup', 'pizza', 'sandwich', 'toastie', 'quiche', 'bean', 'spread',
+    }),
     frozenset({'noodle'}): frozenset({'cup', 'pot', 'bowl'}),
     frozenset({'water'}): frozenset({
         'tonic', 'soda', 'coconut', 'flavoured', 'infused', 'lemon', 'lime', 'berry',
@@ -244,18 +251,112 @@ def search(store, query, postcode="", conn=None):
         return results
 
 
-def link_product(db, product_id, store, item_id, name, matched_by=None, size="", *, needs_review=False):
-    existing = db.execute("SELECT id,store_item_id FROM product_store_links WHERE product_id=? AND store=?",
+def catalogue_brands(db):
+    return {normalized_name(row[0]) for table, _ in _CATALOGUE_TABLES.values()
+            for row in db.execute(f"SELECT DISTINCT brand FROM {table} WHERE brand!=''")}
+
+
+def substitute_pick(query, store, candidate, known_brands=()):
+    # Search only rewrites a request when the named line is absent. An
+    # actual stocked national brand, or a generic category, stays normal.
+    if candidate.get('_match_query') or candidate.get('_substitute'):
+        return True
+    equivalent = _aldi_equivalent(query) if store == 'aldi' else None
+    identity = name_words(candidate['name']) | name_words(candidate.get('brand') or '')
+    if equivalent and not name_words(query) <= identity:
+        return True
+    if name_words(query) <= identity:
+        return False
+    # Reuse stored brand labels to recognize requests outside the verified
+    # substitution aliases. Detection does not invent a replacement mapping.
+    query = QUERY_CORRECTIONS.get(query.casefold().strip(), query)
+    tokens = re.findall(r"\w+", re.sub(SIZE_TOKEN, ' ', query, flags=re.IGNORECASE).casefold())
+    brands = [normalized_name(' '.join(tokens[:n])) for n in range(1, len(tokens) + 1)]
+    requested = next((brand for brand in reversed(brands) if brand in known_brands), None)
+    house = {normalized_name(b) for labels in HOME_BRANDS.values() for b in labels}
+    if requested and requested not in house:
+        return requested != normalized_name(candidate.get('brand') or '') and not any(
+            requested == normalized_name(' '.join(re.findall(r"\w+", candidate['name'])[:n]))
+            for n in range(1, len(re.findall(r"\w+", candidate['name'])) + 1))
+    return False
+
+
+def household_match(db, product_id, name, store, candidates):
+    from .. import order_history
+    history = [h for h in order_history.recent(db, product_id, store) if h['store_item_id']]
+    remembered = order_history.typical(history, fields=('store_item_id',))
+    missing_identity = False
+    if remembered:
+        table, key = _CATALOGUE_TABLES[store]
+        item = db.execute(f"SELECT * FROM {table} WHERE {key}=?", (remembered['store_item_id'],)).fetchone()
+        if item:
+            direct = dict(item, store_item_id=str(item[key]))
+            remembered_type = name_words(item['name']) - name_words(name) - name_words(item['brand'])
+            picked = strongest_match(name, [direct], preferred_type=remembered_type, store=store)
+            if picked:
+                return dict(picked, _substitute=True) if remembered["is_substitute"] else picked
+        else:
+            missing_identity = True
+    preferred_type = type_preference(db, product_id, store)
+    if remembered:
+        preferred_type = (name_words(remembered['store_name']) - name_words(name)
+                          - name_words(remembered['store_brand']))
+    words = name_words(name)
+    if len(words) == 1 and next(iter(words)) in PLAIN_CATEGORY_WORDS:
+        preferred_type -= PLAIN_CATEGORY_WORDS[next(iter(words))] - {'sparkling', 'mineral', 'lightly'}
+    preferred_class = classification_preference(db, product_id, store)
+
+    def remembered_result(picked):
+        other = name_words(picked['name']) | name_words(picked.get('brand') or '')
+        missing_type = len(words) == 1 and preferred_type and not preferred_type <= other
+        return dict(picked, _substitute=True) if missing_identity or missing_type else picked
+
+    # National-brand agreement across confirmed choices can supply a brand
+    # even when the household calls the item by its generic category.
+    brands = {normalized_name(remembered['store_brand'])} if remembered and remembered['store_brand'] else set()
+    links = [] if brands else db.execute("SELECT * FROM product_store_links WHERE product_id=? AND needs_review=0 AND is_substitute=0",
+                                        (product_id,))
+    for link in links:
+        table, key = _CATALOGUE_TABLES[link['store']]
+        item = db.execute(f"SELECT brand FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
+        if item and item['brand']:
+            brand = normalized_name(item['brand'])
+            if brand not in {normalized_name(b) for b in HOME_BRANDS.get(link['store'], ())}:
+                brands.add(brand)
+    if len(brands) == 1:
+        preferred = [c for c in candidates if normalized_name(c.get('brand') or '') in brands]
+        picked = strongest_match(name, preferred, size_preference(db, product_id, store), preferred_type,
+                                 store=store, preferred_classification=preferred_class)
+        if picked:
+            return remembered_result(picked)
+        missing_identity = True
+    picked = strongest_match(name, candidates, size_preference(db, product_id, store), preferred_type,
+                             store=store, preferred_classification=preferred_class)
+    if picked is None and (missing_identity or preferred_type or preferred_class):
+        picked = strongest_match(name, candidates, store=store)
+        missing_identity = True
+    return remembered_result(picked) if picked else None
+
+
+def link_product(db, product_id, store, item_id, name, matched_by=None, size="", *, needs_review=False, is_substitute=None):
+    existing = db.execute("SELECT id,store_item_id,is_substitute FROM product_store_links WHERE product_id=? AND store=?",
                           (product_id, store)).fetchone()
+    if is_substitute is None:
+        product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
+        table, key = _CATALOGUE_TABLES[store]
+        item = db.execute(f"SELECT brand FROM {table} WHERE {key}=?", (item_id,)).fetchone()
+        is_substitute = substitute_pick(product['name'], store, {'name': name, 'brand': item['brand'] if item else ''}, catalogue_brands(db))
+        if existing and existing['store_item_id'] == item_id:
+            is_substitute |= bool(existing['is_substitute'])
     if existing and existing["store_item_id"] != item_id:
         # A replacement identity must not inherit the previous item's history.
         db.execute("DELETE FROM product_store_links WHERE id=?", (existing["id"],))
-    db.execute("""INSERT INTO product_store_links(product_id,store,store_item_id,store_name,matched_by,size,needs_review)
-        VALUES(?,?,?,?,?,?,?) ON CONFLICT(product_id,store) DO UPDATE SET
+    db.execute("""INSERT INTO product_store_links(product_id,store,store_item_id,store_name,matched_by,size,needs_review,is_substitute)
+        VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(product_id,store) DO UPDATE SET
         store_name=excluded.store_name, matched_by=excluded.matched_by,
-        needs_review=excluded.needs_review,
+        needs_review=excluded.needs_review, is_substitute=excluded.is_substitute,
         size=CASE WHEN excluded.size != '' THEN excluded.size ELSE product_store_links.size END""",
-        (product_id, store, item_id, name, matched_by, size or "", int(needs_review)))
+        (product_id, store, item_id, name, matched_by, size or "", int(needs_review), int(is_substitute)))
     return db.execute("SELECT id FROM product_store_links WHERE product_id=? AND store=?",
                       (product_id, store)).fetchone()[0]
 
@@ -404,7 +505,7 @@ def type_preference(db, product_id, store):
         return set()
     # A provisional choice must not teach later matches its guessed type.
     links = db.execute("""SELECT store,store_item_id,store_name FROM product_store_links
-        WHERE product_id=? AND needs_review=0""", (product_id,)).fetchall()
+        WHERE product_id=? AND needs_review=0 AND is_substitute=0""", (product_id,)).fetchall()
     choices = []
     all_choices = []
     for link in links:
@@ -459,7 +560,7 @@ def classification_preference(db, product_id, store):
     shared label. Conflicting choices supply no structural preference.
     """
     choices = []
-    for link in db.execute("SELECT store,store_item_id FROM product_store_links WHERE product_id=? AND needs_review=0",
+    for link in db.execute("SELECT store,store_item_id FROM product_store_links WHERE product_id=? AND needs_review=0 AND is_substitute=0",
                            (product_id,)):
         if link['store'] == store:
             continue
@@ -515,8 +616,8 @@ def _classification_filter(words, candidates, preferred=(), plain_category=None)
     preferred = set(preferred)
     for label in sorted(preferred, key=lambda label: (-len(label), sorted(label))):
         agree = [c for c in eligible if any(label == part for path in classified(c) for part in path)]
-        if agree and any(classified(c) and c not in agree for c in eligible):
-            return [c for c in eligible if not classified(c) or c in agree]
+        if agree:
+            return agree
     return eligible
 
 
@@ -529,11 +630,12 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         return None
     default_type = name_words(DEFAULT_VARIANT.get(next(iter(words)), "")) if len(words) == 1 else set()
     remembered = set(preferred_type or ())
+    if len(words) == 1 and next(iter(words)) in PLAIN_CATEGORY_WORDS:
+        remembered -= PLAIN_CATEGORY_WORDS[next(iter(words))] - {'sparkling', 'mineral', 'lightly'}
     if len(words) > 1 and not any(words | remembered <= (name_words(c['name']) | name_words(c.get('brand') or '')) for c in candidates):
         remembered = set()
     type_words = (remembered if not words & {"cola", "pepsi"} else set()) or default_type
-    # A bare category needs a real type signal before descriptive titles
-    # can clear the name floor. Explicit query words still take precedence.
+    # Explicit query words still take precedence over a remembered type.
     generic_type = bool(type_words) and len(words) == 1
     def type_overlap(candidate):
         other = name_words(candidate['name'])
@@ -599,7 +701,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         if type_words and not type_words <= other:
             if not remembered and not other <= words | default_type:
                 continue
-        if any(words & category and not words & qualifiers and other & qualifiers
+        if any(words & category and not (words | remembered) & qualifiers and other & qualifiers
                for category, qualifiers in CATEGORY_QUALIFIERS.items()):
             continue
         # A noodle soup sachet is not a packet of instant noodles either.
@@ -624,6 +726,8 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             score = .5
         elif len(words) > 1 and recall == 1:
             score = .5
+        elif recall == 1 and not required_brand:
+            score = max(score, .5)
         elif score < .5:
             continue
         if preferred_size:
@@ -657,6 +761,10 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     eligible = _classification_filter(class_words or words, [pair[1] for pair in scored.values()],
                                       class_history, plain_category)
     eligible_ids = {str(c['store_item_id']) for c in eligible}
+    remembered_ids = {str(c['store_item_id']) for c in eligible
+                      if remembered and remembered <= candidate_words(c)}
+    if remembered_ids:
+        eligible_ids &= remembered_ids
     ranked = sorted((pair for key, pair in scored.items() if key in eligible_ids),
                     key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < .5:
@@ -675,7 +783,9 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             # Container words are packaging, not flavours. Embedded pack
             # sizes have already disappeared from the same comparison.
             def extra_words(pair):
-                extra = candidate_words(pair[1]) - words - {'can', 'bottle', 'single'}
+                extra = candidate_words(pair[1]) - words - {'can', 'bottle', 'single', 'loaf'}
+                if plain_category:
+                    extra -= plain_category - {'sparkling', 'mineral', 'lightly'}
                 # A bare household default favours everyday milk over
                 # premium lines. Keep dietary words intact, and never
                 # apply this preference to an explicit or remembered type.
@@ -705,7 +815,9 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             def variant_words(pair):
                 c = pair[1]
                 extra = name_words(c['name']) - words - name_words(c.get('brand') or '') - remembered
-                extra -= {'can', 'bottle', 'single', 'pack', 'squeeze', 'fresh', 'classic', 'original', 'regular'}
+                extra -= {'can', 'bottle', 'single', 'pack', 'squeeze', 'loaf', 'fresh', 'classic', 'original', 'regular'}
+                if plain_category:
+                    extra -= plain_category - {'sparkling', 'mineral', 'lightly'}
                 category = GENERIC_EQUIVALENTS.get(name.casefold().strip())
                 category_words = name_words(' '.join(category or ()))
                 if category_words and category_words <= name_words(c['name']):
@@ -718,20 +830,26 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             variants = [variant_words(pair) for pair in tied]
             plain = [pair for pair, variant in zip(tied, variants)
                      if all(variant <= other for other in variants)]
+            different_variants = (not required_brand and not plain
+                                  and len({frozenset(variant) for variant in variants}) > 1)
+
+            def resolved(candidate):
+                return dict(candidate, _ambiguous=True) if different_variants else candidate
+
             if not plain and remembered:
                 plain = [pair for pair in tied if remembered <= candidate_words(pair[1])]
             # Without a shared plain subset, retain the real alternatives
             # for the final closest-title and price preference.
             tied = plain or tied
             if len(tied) == 1:
-                return tied[0][1]
+                return resolved(tied[0][1])
             if generic_type or remembered:
                 overlaps = [(type_overlap(pair[1]), pair) for pair in tied]
                 best = max(overlap for overlap, _ in overlaps)
                 if best:
                     tied = [pair for overlap, pair in overlaps if overlap == best]
                     if len(tied) == 1:
-                        return tied[0][1]
+                        return resolved(tied[0][1])
                 else:
                     # A type absent from this store is no reason to guess
                     # another one or fall back from a remembered choice.
@@ -775,12 +893,12 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                 packs = [pair for pair in tied if container_identity(pair) == identity]
                 everyday = everyday_size(packs)
                 if everyday is not None:
-                    return everyday
+                    return resolved(everyday)
             if len(plainest) == 1:
-                return plainest[0][1]
+                return resolved(plainest[0][1])
             everyday = everyday_size(plainest)
             if everyday is not None:
-                return everyday
+                return resolved(everyday)
             # A house label only settles the remaining tie, never a named
             # brand, a remembered type, or nearby house sizes.
             if not required_brand:
@@ -788,14 +906,14 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                 home = [pair for pair in plainest
                         if normalized_name(pair[1].get('brand') or '') in labels]
                 if len(home) == 1:
-                    return home[0][1]
+                    return resolved(home[0][1])
                 if len(home) > 1 and len({normalized_name(pair[1].get('brand') or '')
                                           for pair in home}) == 1:
                     # Ownership narrows the brand; the same bulk-size
                     # check can then settle its otherwise identical packs.
                     everyday = everyday_size(home)
                     if everyday is not None:
-                        return everyday
+                        return resolved(everyday)
         # All remaining products have survived explicit intent and size
         # checks. Prefer fewer unrequested words, then the lowest valid
         # shelf price: it is the smaller household spend for an equal title.
@@ -829,14 +947,13 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
                 candidates = search_fn(setting["store"], name, setting["postcode"])
             else:
                 candidates = search(setting["store"], name, setting["postcode"], conn=db)
-            candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]),
-                                        type_preference(db, product_id, setting["store"]), store=setting["store"],
-                                        preferred_classification=classification_preference(db, product_id, setting["store"]))
+            candidate = household_match(db, product_id, name, setting["store"], candidates)
             if candidate is None:
                 continue
             with db:
                 link_id = link_product(db, product_id, setting["store"], str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"),
-                                       needs_review=candidate.get("_ambiguous", False))
+                                       needs_review=candidate.get("_ambiguous", False),
+                                       is_substitute=substitute_pick(name, setting["store"], candidate, catalogue_brands(db)))
                 record_price(db, link_id, candidate)
             matched.append({"product_id": product_id, "name": name, "store": setting["store"]})
         except Exception:
@@ -872,15 +989,14 @@ def auto_match_live(db, product_id, name, excluded_stores=()):
             if exc is not None:
                 log.warning("Product lookup failed for %s", store, exc_info=exc)
                 continue
-            candidate = strongest_match(name, candidates, size_preference(db, product_id, store),
-                                        type_preference(db, product_id, store), store=store,
-                                        preferred_classification=classification_preference(db, product_id, store))
+            candidate = household_match(db, product_id, name, store, candidates)
             if candidate is None:
                 continue
             try:
                 with db:
                     link_id = link_product(db, product_id, store, str(candidate["store_item_id"]), candidate["name"], size=candidate.get("size"),
-                                           needs_review=candidate.get("_ambiguous", False))
+                                           needs_review=candidate.get("_ambiguous", False),
+                                           is_substitute=substitute_pick(name, store, candidate, catalogue_brands(db)))
                     record_price(db, link_id, candidate)
                 matched.append({"product_id": product_id, "name": name, "store": store})
             except Exception:

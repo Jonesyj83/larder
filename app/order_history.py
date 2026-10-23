@@ -26,11 +26,19 @@ def record(db, item, store=None):
         return
     try:
         db.execute("SAVEPOINT order_history_insert")
-        link = db.execute("SELECT size FROM product_store_links WHERE product_id=? AND store=?",
+        link = db.execute("SELECT size,store_item_id,store_name,is_substitute FROM product_store_links WHERE product_id=? AND store=?",
                           (item["product_id"], store)).fetchone() if store else None
-        db.execute("""INSERT INTO order_history(product_id,amount,unit_id,store,size)
-            VALUES(?,?,?,?,?)""", (item["product_id"], item["amount"], item["unit_id"],
-                                   store, link["size"] if link else ""))
+        brand = ''
+        if link:
+            from .pricing import _CATALOGUE_TABLES
+            table, key = _CATALOGUE_TABLES[store]
+            candidate = db.execute(f"SELECT brand FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
+            brand = candidate['brand'] if candidate else ''
+        db.execute("""INSERT INTO order_history(product_id,amount,unit_id,store,size,store_item_id,store_name,store_brand,is_substitute)
+            VALUES(?,?,?,?,?,?,?,?,?)""", (item["product_id"], item["amount"], item["unit_id"],
+                                   store, link["size"] if link else "",
+                                   link["store_item_id"] if link else "", link["store_name"] if link else "",
+                                   brand, link["is_substitute"] if link else 0))
         db.execute("RELEASE order_history_insert")
     except Exception:
         try:
