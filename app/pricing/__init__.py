@@ -262,7 +262,10 @@ SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\s*x\s*\d+\s*(?:pack|pk)?\b"
 
 # Australian supermarkets swap these words for the same thing -- both
 # sides have to collapse onto one form or they anti-match each other.
-SYNONYMS = {"shredded": "grated", "sach": "sachet"}
+# Reduced-fat milk in particular has three real spellings in the wild:
+# Coles/Woolworths call it Lite, IGA's Brownes/Country Dairy call it
+# Hi-Lo, Aldi's Farmdale calls it Light -- same product, same intent.
+SYNONYMS = {"shredded": "grated", "sach": "sachet", "hilo": "lite", "light": "lite"}
 
 
 def name_words(name, *, singular=True):
