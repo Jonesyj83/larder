@@ -425,10 +425,11 @@ class ScoredMatching(unittest.TestCase):
         # word-overlap purposes once the size token's taken out -- that
         # used to always fail the overlap floor against any real,
         # descriptive store title, even when there's only one sane
-        # candidate and the size is an exact match.
+        # candidate and the size is an exact match. An explicitly different
+        # variant remains invalid even when it is the only available line.
         candidates = [self.candidate('Pepsi Max Cola No Sugar Soft Drink Bottle', brand='Pepsi')]
         candidates[0]['size'] = '1.25L'
-        self.assertIsNotNone(pricing.strongest_match('1.25L Pepsi', candidates))
+        self.assertIsNone(pricing.strongest_match('1.25L Pepsi', candidates))
         self.assertIsNotNone(pricing.strongest_match('400g Nutella', [dict(self.candidate(
             'Nutella Hazelnut Spread', brand='Nutella'), size='400g')]))
 
@@ -464,12 +465,10 @@ class ScoredMatching(unittest.TestCase):
         candidate['size'] = '1.25L'
         self.assertEqual(pricing.strongest_match('1.25L Pepsi', [candidate]), candidate)
 
-    def test_a_candidate_missing_a_typed_word_stays_a_real_toss_up(self):
-        # "Pork Chops" is missing "loin" entirely, not just carrying one
-        # extra harmless word -- that's a real gap, so no amount of
-        # "pick the plainest" logic should paper over it.
-        self.assertIsNone(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
-            self.candidate('Pork Loin Chops Boneless', '2')]))
+    def test_candidate_must_preserve_every_typed_word(self):
+        # Extra catalogue words do not cancel an explicitly requested cut.
+        self.assertEqual(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
+            self.candidate('Pork Loin Chops Boneless', '2')])['store_item_id'], '2')
 
     def test_plain_plural_isnt_treated_as_a_different_word(self):
         # A household item typed as "carrot" has to find a store listing
@@ -529,7 +528,7 @@ class ScoredMatching(unittest.TestCase):
         self.assertEqual(pricing.strongest_match('Yoghurt Tub', [small, big], preferred_size={'mass': 170}), small)
         self.assertEqual(pricing.strongest_match('Yoghurt Tub', [big], preferred_size={'mass': 170}), None)
         # No size claim on the candidate at all is not evidence of a mismatch.
-        no_size = self.candidate('Yoghurt Tub', item='3', brand='')
+        no_size = dict(self.candidate('Yoghurt Tub', item='3', brand=''), size='')
         self.assertEqual(pricing.strongest_match('Yoghurt Tub', [no_size], preferred_size={'mass': 170}), no_size)
 
     def test_supermarket_noise_words_and_real_brand_lock(self):
@@ -550,8 +549,8 @@ class ScoredMatching(unittest.TestCase):
         self.assertIsNone(pricing.strongest_match('Capsicum', [self.candidate('Red Capsicum'),
             self.candidate('Green Capsicum', '2')]))
         self.assertIsNone(pricing.strongest_match('Milk', [self.candidate('Dark Chocolate')]))
-        self.assertIsNone(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
-            self.candidate('Pork Loin Chops Boneless', '2')]))
+        self.assertEqual(pricing.strongest_match('Pork Loin Chops', [self.candidate('Pork Chops'),
+            self.candidate('Pork Loin Chops Boneless', '2')])['store_item_id'], '2')
 
 
 class StoreParsers(unittest.TestCase):

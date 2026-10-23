@@ -33,7 +33,7 @@ class CatalogueMatching(unittest.TestCase):
         self.assertIsNone(pricing.strongest_match('milk', [named,
             dict(home, brand='Macro', name='Macro Full Cream Milk')], store='woolworths'))
 
-    def test_grated_cheese_does_not_claim_shredded_house_lines(self):
+    def test_grated_and_shredded_are_the_same_word(self):
         self.db.executescript("""
             INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES
                 (17497,'Dairyworks Tasty Cheese Grated','Dairyworks','500g'),
@@ -43,7 +43,9 @@ class CatalogueMatching(unittest.TestCase):
                 ('334960','Grana Padano Grated Cheese 150g','EMPORIUM SELECTION','150 g'),
                 ('399737','Long-life Grated Parmesan Cheese 100g','REMANO','100 g');
         """)
-        self.assertIsNone(self.match('woolworths', 'grated cheese'))
+        # Woolworths titles its house line "shredded"; that's the same
+        # product a "grated cheese" query is after.
+        self.assertEqual(self.match('woolworths', 'grated cheese')['brand'], 'Woolworths')
         self.assertIsNone(self.match('aldi', 'grated cheese'))
 
     def test_ranked_brand_search_and_single_can(self):
@@ -79,14 +81,14 @@ class CatalogueMatching(unittest.TestCase):
         self.assertEqual({c['store_item_id'] for c in candidates}, {'1', '2'})
         self.assertEqual(pricing.strongest_match('2l coke', candidates)['store_item_id'], '1')
 
-    def test_coke_size_does_not_choose_between_classic_and_diet(self):
+    def test_plain_coke_means_classic_and_preserves_typed_variants(self):
         self.db.executescript("""
             INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
                 (1,'Classic Soft Drink Bottle','Coca-Cola','2L'),
                 (2,'Diet Soft Drink Bottle','Coca-Cola','2L'),
                 (3,'Zero Sugar Soft Drink Bottle','Coca-Cola','2L');
         """)
-        self.assertIsNone(self.match('coles', '2l coke'))
+        self.assertEqual(self.match('coles', '2l coke')['store_item_id'], '1')
         self.assertEqual(self.match('coles', '2l coke classic')['store_item_id'], '1')
         self.assertEqual(self.match('coles', '2l coke diet')['store_item_id'], '2')
 
@@ -228,3 +230,95 @@ class CatalogueMatching(unittest.TestCase):
             with self.subTest(size=size):
                 unknown = dict(store_item_id='3', name='Water', size=size)
                 self.assertIsNone(pricing.strongest_match('Water', candidates + [unknown]))
+
+    def test_shared_normalization_retrieves_and_selects_across_stores(self):
+        for store, (table, key) in pricing._CATALOGUE_TABLES.items():
+            with self.subTest(store=store):
+                self.db.execute(f"INSERT INTO {table}({key},name,brand,size) VALUES(?,?,?,?)",
+                                ('700', 'Hi-Lo Fresh Dairy Milk Carton', 'Dairy', '1 L'))
+                if store == 'iga':
+                    self.db.execute("INSERT INTO iga_catalogue_store(id,store_id,location) VALUES(1,'local','piara waters')")
+                candidates = pricing.search(store, '1l hilo milk', 'Piara Waters', conn=self.db)
+                self.assertIn('700', [c['store_item_id'] for c in candidates])
+                self.assertEqual(pricing.strongest_match('1l hilo milk', candidates, store=store)['store_item_id'], '700')
+                self.assertIsNone(pricing.strongest_match('1l hilo milk vanilla', candidates, store=store))
+        self.assertEqual(pricing.search('iga', '1l hilo milk', 'Other Location', conn=self.db), [])
+
+    def test_apostrophe_brand_and_conjunction_retrieval_preserve_flavour(self):
+        self.db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
+                (1,'Crinkle Cut Cheese & Onion Potato Chips', 'Smith''s','170g'),
+                (2,'Potato Chips Lunchbox Multipack Cheese & Onion 8 Pack','Smith''s','152g'),
+                (3,'Crinkle Cut Sour Cream & Onion Potato Chips','Smith''s','170g'),
+                (4,'Cheese & Onion Potato Chips','Other','170g');
+        """)
+        for query in ('Smiths cheese and onion', "Smith’s cheese & onion"):
+            candidates = pricing.search('coles', query, conn=self.db)
+            self.assertIn('1', [c['store_item_id'] for c in candidates])
+            self.assertEqual(pricing.strongest_match(query, candidates)['store_item_id'], '1')
+        self.assertIsNone(self.match('coles', 'smiths cheese and onion chilli'))
+
+    def test_synonym_retrieval_and_remembered_type_select_parmesan(self):
+        self.db.executescript("""
+            INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES
+                (1,'Woolworths Shredded Parmesan Cheese','Woolworths','250g'),
+                (2,'Woolworths Shredded Mozzarella Cheese','Woolworths','250g');
+        """)
+        for query in ('grated cheese', 'shredded cheese'):
+            candidates = pricing.search('woolworths', query, conn=self.db)
+            self.assertEqual({c['store_item_id'] for c in candidates}, {'1', '2'})
+            self.assertIsNone(pricing.strongest_match(query, candidates, store='woolworths'))
+            self.assertEqual(pricing.strongest_match(query, candidates,
+                preferred_type={'parmesan'}, store='woolworths')['store_item_id'], '1')
+            self.assertEqual(pricing.strongest_match(query + ' mozzarella', candidates,
+                preferred_type={'parmesan'}, store='woolworths')['store_item_id'], '2')
+
+    def test_size_dimensions_pack_formats_and_explicit_size_priority(self):
+        self.assertEqual(pricing.pack_size('19g x 8 pack'), pricing.pack_size('8 x 19 g'))
+        self.db.executescript("""
+            INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
+                ('1','Full Cream Milk 2L','FARMDALE','2 l'),
+                ('2','Instant Full Cream Milk Powder','FARMDALE','2kg'),
+                ('3','Chocolate Milk','FARMDALE','2 l'),
+                ('4','Full Cream Milk 1L','FARMDALE','1 l');
+        """)
+        candidates = pricing.search('aldi', '2l milk', conn=self.db)
+        self.assertEqual(pricing.strongest_match('2l milk', candidates,
+            preferred_size={'volume': 1000}, store='aldi')['store_item_id'], '1')
+        self.assertIsNone(pricing.strongest_match('2l milk', [c for c in candidates if c['store_item_id'] in {'2', '3'}], store='aldi'))
+        self.assertIsNone(self.match('aldi', '1l hilo milk'))
+
+    def test_verified_aldi_equivalent_keeps_all_flavour_words(self):
+        self.db.executescript("""
+            INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
+                ('1','Cheese & Onion Crinkle Cut Chips 230g','SPRINTERS','230 g'),
+                ('2','Sour Cream & Onion Chips','SPRINTERS','230 g'),
+                ('3','Cheese & Onion Frozen Chips','Other','230 g'),
+                ('4','Snack Faves 20 Pack','SMITH''S','392g');
+        """)
+        self.assertEqual(self.match('aldi', 'Smiths cheese and onion')['store_item_id'], '1')
+        self.assertIsNone(self.match('aldi', 'smiths cheese and onion chilli'))
+        self.db.execute("DELETE FROM aldi_catalogue WHERE item_id='1'")
+        self.assertIsNone(self.match('aldi', 'smiths cheese and onion'))
+
+    def test_history_type_excludes_retailer_brand_without_changing_links(self):
+        self.db.executescript("""
+            INSERT INTO products(id,name,unit_id) VALUES(1,'grated cheese',1);
+            INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
+                (1,'Grated Parmesan Cheese','Kraft','125g');
+            INSERT INTO product_store_links(product_id,store,store_item_id,store_name) VALUES
+                (1,'coles','1','Kraft Grated Parmesan Cheese');
+        """)
+        before = list(self.db.execute('SELECT * FROM product_store_links'))
+        self.assertEqual(pricing.type_preference(self.db, 1, 'aldi'), {'parmesan'})
+        self.assertEqual(before, list(self.db.execute('SELECT * FROM product_store_links')))
+
+    def test_plain_cola_never_uses_diet_line_as_only_choice(self):
+        self.db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
+                (1,'Zero Sugar Soft Drink Bottle','Coca-Cola','2L'),
+                (2,'Diet Soft Drink Bottle','Coca-Cola','2L');
+        """)
+        self.assertIsNone(self.match('coles', '2l coke'))
+        self.assertEqual(self.match('coles', '2l coke zero sugar')['store_item_id'], '1')
+        self.assertEqual(self.match('coles', '2l coke diet')['store_item_id'], '2')

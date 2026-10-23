@@ -31,6 +31,7 @@ GENERIC_EQUIVALENTS = {
     "red bull": ("energy", "drink"),
     "vegemite": ("yeast", "spread"),
     "nutella": ("choc", "hazelnut", "spread"),
+    "smiths": ("chips",),
     "doritos": ("corn", "chips"),
     "kettle": ("deli", "style", "potato", "chips"),
     "red rock deli": ("deli", "style", "potato", "chips"),
@@ -57,6 +58,7 @@ ALDI_CATEGORY_BRANDS = {
     ("orange", "soft", "drink"): "SUNLIT",
     ("energy", "drink"): "FLYING POWER",
     ("choc", "hazelnut", "spread"): "BRAMWELLS",
+    ("chips",): "SPRINTERS",
     ("corn", "chips"): "SPRINTERS",
     ("deli", "style", "potato", "chips"): "BLACKSTONE GOURMET SNACK CO.",
     ("snack", "stack", "chips"): "SPRINTERS",
@@ -76,6 +78,7 @@ HOME_BRANDS = {
     "coles": ("Coles", "Coles Simply", "Coles Kitchen", "Coles Finest",
               "Coles Bakery", "Coles Ultra", "Coles Asia", "Coles Made Easy", "Coles Deli"),
     "woolworths": ("Woolworths", "Woolworths Essentials"),
+    "aldi": ("FARMDALE",),
     "iga": ("Community Co", "Black & Gold", "G-FRESH"),
 }
 
@@ -84,13 +87,13 @@ def _aldi_equivalent(query):
     # Match the longest named product after removing sizes. Keep all
     # remaining flavour/dietary words and the original size for scoring.
     sizes = [m.group() for m in re.finditer(SIZE_TOKEN, query, re.IGNORECASE)]
-    tokens = re.findall(r"\w+", re.sub(SIZE_TOKEN, " ", query, flags=re.IGNORECASE).casefold())
+    tokens = re.findall(r"\w+", re.sub(SIZE_TOKEN, " ", query, flags=re.IGNORECASE).casefold().replace("’", "").replace("'", ""))
     for alias in sorted(GENERIC_EQUIVALENTS, key=lambda a: len(re.findall(r"\w+", a)), reverse=True):
         prefix = re.findall(r"\w+", alias)
         if tokens[:len(prefix)] == prefix:
             category = GENERIC_EQUIVALENTS[alias]
             brand = ALDI_CATEGORY_BRANDS.get(category, "")
-            fallback = " ".join((*category, brand, *tokens[len(prefix):], *sizes)).strip()
+            fallback = " ".join((*category, brand, *(t for t in tokens[len(prefix):] if t != "and"), *sizes)).strip()
             return alias, fallback, brand
     return None
 
@@ -126,16 +129,11 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
     closes its own, since auto_match_live can call this from a worker
     thread that has no connection of its own to hand in."""
     table, id_field = _CATALOGUE_TABLES[store]
-    words = [w for w in re.findall(r"\w+", query.casefold()) if len(w) > 2]
+    words = sorted(name_words(query))
     if not words:
         return []
-    # Broad staples need room for real variants beyond the first few rows.
-    # Keep the window bounded; ambiguity still belongs to strongest_match.
     if limit is None:
-        limit = 200 if len(words) == 1 else 30
-    # Keep literal names too: some stores call it Coke, others Coca-Cola.
-    words = list(dict.fromkeys(words + [alias_word for word in words
-        for alias_word in re.findall(r"\w+", BRAND_ALIASES.get(word, ""))]))
+        limit = 200
     owns_conn = conn is None
     if owns_conn:
         from .. import db as database
@@ -155,14 +153,18 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
         # like "red" alone matches hundreds of unrelated rows (Red Onion,
         # Red Wine, Red Capsicum...), and with no ranking those can fill
         # the whole result before a real "Red Bull" row ever gets seen.
-        match_clauses = ["(name LIKE ? OR brand LIKE ?)" for _ in words]
+        # Use exactly the same token normalization for retrieval and selection.
+        conn.create_function("matching_words", 1, lambda text: " " + " ".join(sorted(name_words(text or ""))) + " ")
+        match_clauses = ["(match_name LIKE ? OR match_brand LIKE ?)" for _ in words]
         relevance = " + ".join(f"CASE WHEN {clause} THEN 1 ELSE 0 END" for clause in match_clauses)
-        params = [p for w in words for p in (f"%{w}%", f"%{w}%")]
+        params = [p for w in words for p in (f"% {w} %", f"% {w} %")]
         clause = " OR ".join(match_clauses)
         found = conn.execute(
+            f"WITH catalogue AS MATERIALIZED (SELECT *, matching_words(name) AS match_name, "
+            f"matching_words(brand) AS match_brand FROM {table}) "
             f"SELECT {id_field} AS item_id, name, brand, size, price, was_price, unit_price, unit_measure, "
-            f"({relevance}) AS relevance FROM {table} "
-            f"WHERE {clause} ORDER BY relevance DESC LIMIT ?", (*params, *params, limit)).fetchall()
+            f"({relevance}) AS relevance FROM catalogue "
+            f"WHERE {clause} ORDER BY relevance DESC, length(match_name) ASC LIMIT ?", (*params, *params, limit)).fetchall()
     finally:
         if owns_conn:
             conn.close()
@@ -190,7 +192,7 @@ def search(store, query, postcode="", conn=None):
     # OR-based retrieval can return onions for Red Bull or chocolate for
     # cola. Check the named product itself before deciding it is stocked.
     # A real direct line keeps precedence even if its size doesn't fit.
-    identity = name_words(alias)
+    identity = name_words(query)
     direct = results
     if not any(identity <= (name_words(c['name']) | name_words(c.get('brand') or '')) for c in direct):
         direct = _catalogue_lookup(store, alias, limit=200, conn=conn)
@@ -243,24 +245,39 @@ def normalized_name(name):
 # A size token anywhere in a name -- "1.25L Pepsi Max", "Milk 2L", "Water
 # 12x600mL" -- never appears in what a store calls the product itself, so
 # it's pure noise for word-overlap scoring and has to come out first.
-SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
+SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\s*x\s*\d+\s*(?:pack|pk)?\b"
+              r"|\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
               r"|\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
               r"|\d+(?:\.\d+)?\s*[- ]?\s*(?:pack|pk|bottles?|pieces?|each)\b")
 
 
+# Australian supermarkets swap these words for the same thing -- both
+# sides have to collapse onto one form or they anti-match each other.
+SYNONYMS = {"shredded": "grated"}
+
+
 def name_words(name):
     # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
+    name = unicodedata.normalize("NFKC", name).casefold().replace("×", "x")
+    name = re.sub(r"[’']", "", name)
+    name = re.sub(r"\bhi[ -]+lo\b", "hilo", name)
+    for alias, formal in BRAND_ALIASES.items():
+        name = re.sub(r"\b" + re.escape(alias) + r"\b", formal, name)
     name = re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name)
     name = re.sub(SIZE_TOKEN, " ", name, flags=re.IGNORECASE)
     # Supermarket names are scoring noise; keep stored names and brand guards intact.
-    words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga"}
+    words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga", "and"}
     # A plain trailing "s" shouldn't count as a different word -- "carrot"
     # and "carrots" are the same item, not a mismatch.
-    return {w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
+    words = {w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
+    # Collapse swapped naming onto one canonical word.
+    return {SYNONYMS.get(w, w) for w in words}
 
 
 def pack_size(size):
     text = size.casefold().strip().replace('×', 'x')
+    # Retailers also write the measure before the pack count.
+    text = re.sub(r"(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\s*x\s*(\d+)\s*(?:pack|pk)?\b", r"\3 x \1\2", text)
     multi = re.search(r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\b", text)
     if multi:
         count, amount, unit = multi.groups()
@@ -297,9 +314,15 @@ def type_preference(db, product_id, store):
     product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
     if not product:
         return set()
-    links = db.execute("""SELECT store_name FROM product_store_links
+    links = db.execute("""SELECT store,store_item_id,store_name FROM product_store_links
         WHERE product_id=? AND store != ?""", (product_id, store)).fetchall()
-    choices = [name_words(link['store_name']) - name_words(product['name']) for link in links]
+    choices = []
+    for link in links:
+        table, key = _CATALOGUE_TABLES[link['store']]
+        item = db.execute(f"SELECT brand FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
+        brand_words = name_words(item['brand'] or '') if item else set()
+        choices.append(name_words(link['store_name']) - name_words(product['name']) - brand_words
+                       - {'bottle', 'can', 'single'})
     # Conflicting store choices give no reliable preference. Only carry
     # words shared by every remembered choice across to another store.
     return set.intersection(*choices) if choices else set()
@@ -313,13 +336,16 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     if not words:
         return None
     default_type = name_words(DEFAULT_VARIANT.get(next(iter(words)), "")) if len(words) == 1 else set()
-    type_words = set(preferred_type or ()) or default_type
+    remembered = set(preferred_type or ())
+    if len(words) > 1 and not any(words | remembered <= (name_words(c['name']) | name_words(c.get('brand') or '')) for c in candidates):
+        remembered = set()
+    type_words = (remembered if not words & {"cola", "pepsi"} else set()) or default_type
     # A bare category needs a real type signal before descriptive titles
     # can clear the name floor. Explicit query words still take precedence.
     generic_type = bool(type_words) and len(words) == 1
     def type_overlap(candidate):
         other = name_words(candidate['name'])
-        if preferred_type:
+        if remembered:
             return len(type_words & other)
         return len(default_type) if default_type <= other else 0
 
@@ -328,8 +354,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     # "just a brand name" with nothing else to go on, even though the
     # size token itself gets stripped out of word-overlap scoring below.
     size_in_name = bool(pack_size(name))
-    if not preferred_size:
-        preferred_size = pack_size(name)
+    preferred_size = pack_size(name) or preferred_size
     # The leading word decides the brand check -- but it has to be the
     # first REAL word, not a size token's leftover digits ("1" out of
     # "1.25L Pepsi Max").
@@ -338,16 +363,11 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     first = leading[0] if leading else ""
     brands = {normalized_name(p.get("brand") or "") for p in candidates}
     brand = normalized_name(BRAND_ALIASES.get(first, first))
-    required_brand = brand if brand in brands else None
+    required_brand = brand if brand in brands and first not in DEFAULT_VARIANT else None
     if not required_brand:
         required_brand = next((normalized_name(" ".join(leading[:n]))
                                for n in range(len(leading), 1, -1)
                                if normalized_name(" ".join(leading[:n])) in brands), None)
-    if required_brand and first in BRAND_ALIASES:
-        # "Coke" never shows up as a literal word on a candidate stored
-        # under its formal brand ("Coca-Cola Zero Sugar..."), only the
-        # alias's own words do -- swap it in so recall actually sees it.
-        words = (words - {first}) | name_words(BRAND_ALIASES[first])
     def candidate_words(c):
         # Some stores (Coles especially) strip the brand clean out of the
         # name itself ("Soft Drink Cola Bottle" with brand="Pepsi" sitting
@@ -362,29 +382,41 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             continue
         other = candidate_words(candidate)
         score = len(words & other) / len(words | other)
+        # Every explicitly requested detail must survive. Catalogue verbosity
+        # is harmless when all requested words are present.
+        if not words <= other:
+            continue
+        if type_words and not type_words <= other:
+            if remembered or not other <= words | default_type:
+                continue
+        # Unqualified cola means the regular line, including Classic titles.
+        if words & {'cola', 'pepsi'} and not words & {'diet', 'zero', 'max', 'no', 'free'}:
+            if other & {'diet', 'zero', 'max', 'no', 'free'}:
+                continue
         # A confirmed brand match is strong enough on its own that a long,
         # marketing-heavy store title ("Pepsi Max Cola No Sugar Soft Drink
         # Bottle") shouldn't sink a candidate just for having extra words
         # we didn't type -- as long as every word we DID type shows up.
         recall = len(words & other) / len(words)
-        # The bonus only kicks in when there's a real word beyond the brand
-        # itself to check recall against -- "Vegemite" alone matching every
-        # word of itself proves nothing, it's the whole query. Clamped up
-        # to the floor, never past it -- a messy full-recall name must
-        # never outrank a cleaner one that already cleared the floor on
-        # its own ("Pepsi Max Cola Drink" vs "...Vanilla...").
+        # Full recall clears the name floor. Extra title words settle ties
+        # only after intent and size have been checked.
         if required_brand and (len(words) > 1 or size_in_name) and recall == 1:
-            score = max(score, .5)
-        elif generic_type and recall == 1 and type_overlap(candidate):
-            score = max(score, .5)
+            score = .5
+        elif type_words and recall == 1 and type_overlap(candidate):
+            score = .5
+        elif len(words) > 1 and recall == 1:
+            score = .5
         elif score < .5:
             continue
         if preferred_size:
             size = pack_size(candidate.get('size') or '')
+            embedded = pack_size(candidate['name'])
+            if embedded and (not size or ('count' in size and not {'mass', 'volume'} & size.keys())):
+                size = embedded
             # A shared single-item count cannot make powder measured in
             # kilograms a size match for milk requested in litres.
             dimensions = {'mass', 'volume'}
-            if (generic_type and dimensions & preferred_size.keys() and dimensions & size.keys()
+            if (dimensions & preferred_size.keys() and dimensions & size.keys()
                     and not dimensions & preferred_size.keys() & size.keys()):
                 continue
             similarities = [min(value, size[key]) / max(value, size[key])
@@ -438,7 +470,19 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                     premium = len(extra & {'organic', 'biodynamic', 'premium'})
                     premium += int({'free', 'range'} <= extra)
                     premium += int({'high', 'protein'} <= extra)
-                return premium, len(extra)
+                if words & {'cola', 'pepsi'}:
+                    extra -= {'classic', 'original', 'regular', 'taste'}
+                parsed = pack_size(pair[1].get('size') or '')
+                embedded = pack_size(pair[1]['name'])
+                if embedded.get('count', 1) > parsed.get('count', 1):
+                    parsed = embedded
+                multipack = int(not preferred_size and parsed.get('count', 1) > 1)
+                if not preferred_size and 'single' in name_words(pair[1]['name']):
+                    if any(pack_size(other[1].get('size') or '').get(dimension, 0) >= 4 * amount
+                           for dimension, amount in parsed.items() if dimension in {'mass', 'volume'} and amount > 0
+                           for other in tied):
+                        multipack = -1
+                return premium, multipack, len(extra)
             by_extra = sorted(tied, key=extra_words)
             fewest_extra = extra_words(by_extra[0])
             plainest = [pair for pair in by_extra if extra_words(pair) == fewest_extra]
@@ -467,15 +511,14 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                         return by_size[0][1]
             # A house label only settles the remaining tie, never a named
             # brand, a remembered type, or several house variants/sizes.
-            if len(words) == 1 and not required_brand:
+            if not required_brand:
                 labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
                 home = [pair for pair in plainest
                         if normalized_name(pair[1].get('brand') or '') in labels]
                 if len(home) == 1:
                     return home[0][1]
         # Full Cream still leaves brands and nearby sizes undecided.
-        # Classic and Diet Coke can still tie at the same bottle size;
-        # neither an alias nor a size claim identifies the intended type.
+        # Equally valid brands and nearby sizes remain ambiguous.
         return None
     return ranked[0][1]
 
