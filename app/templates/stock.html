@@ -86,11 +86,11 @@
                     <div class="store-picker" @click.outside="s.picker = null" @keydown.escape.window="s.picker = null">
                       <template x-if="s.picker.mode === 'info' && storeLink(s, store.store)">
                         <div class="match-info">
-                          <b x-text="storeLink(s, store.store).store_name"></b>
-                          <p class="muted small" x-show="storeLink(s, store.store).size" x-text="storeLink(s, store.store).size"></p>
+                          <b x-text="productTitle(storeLink(s, store.store).store_name)"></b>
+                          <p class="muted small" x-show="storeLink(s, store.store).size" x-text="offerSize(storeLink(s, store.store))"></p>
                           <p>
-                            <strong x-text="priceText(storeLink(s, store.store).latest_check?.price)"></strong>
-                            <del class="muted small" x-show="storeLink(s, store.store).latest_check?.on_special && storeLink(s, store.store).latest_check?.was_price != null" x-text="priceText(storeLink(s, store.store).latest_check?.was_price)"></del>
+                            <strong x-text="offerPrice(storeLink(s, store.store))"></strong>
+                            <del class="muted small" x-show="storeLink(s, store.store).latest_check?.on_special && storeLink(s, store.store).latest_check?.was_price != null" x-text="offerPrice(storeLink(s, store.store), true)"></del>
                           </p>
                           <p class="muted small" x-text="checkedText(storeLink(s, store.store).latest_check?.checked_at)"></p>
                           <button type="button" class="small" @click="s.picker.mode = 'search'">Change match</button>
@@ -107,7 +107,7 @@
                       <p class="muted small" x-show="s.picker && s.picker.message" x-text="s.picker && s.picker.message"></p>
                       <template x-for="candidate in (s.picker ? s.picker.candidates : [])" :key="candidate.store_item_id">
                         <button type="button" class="small picker-result" :disabled="s.picker && s.picker.busy" @click="pickMatch(s, store.store, candidate)"
-                                x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+                                x-text="[productTitle(candidate.name), candidate.brand, offerSize(candidate), offerPrice(candidate)].filter(Boolean).join(' · ')"></button>
                       </template>
                       </div>
                     </div>

@@ -178,6 +178,43 @@ def _classification(store, product):
     return {'primary': primary, 'secondary': secondary, 'retailer': raw}
 
 
+def _mass_kg(value, unit):
+    if not isinstance(value, (int, float)) or value <= 0:
+        return None
+    return value / 1000 if str(unit).casefold() == 'g' else value if str(unit).casefold() == 'kg' else None
+
+
+def _weight_basis(store, product):
+    """Selling weight and rate, never inferred from a comparison price alone."""
+    if store == 'woolworths' and str(product.get('Unit')).casefold() == 'kg':
+        return {'per_kg': product.get('Price'), 'quantity_kg': product.get('MinimumQuantity') or 1,
+                'rate_price': True, 'estimated': False}
+    if store == 'coles':
+        pricing = product.get('pricing') or {}
+        unit = pricing.get('unit') or {}
+        if unit.get('isWeighted'):
+            weight = _mass_kg(unit.get('quantity'), unit.get('ofMeasureUnits'))
+            # ofMeasureType can be "g" even when comparable says /1kg.
+            comparable = re.search(r'\$([\d.]+)\s*/\s*1kg', pricing.get('comparable') or '', re.I)
+            rate = float(comparable[1]) if comparable else pricing.get('now') / weight if weight and pricing.get('now') is not None else None
+            return {'per_kg': rate, 'quantity_kg': weight, 'rate_price': False, 'estimated': True}
+    if store == 'aldi' and product.get('isRandomWeight') and product.get('quantityUnit') == 'kg':
+        pricing = product.get('price') or {}
+        rate = pricing.get('amount')
+        relevant = pricing.get('amountRelevant')
+        return {'per_kg': rate / 100 if rate is not None else None,
+                'quantity_kg': relevant / rate if rate and relevant else None,
+                'rate_price': True, 'estimated': True}
+    if store == 'iga' and product.get('sellBy') != 'Each':
+        unit = product.get('unitOfPrice') or {}
+        if unit.get('abbreviation') == 'kg':
+            size = product.get('unitOfSize') or {}
+            return {'per_kg': product.get('wholePrice'),
+                    'quantity_kg': _mass_kg(size.get('size'), size.get('abbreviation')),
+                    'rate_price': False, 'estimated': True}
+    return {}
+
+
 def search_woolworths(query: str, limit: int = 12):
     with client() as session:
         session.get("https://www.woolworths.com.au/").raise_for_status()
@@ -191,7 +228,7 @@ def search_woolworths(query: str, limit: int = 12):
     return [{"store_item_id": str(p["Stockcode"]), "name": p["Name"], "brand": p.get("Brand", ""),
              "size": p.get("PackageSize", ""), "price": p.get("Price"), "was_price": p.get("WasPrice"),
              "unit_price": p.get("CupPrice"), "unit_measure": p.get("CupMeasure") or "",
-             "on_special": bool(p.get("IsOnSpecial"))} for p in flat if p.get("Stockcode")]
+             "on_special": bool(p.get("IsOnSpecial")), "price_basis": _weight_basis("woolworths", p)} for p in flat if p.get("Stockcode")]
 
 
 # The department-level category ids Woolworths' own category tree lists
@@ -242,7 +279,7 @@ def browse_woolworths_category(category_id: str, page: int = 1, page_size: int =
             out.append({"stockcode": p["Stockcode"], "name": p["Name"], "brand": p.get("Brand") or "",
                         "size": p.get("PackageSize") or "", "price": p.get("Price"), "was_price": p.get("WasPrice"),
                         "unit_price": p.get("CupPrice"), "unit_measure": p.get("CupMeasure") or "",
-                        "classification": _classification("woolworths", p)})
+                        "price_basis": _weight_basis("woolworths", p), "classification": _classification("woolworths", p)})
     return out, data.get("TotalRecordCount") or 0
 
 
@@ -269,7 +306,7 @@ def search_coles(query: str, limit: int = 12):
         unit = pricing.get("unit") or {}
         out.append({"store_item_id": str(p["id"]), "name": p["name"], "brand": p.get("brand", ""),
                     "size": p.get("size", ""), "price": pricing.get("now"), "was_price": pricing.get("was") or None,
-                    "unit_price": unit.get("price"),
+                    "price_basis": _weight_basis("coles", p), "unit_price": unit.get("price"),
                     "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}",
                     "on_special": bool(pricing.get("onlineSpecial"))})
     return out
@@ -288,7 +325,7 @@ def _coles_products_from_next_data(raw_json, limit):
         unit = pricing.get("unit") or {}
         out.append({"store_item_id": str(p["id"]), "name": p["name"], "brand": p.get("brand", ""),
                     "size": p.get("size", ""), "price": pricing.get("now"), "was_price": pricing.get("was") or None,
-                    "unit_price": unit.get("price"),
+                    "price_basis": _weight_basis("coles", p), "unit_price": unit.get("price"),
                     "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}",
                     "on_special": bool(pricing.get("onlineSpecial"))})
     return out
@@ -333,7 +370,7 @@ def browse_coles_category(category: str, page: int = 1, session=None):
         unit = pricing.get("unit") or {}
         out.append({"coles_id": p["id"], "name": p["name"], "brand": p.get("brand", ""),
                     "size": p.get("size", ""), "price": pricing.get("now"), "was_price": pricing.get("was") or None,
-                    "unit_price": unit.get("price"),
+                    "price_basis": _weight_basis("coles", p), "unit_price": unit.get("price"),
                     "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}",
                     "classification": _classification("coles", p)})
     return out, search.get("noOfResults") or 0
@@ -500,7 +537,7 @@ def search_aldi(query: str, limit: int = 12):
                         price = price / 100
                     item_id = str(p.get("sku") or p.get("productId") or p.get("code"))
                     out[item_id] = {"store_item_id": item_id, "name": name, "brand": p.get("brandName") or "",
-                                    "size": p.get("sellingSize") or "", "price": price,
+                                    "size": p.get("sellingSize") or "", "price": price, "price_basis": _weight_basis("aldi", p),
                                     "was_price": p.get("wasPrice"), "unit_price": price if re.search(r"\bper\s+kg\b", name, re.I) else None,
                                     "unit_measure": "kg" if re.search(r"\bper\s+kg\b", name, re.I) else "",
                                     "on_special": bool(p.get("wasPrice")), "_score": score}
@@ -538,7 +575,7 @@ def browse_aldi_category(path: str, session=None):
         if isinstance(price, int) and not isinstance(price, bool):
             price = price / 100
         out[item_id] = {"item_id": item_id, "name": name, "brand": p.get("brandName") or "",
-                        "size": p.get("sellingSize") or "", "price": price, "was_price": p.get("wasPrice"),
+                        "size": p.get("sellingSize") or "", "price": price, "price_basis": _weight_basis("aldi", p), "was_price": p.get("wasPrice"),
                         "unit_price": price if re.search(r"\bper\s+kg\b", name, re.I) else None,
                         "unit_measure": "kg" if re.search(r"\bper\s+kg\b", name, re.I) else ""}
     products = list(out.values())
@@ -611,7 +648,7 @@ def browse_iga_category(store_id, category, page=1, page_size=36, session=None):
                         "price": p.get("priceNumeric"), "was_price": p.get("wasPriceNumeric"),
                         "unit_price": p.get("wholePrice"),
                         "unit_measure": (p.get("unitOfPrice") or {}).get("abbreviation", ""),
-                        "classification": _classification("iga", p)})
+                        "price_basis": _weight_basis("iga", p), "classification": _classification("iga", p)})
     if not results and (page - 1) * page_size < data["total"]:
         raise ValueError("Incomplete IGA category page")
     return results, data["total"]

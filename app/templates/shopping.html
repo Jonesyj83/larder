@@ -79,11 +79,11 @@
                 <div class="store-picker" @click.outside="i.picker = null" @keydown.escape.window="i.picker = null">
                   <template x-if="i.picker.mode === 'info' && storeLink(i, store.store)">
                     <div class="match-info">
-                      <b x-text="storeLink(i, store.store).store_name"></b>
-                      <p class="muted small" x-show="storeLink(i, store.store).size" x-text="storeLink(i, store.store).size"></p>
+                      <b x-text="productTitle(storeLink(i, store.store).store_name)"></b>
+                      <p class="muted small" x-show="storeLink(i, store.store).size" x-text="offerSize(storeLink(i, store.store))"></p>
                       <p>
-                        <strong x-text="priceText(storeLink(i, store.store).latest_check?.price)"></strong>
-                        <del class="muted small" x-show="storeLink(i, store.store).latest_check?.on_special && storeLink(i, store.store).latest_check?.was_price != null" x-text="priceText(storeLink(i, store.store).latest_check?.was_price)"></del>
+                        <strong x-text="offerPrice(storeLink(i, store.store))"></strong>
+                        <del class="muted small" x-show="storeLink(i, store.store).latest_check?.on_special && storeLink(i, store.store).latest_check?.was_price != null" x-text="offerPrice(storeLink(i, store.store), true)"></del>
                       </p>
                       <p class="muted small" x-text="checkedText(storeLink(i, store.store).latest_check?.checked_at)"></p>
                       <p class="muted small" x-show="storeLink(i, store.store).is_substitute">Closest substitute, rather than the same product.</p>
@@ -103,7 +103,7 @@
                   <p class="muted small" x-show="i.picker && i.picker.message" x-text="i.picker && i.picker.message"></p>
                   <template x-for="candidate in (i.picker ? i.picker.candidates : [])" :key="candidate.store_item_id">
                     <button type="button" class="small picker-result" :disabled="i.picker && i.picker.busy" @click="pickMatch(i, store.store, candidate)"
-                            x-text="[candidate.name, candidate.brand, candidate.size, priceText(candidate.price)].filter(Boolean).join(' · ')"></button>
+                            x-text="[productTitle(candidate.name), candidate.brand, offerSize(candidate), offerPrice(candidate)].filter(Boolean).join(' · ')"></button>
                   </template>
                   </div>
                 </div>
@@ -132,7 +132,7 @@
               <div x-show="!i.moveStore">
                 <span class="muted small" x-show="!priceLinks(i).length">Match a store product before adding to a shopping list.</span>
                 <template x-for="link in priceLinks(i)" :key="link.store">
-                  <button type="button" class="small picker-result" @click="i.moveStore = link.store" x-text="[storeName(link.store), link.store_name, link.size, priceText(link.latest_check?.price)].filter(Boolean).join(' · ')"></button>
+                  <button type="button" class="small picker-result" @click="i.moveStore = link.store" x-text="[storeName(link.store), productTitle(link.store_name), offerSize(link), offerPrice(link)].filter(Boolean).join(' · ')"></button>
                 </template>
               </div>
               <div x-show="i.moveStore">
@@ -259,9 +259,7 @@ function shoppingPage() {
     get doneCount() { return this.items.filter(i => i.done).length; },
     get matchedCount() { return this.pricedItems.filter(i => this.priceLinks(i).length).length; },
     itemCost(i, link) {
-      const price = link.latest_check?.price;
-      if (price == null) return null;
-      return Number(price) * Number(i.amount);
+      return this.offerCost(i, link);
     },
     get splitTotal() {
       let total = 0;
@@ -277,9 +275,9 @@ function shoppingPage() {
       for (const s of this.enabledStores) totals[s.store] = {store: s.store, total: 0, count: 0};
       for (const i of this.pricedItems) {
         for (const link of this.priceLinks(i)) {
-          const price = link.latest_check?.price;
-          if (price == null || !totals[link.store]) continue;
-          totals[link.store].total += this.itemCost(i, link);
+          const cost = this.itemCost(i, link);
+          if (cost == null || !totals[link.store]) continue;
+          totals[link.store].total += cost;
           totals[link.store].count += 1;
         }
       }

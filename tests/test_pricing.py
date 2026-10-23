@@ -603,7 +603,7 @@ class StoreParsers(unittest.TestCase):
         ]}}}}
         found = stores._coles_products_from_next_data(json.dumps(data), 12)
         self.assertEqual(found, [{'store_item_id': '9', 'name': 'Carrots', 'brand': '', 'size': '',
-                                   'price': 2.5, 'was_price': None, 'unit_price': None, 'unit_measure': '',
+                                   'price': 2.5, 'was_price': None, 'price_basis': {}, 'unit_price': None, 'unit_measure': '',
                                    'on_special': False}])
         with self.assertRaises(ValueError):
             stores._coles_products_from_next_data(json.dumps({'props': {}}), 12)

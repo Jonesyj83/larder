@@ -19,11 +19,19 @@ class StoreIn(BaseModel):
     postcode: str = Field(default="", max_length=20)
 
 
+class WeightBasis(BaseModel):
+    per_kg: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    quantity_kg: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+    rate_price: bool = False
+    estimated: bool = False
+
+
 class LinkIn(BaseModel):
     price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     was_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     unit_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     unit_measure: str | None = Field(default=None, max_length=100)
+    price_basis: WeightBasis | None = None
     on_special: bool | None = None
     size: str = Field(default="", max_length=200)
     store: str

@@ -330,9 +330,70 @@ function storePricing(page) {
     priceLinks(i) { return (i.links || []).filter(link => this.enabledStores.some(s => s.store === link.store)); },
     priceText(price) { return price == null ? 'price not checked yet' : '$' + Number(price).toFixed(2); },
     money(n) { return '$' + (Number(n) || 0).toFixed(2); },
+    productTitle(name) {
+      // These repeated terms occur intentionally in the catalogue.
+      const repeatedTerms = new Set(['cous', 'ylang', 'fifty', 'lou', 'peri', 'piri', 'paw', 'cara', 'mogu', 'jo', 'jon', 'gumby', 'plus']);
+      let title = name || '';
+      const trailing = /(^|\s)([\p{L}\p{N}][\p{L}\p{M}\p{N}'’-]*)\s+\2\s*$/iu;
+      let match;
+      while ((match = title.match(trailing)) && !repeatedTerms.has(match[2].toLowerCase())) {
+        title = title.slice(0, match.index) + match[1] + match[2];
+      }
+      return title;
+    },
+    weightBasis(offer) {
+      const check = offer.latest_check || offer;
+      let basis = check.price_basis || {};
+      if (typeof basis === 'string') { try { basis = JSON.parse(basis); } catch { basis = {}; } }
+      if (basis && Number.isFinite(Number(basis.per_kg)) && Number(basis.per_kg) > 0) return basis;
+      // Existing observations predate selling-unit capture. Only recover
+      // explicit weight sales; a comparison price alone also occurs on packs.
+      const size = offer.size || '';
+      const name = offer.store_name || offer.name || '';
+      const mass = size.match(/(\d+(?:\.\d+)?)\s*(kg|g)\b/i);
+      const kg = mass ? Number(mass[1]) / (mass[2].toLowerCase() === 'g' ? 1000 : 1) : null;
+      const rate = Number(check.unit_price);
+      const perWeight = /\bper\s+(?:\d+(?:\.\d+)?\s*)?(?:kg|g)\b/i.test(size + ' ' + name);
+      const kgMeasure = /^(?:1\s*)?kg$/i.test(check.unit_measure || '');
+      if (perWeight && kgMeasure && rate > 0 && Math.abs(rate - Number(check.price)) < .001) {
+        return {per_kg: rate, quantity_kg: kg || 1, rate_price: true, estimated: /approx/i.test(size)};
+      }
+      if (/approx/i.test(size) && kg && check.price != null) {
+        return {per_kg: Number(check.price) / kg, quantity_kg: kg, rate_price: false, estimated: true};
+      }
+      if (offer.store === 'iga' && kgMeasure && kg && rate > 0) {
+        return {per_kg: rate, quantity_kg: kg, rate_price: false, estimated: true};
+      }
+      return null;
+    },
+    offerPrice(offer, was = false) {
+      const check = offer.latest_check || offer;
+      const basis = this.weightBasis(offer);
+      const price = this.priceText(was ? check.was_price : check.price);
+      if (basis?.rate_price) return price + '/kg';
+      return price + (basis?.estimated ? ' approx.' + (!was ? ' · ' + this.priceText(basis.per_kg) + '/kg' : '') : '');
+    },
+    offerSize(offer) {
+      const basis = this.weightBasis(offer);
+      if (basis?.rate_price && !basis.estimated) return Number(basis.quantity_kg) < 1 ? `${Number((basis.quantity_kg * 1000).toFixed(3))}g increments` : 'Sold by weight';
+      return offer.size || '';
+    },
+    offerCost(item, offer) {
+      const check = offer.latest_check || offer;
+      if (check.price == null) return null;
+      const basis = this.weightBasis(offer);
+      if (!basis) return Number(check.price) * Number(item.amount);
+      const unit = (item.unit || '').toLowerCase();
+      if (['g', 'gram', 'grams', 'kg', 'kilogram', 'kilograms'].includes(unit)) {
+        return Number(basis.per_kg) * Number(item.amount) / (unit.startsWith('k') ? 1 : 1000);
+      }
+      // Count quantities mean portions/increments, not kilograms.
+      if (basis.rate_price && !(Number(basis.quantity_kg) > 0)) return null;
+      return Number(item.amount) * (basis.rate_price ? Number(basis.per_kg) * Number(basis.quantity_kg) : Number(check.price));
+    },
     cheapest(i, link) {
-      const prices = this.priceLinks(i).map(l => l.latest_check?.price).filter(p => p != null).map(Number);
-      return link.latest_check?.price != null && Number(link.latest_check.price) === Math.min(...prices);
+      const prices = this.priceLinks(i).map(l => this.offerCost({...i, amount: i.amount ?? 1}, l)).filter(p => p != null);
+      return this.offerCost({...i, amount: i.amount ?? 1}, link) != null && this.offerCost({...i, amount: i.amount ?? 1}, link) === Math.min(...prices);
     },
     async loadPrices(items) {
       const lookups = items.filter(i => i.product_id).map(i => this.loadPrice(i));
@@ -351,8 +412,8 @@ function storePricing(page) {
     badgePrice(i, store) {
       const link = this.storeLink(i, store);
       if (!link) return '—';
-      const size = link.size || (link.store_name || '').match(/\b\d+(?:\.\d+)?\s*(?:kg|ml|mg|g|l|pack|pk)\b/i)?.[0];
-      return this.priceText(link.latest_check?.price) + (size ? ' · ' + size : '');
+      const size = this.offerSize(link) || (link.store_name || '').match(/\b\d+(?:\.\d+)?\s*(?:kg|ml|mg|g|l|pack|pk)\b/i)?.[0];
+      return this.offerPrice(link) + (size ? ' · ' + size : '');
     },
     openPicker(i, store) {
       if (i.picker && i.picker.store === store) { i.picker = null; return; }
@@ -371,7 +432,7 @@ function storePricing(page) {
       return {
         store, store_item_id: String(candidate.store_item_id), store_name: candidate.name,
         size: candidate.size || '', price: candidate.price, was_price: candidate.was_price,
-        unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
+        price_basis: this.weightBasis({...candidate, store}) || {}, unit_price: candidate.unit_price, unit_measure: candidate.unit_measure, on_special: candidate.on_special,
       };
     },
     async confirmMatch(i, store) {

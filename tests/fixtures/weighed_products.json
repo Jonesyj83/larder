@@ -1,0 +1,80 @@
+{
+  "woolworths": {
+    "Stockcode": 130276,
+    "Name": "Leg Ham Shaved From The Deli",
+    "Unit": "KG",
+    "Price": 19.9,
+    "CupPrice": 19.9,
+    "CupMeasure": "1KG",
+    "MinimumQuantity": 0.1,
+    "PackageSize": "per 100g",
+    "IncrementalPrice": 1.99,
+    "IncrementalMinimumQuantity": 100.0
+  },
+  "coles": {
+    "id": 3091126,
+    "name": "Whole Chicken",
+    "size": "approx. 1.6kg each",
+    "pricing": {
+      "now": 13.6,
+      "rawPriceNow": 13.6,
+      "was": 0,
+      "unit": {
+        "quantity": 1.6,
+        "ofMeasureQuantity": 1,
+        "ofMeasureUnits": "kg",
+        "price": 8.5,
+        "ofMeasureType": "kg",
+        "isWeighted": true,
+        "isIncremental": false
+      },
+      "comparable": "$8.50/ 1kg",
+      "onlineSpecial": false
+    }
+  },
+  "aldi": {
+    "sku": "000000000000399712",
+    "name": "Corned Beef Silverside per kg",
+    "sellingSize": "approx. 1.498 kg per package",
+    "price": {
+      "amount": 999,
+      "amountRelevant": 1497,
+      "amountRelevantDisplay": "$14.97",
+      "bottleDeposit": 0,
+      "bottleDepositDisplay": "$0.00",
+      "comparison": 999,
+      "comparisonDisplay": "$9.99 per 1 kg",
+      "currencyCode": "AUD",
+      "currencySymbol": "$",
+      "perUnit": null,
+      "perUnitDisplay": null,
+      "wasPriceDisplay": null,
+      "additionalInfo": null,
+      "savingsDisplay": null,
+      "bottleDepositType": null,
+      "feeText": null
+    },
+    "isRandomWeight": true,
+    "quantityUnit": "kg",
+    "weightType": "1"
+  },
+  "iga": {
+    "productId": "80080004",
+    "name": "Beef Mince",
+    "sellBy": "EachUnit",
+    "priceNumeric": 9.495,
+    "wholePrice": 18.99,
+    "unitOfPrice": {
+      "abbreviation": "kg",
+      "label": "Kilogram",
+      "size": 1,
+      "type": "kilogram"
+    },
+    "unitOfSize": {
+      "abbreviation": "g",
+      "label": "Gram",
+      "size": 500,
+      "type": "gram"
+    }
+  }
+}

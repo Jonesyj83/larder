@@ -81,7 +81,10 @@ HOME_BRANDS = {
     "woolworths": ("Woolworths", "Woolworths Essentials"),
     "aldi": ("FARMDALE", "COLWAY", "REMANO", "CORALE", "SPRINTERS",
              "BRAMWELLS", "FIZZI", "SUNLIT", "FLYING POWER", "HILLCREST",
-             "SIMPLEE", "BLACKSTONE GOURMET SNACK CO.", "NORTHBROOK", "BERG", "BAKERS LIFE"),
+             "SIMPLEE", "BLACKSTONE GOURMET SNACK CO.", "NORTHBROOK", "BERG", "BAKERS LIFE",
+             "YOGURI", "WESTACRE", "WESTACRE DAIRY", "CHOCEUR", "CUCINA",
+             "DELI ORIGINALS", "OCEAN ROYALE", "PURE VALLEY", "BEAUTIFULLY BUTTERFULLY",
+             "EMPORIUM SELECTION"),
     "iga": ("Community Co", "Black & Gold", "G-FRESH"),
 }
 
@@ -178,6 +181,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
             source = conn.execute("SELECT location FROM iga_catalogue_store WHERE id=1").fetchone()
             if not source or source['location'] != postcode.strip().casefold():
                 return []
+        basis_sql = "c.price_basis" if 'price_basis' in {r[1] for r in conn.execute(f'PRAGMA table_info({table})')} else "'{}'"
         # Expand canonical synonyms back to their catalogue spellings. Porter
         # handles regular plurals; phrases preserve retailer token boundaries.
         alternatives = {"hilo": ("hilo", "hi lo"),
@@ -199,7 +203,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
                                  (name_words(name or "") | name_words(brand or ""))))
         found = conn.execute(
             f"WITH candidates AS MATERIALIZED (SELECT c.{id_field} AS item_id, c.name, c.brand, c.size, c.price, "
-            f"c.was_price, c.unit_price, c.unit_measure, {classification_sql} AS classification, matching_coverage(c.name,c.brand) AS coverage, "
+            f"c.was_price, c.unit_price, c.unit_measure, {basis_sql} AS price_basis, {classification_sql} AS classification, matching_coverage(c.name,c.brand) AS coverage, "
             f"bm25({index}) AS retrieval_rank FROM {index} "
             f"JOIN {table} c ON c.rowid={index}.rowid "
             f"WHERE {index} MATCH ? ORDER BY coverage DESC, matching_length(c.name), "
@@ -213,7 +217,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
                 index = f"{table}_trigrams"
                 found = conn.execute(
                     f"SELECT c.{id_field} AS item_id, c.name, c.brand, c.size, c.price, "
-                    f"c.was_price, c.unit_price, c.unit_measure, {classification_sql} AS classification FROM {index} "
+                    f"c.was_price, c.unit_price, c.unit_measure, {basis_sql} AS price_basis, {classification_sql} AS classification FROM {index} "
                     f"JOIN {table} c ON c.rowid={index}.rowid WHERE {index} MATCH ? "
                     f"ORDER BY bm25({index}), c.rowid LIMIT ?",
                     (" OR ".join(quoted(fragment) for fragment in fragments), limit)).fetchall()
@@ -222,7 +226,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
             conn.close()
     return [{"store_item_id": str(r["item_id"]), "name": r["name"], "brand": r["brand"], "size": r["size"],
              "price": r["price"], "was_price": r["was_price"], "unit_price": r["unit_price"],
-             "unit_measure": r["unit_measure"], "on_special": bool(r["was_price"]),
+             "unit_measure": r["unit_measure"], "price_basis": json.loads(r["price_basis"] or "{}"), "on_special": bool(r["was_price"]),
              "classification": _classification_data(r["classification"])} for r in found]
 
 
@@ -372,9 +376,17 @@ def record_price(db, link_id, candidate=None):
             if not math.isfinite(value) or value < 0:
                 raise ValueError("Invalid store price")
         values.append(value)
-    db.execute("""INSERT INTO store_price_checks(link_id,price,was_price,unit_price,unit_measure,on_special)
-        VALUES(?,?,?,?,?,?)""", (link_id, *values, candidate.get("unit_measure") or "",
-                                 int(bool(candidate.get("on_special")))))
+    basis = candidate.get('price_basis') or {}
+    if isinstance(basis, str):
+        basis = json.loads(basis)
+    columns = 'link_id,price,was_price,unit_price,unit_measure,on_special'
+    values = [link_id, *values, candidate.get('unit_measure') or '', int(bool(candidate.get('on_special')))]
+    # Read-only snapshot reproductions can still use the pre-upgrade schema.
+    if 'price_basis' in {r[1] for r in db.execute('PRAGMA table_info(store_price_checks)')}:
+        columns += ',price_basis'
+        values.append(json.dumps(basis))
+    db.execute(f"INSERT INTO store_price_checks({columns}) VALUES({','.join('?' for _ in values)})", values)
+
 
 
 def normalized_name(name):
@@ -892,6 +904,12 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                     # A type absent from this store is no reason to guess
                     # another one or fall back from a remembered choice.
                     return None
+            # A genuine plain subset and remembered types still govern the
+            # product. Ownership precedes the remaining title/price guess.
+            if not required_brand and not preferred_type and not preferred_classification:
+                labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
+                home = [pair for pair in tied if normalized_name(pair[1].get('brand') or '') in labels]
+                tied = home or tied
             by_extra = sorted(tied, key=extra_words)
             fewest_extra = extra_words(by_extra[0])
             plainest = [pair for pair in by_extra if extra_words(pair) == fewest_extra]
@@ -937,21 +955,6 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
             everyday = everyday_size(plainest)
             if everyday is not None:
                 return resolved(everyday)
-            # A house label only settles the remaining tie, never a named
-            # brand, a remembered type, or nearby house sizes.
-            if not required_brand:
-                labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
-                home = [pair for pair in plainest
-                        if normalized_name(pair[1].get('brand') or '') in labels]
-                if len(home) == 1:
-                    return resolved(home[0][1])
-                if len(home) > 1 and len({normalized_name(pair[1].get('brand') or '')
-                                          for pair in home}) == 1:
-                    # Ownership narrows the brand; the same bulk-size
-                    # check can then settle its otherwise identical packs.
-                    everyday = everyday_size(home)
-                    if everyday is not None:
-                        return resolved(everyday)
         # All remaining products have survived explicit intent and size
         # checks. Prefer fewer unrequested words, then the lowest valid
         # shelf price: it is the smaller household spend for an equal title.
@@ -983,6 +986,9 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
             WHERE l.product_id=? AND l.store=s.store) ORDER BY store""", (product_id,)).fetchall()
     pending = [s for s in settings if s['store'] not in excluded_stores]
     propagate = _new_match(db, product_id)
+    if propagate:
+        named_stores = re.findall(r'\b(?:coles|woolworths|aldi|iga)\b', name.casefold())
+        pending.sort(key=lambda s: named_stores.index(s['store']) if s['store'] in named_stores else len(named_stores))
     query = name
     seeded = False
     deferred = []
@@ -1023,6 +1029,10 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
                     seeded = True
                     explicit, _ = _query_pack(name, candidates)
                     sizes = [m.group() for m in re.finditer(SIZE_TOKEN, explicit, re.IGNORECASE)]
+                    # Pack wording belongs to the count constraint, not the
+                    # description: other stores omit it from their titles.
+                    if pack_size(explicit).get('count', 1) > 1:
+                        generic -= {'pack'}
                     query = ' '.join([*sorted(generic), *sizes])
                     pending = [s for s, _ in deferred] + pending
                     deferred = []

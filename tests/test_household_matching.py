@@ -1,3 +1,4 @@
+import json
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -236,6 +237,71 @@ class HouseholdMatching(unittest.TestCase):
         matched = pricing.auto_match(self.db, 1, 'water 24', search_fn=fetch)
         self.assertEqual([m['store'] for m in matched], ['aldi'])
         self.assertTrue(all(pricing.pack_size(q).get('count') == 24 for q in calls[1:]))
+
+    def test_multipack_seed_does_not_require_pack_word_at_other_stores(self):
+        self.db.execute('UPDATE store_settings SET enabled=1')
+        self.db.execute("INSERT INTO iga_catalogue_store(id,store_id,location) VALUES(1,'test','')")
+        for store, (table, key) in pricing._CATALOGUE_TABLES.items():
+            title = 'Water Multipack 24x350ml' if store == 'coles' else 'Natural Spring Water'
+            size = '24 Pack' if store == 'coles' else '24x600ml'
+            self.db.execute(f'INSERT INTO {table}({key},name,brand,size,price) VALUES(?,?,?,?,?)',
+                            ('999', title, '', size, 10))
+        calls = []
+
+        def fetch(store, query, postcode):
+            calls.append((store, query))
+            if store == 'aldi' and query == 'water 24':
+                return []
+            return pricing.search(store, query, postcode, conn=self.db)
+
+        matched = pricing.auto_match(self.db, 1, 'water 24', search_fn=fetch)
+        self.assertEqual({m['store'] for m in matched}, set(pricing._CATALOGUE_TABLES))
+        self.assertEqual(calls[2][1], 'water 24 pack')
+        for row in self.db.execute('SELECT size FROM product_store_links'):
+            self.assertEqual(pricing.pack_size(row['size'])['count'], 24)
+
+    def test_home_label_precedes_plain_title_and_cheapest_without_history(self):
+        for store, brand in [('coles', 'Coles'), ('woolworths', 'Woolworths'), ('aldi', 'WESTACRE DAIRY')]:
+            home = dict(self.plain, name='Classic Cheese', brand=brand, price=4)
+            national = dict(self.bought, name='Cheese', brand='National', price=1)
+            with self.subTest(store=store):
+                self.assertEqual(pricing.strongest_match('cheese', [national, home], store=store), home)
+                self.assertEqual(pricing.strongest_match('National cheese', [national, home], store=store), national)
+                self.assertEqual(pricing.strongest_match('cheese', [national, home], store=store,
+                                                        preferred_type={'national'}), national)
+        home = dict(self.plain, name='Diet Cola', brand='Coles')
+        regular = dict(self.bought, name='Cola', brand='National')
+        self.assertEqual(pricing.strongest_match('cola', [home, regular], store='coles'), regular)
+
+    def test_verified_private_labels_precede_equal_national_titles(self):
+        fixture = Path(__file__).parent / 'fixtures/aldi_private_labels.json'
+        for item in json.loads(fixture.read_text()):
+            query = item['name']
+            home = dict(store_item_id=item['sku'], name=query, brand=item['brandName'],
+                        size=item['sellingSize'], price=5)
+            national = dict(home, store_item_id='national', brand='Another', price=1)
+            with self.subTest(brand=item['brandName']):
+                picked = pricing.strongest_match(query, [national, home], store='aldi')
+                self.assertEqual(picked['store_item_id'], item['sku'])
+
+    def test_exact_requested_size_precedes_home_label(self):
+        home = dict(self.plain, name='Tomato Paste', brand='Coles', size='400g')
+        national = dict(self.bought, name='Tomato Paste', brand='National', size='500g')
+        self.assertEqual(pricing.strongest_match('tomato paste 500g', [home, national], store='coles'), national)
+
+    def test_named_store_establishes_seed_first_but_history_retains_its_query(self):
+        self.db.execute('UPDATE store_settings SET enabled=1')
+        for named in ('coles', 'woolworths', 'aldi', 'iga'):
+            with self.subTest(store=named):
+                self.db.execute('DELETE FROM product_store_links')
+                calls = []
+
+                def fetch(store, query, postcode):
+                    calls.append((store, query))
+                    return [dict(self.bought, brand=store)]
+
+                pricing.auto_match(self.db, 1, named + ' ham', search_fn=fetch)
+                self.assertEqual(calls[0], (named, named + ' ham'))
 
     def test_existing_history_keeps_the_household_query(self):
         order_history.record(self.db, dict(product_id=1, amount=1, unit_id=1))

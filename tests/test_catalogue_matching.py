@@ -234,13 +234,15 @@ class CatalogueMatching(unittest.TestCase):
             self.assertEqual(pricing.strongest_match('tomato sauce 2L', candidates,
                              store='coles'), bulk)
             for size in ('1L', '', '2kg'):
-                # Rosella adds one brand word; Coles Simply adds two.
-                self.assertEqual(pricing.strongest_match('tomato sauce',
-                    [named, home, dict(bulk, size=size)], store='coles')['store_item_id'], '3574040')
-        # A bulk gap cannot decide between separate house labels.
-        # Separate house labels cannot settle size; Rosella has fewer extra words.
+                # Ownership now precedes title length; unresolved nearby
+                # house sizes still use the reviewable fallback.
+                picked = pricing.strongest_match('tomato sauce',
+                    [named, home, dict(bulk, size=size)], store='coles')
+                self.assertEqual(picked['store_item_id'], '7413417')
+                self.assertTrue(picked['_ambiguous'])
+        # Separate house labels stay eligible before the title fallback.
         self.assertEqual(pricing.strongest_match('tomato sauce',
-            [named, home, dict(bulk, brand='Coles Finest')], store='coles')['store_item_id'], '3574040')
+            [named, home, dict(bulk, brand='Coles Finest')], store='coles')['store_item_id'], '7413417')
 
     def test_same_brand_squeeze_container_uses_everyday_size(self):
         self.db.executescript("""
@@ -296,8 +298,11 @@ class CatalogueMatching(unittest.TestCase):
         # Parmesan has fewer extra brand words than the named tasty lines.
         self.assertEqual(self.match('woolworths', 'grated cheese')['store_item_id'], '85587')
         self.assertEqual(self.match('woolworths', 'grated parmesan cheese')['store_item_id'], '85587')
-        # The Parmesan title has fewer extra words than Grana Padano.
-        self.assertEqual(self.match('aldi', 'grated cheese')['store_item_id'], '399737')
+        # Both verified private labels now participate. Equal title lengths
+        # and absent prices settle by ID, with the variant marked for review.
+        picked = self.match('aldi', 'grated cheese')
+        self.assertEqual(picked['store_item_id'], '334960')
+        self.assertTrue(picked['_ambiguous'])
 
     def test_ranked_brand_search_and_single_can(self):
         self.db.executemany("INSERT INTO coles_catalogue(coles_id,name) VALUES(?,?)",

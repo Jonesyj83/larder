@@ -54,22 +54,22 @@ def crawl(db, *, catalogue_table, history_table, progress_table, id_field,
                     break
                 for p in products:
                     db.execute(f"""INSERT INTO {catalogue_table}
-                            ({id_field}, name, brand, size, price, was_price, unit_price, unit_measure, category{extra_column}, updated_at)
-                        VALUES (?,?,?,?,?,?,?,?,?{extra_value},datetime('now'))
+                            ({id_field}, name, brand, size, price, was_price, unit_price, unit_measure, price_basis, category{extra_column}, updated_at)
+                        VALUES (?,?,?,?,?,?,?,?,?,?{extra_value},datetime('now'))
                         ON CONFLICT({id_field}) DO UPDATE SET
                             name=excluded.name, brand=excluded.brand, size=excluded.size,
                             price=excluded.price, was_price=excluded.was_price, unit_price=excluded.unit_price,
-                            unit_measure=excluded.unit_measure, category=excluded.category{extra_update}, updated_at=excluded.updated_at""",
+                            unit_measure=excluded.unit_measure, price_basis=excluded.price_basis, category=excluded.category{extra_update}, updated_at=excluded.updated_at""",
                         (p[id_field], p["name"], p["brand"], p["size"], p["price"], p["was_price"],
-                         p["unit_price"], p["unit_measure"], category) +
+                         p["unit_price"], p["unit_measure"], json.dumps(p.get("price_basis") or {}), category) +
                         ((json.dumps(p.get("classification") or {}, ensure_ascii=False),) if classification else ()))
                     # Append-only -- this is what the price-history graph and
                     # fake-special checks actually read from. The row above
                     # only ever holds the latest snapshot for fast matching.
                     db.execute(f"""INSERT INTO {history_table}
-                            ({id_field}, price, was_price, unit_price, unit_measure, checked_at)
-                        VALUES (?,?,?,?,?,datetime('now'))""",
-                        (p[id_field], p["price"], p["was_price"], p["unit_price"], p["unit_measure"]))
+                            ({id_field}, price, was_price, unit_price, unit_measure, price_basis, checked_at)
+                        VALUES (?,?,?,?,?,?,datetime('now'))""",
+                        (p[id_field], p["price"], p["was_price"], p["unit_price"], p["unit_measure"], json.dumps(p.get("price_basis") or {})))
                     total_written += 1
                 finished = page * page_size >= total or len(products) < 10
                 db.execute(f"""INSERT INTO {progress_table}(category, next_page, done) VALUES(?,?,?)

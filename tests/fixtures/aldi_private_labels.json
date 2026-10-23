@@ -1,0 +1,72 @@
+[
+  {
+    "sku": "000000000000285757",
+    "name": "Milk Chocolate Block 200g",
+    "brandName": "CHOCEUR",
+    "sellingSize": "200 g",
+    "category": "/products/snacks-confectionery/k/1588161408332087"
+  },
+  {
+    "sku": "000000000000281811",
+    "name": "Triple Cream Brie Cheese 200g",
+    "brandName": "EMPORIUM SELECTION",
+    "sellingSize": "200 g",
+    "category": "/products/dairy-eggs-fridge/k/960000000"
+  },
+  {
+    "sku": "000000000000398604",
+    "name": "Protein Yogurt Vanilla 160g",
+    "brandName": "YOGURI",
+    "sellingSize": "160 g",
+    "category": "/products/dairy-eggs-fridge/k/960000000"
+  },
+  {
+    "sku": "000000000000210837",
+    "name": "Spanish Stuffed Green Olives 450g",
+    "brandName": "DELI ORIGINALS",
+    "sellingSize": "450 g",
+    "category": "/products/deli-chilled-meats/k/930000000"
+  },
+  {
+    "sku": "000000000000278981",
+    "name": "Crumbed Calamari Rings 400g",
+    "brandName": "OCEAN ROYALE",
+    "sellingSize": "400 g",
+    "category": "/products/freezer/k/980000000"
+  },
+  {
+    "sku": "000000000000399244",
+    "name": "Unsalted Butter 500g",
+    "brandName": "PURE VALLEY",
+    "sellingSize": "500 g",
+    "category": "/products/dairy-eggs-fridge/butter-margarine/k/1111111166"
+  },
+  {
+    "sku": "000000000000399644",
+    "name": "Spreadable Dairy Blend 500g",
+    "brandName": "BEAUTIFULLY BUTTERFULLY",
+    "sellingSize": "500 g",
+    "category": "/products/dairy-eggs-fridge/butter-margarine/k/1111111166"
+  },
+  {
+    "sku": "000000000000399291",
+    "name": "Smooth Ricotta 375g",
+    "brandName": "WESTACRE DAIRY",
+    "sellingSize": "375 g",
+    "category": "/products/dairy-eggs-fridge/cheese/k/1111111163"
+  },
+  {
+    "sku": "000000000000399926",
+    "name": "Cream Cheese Block 250g",
+    "brandName": "WESTACRE",
+    "sellingSize": "250 g",
+    "category": "/products/dairy-eggs-fridge/cheese/k/1111111163"
+  },
+  {
+    "sku": "000000000000654409",
+    "name": "Pasta Penne 500g",
+    "brandName": "CUCINA",
+    "sellingSize": null,
+    "category": "/products/pantry/pasta-rice-grains/k/1111111179"
+  }
+]

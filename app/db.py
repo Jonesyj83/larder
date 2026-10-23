@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS store_price_checks (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     on_special INTEGER NOT NULL DEFAULT 0,
     checked_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -134,6 +135,7 @@ CREATE TABLE IF NOT EXISTS coles_catalogue (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     category TEXT NOT NULL DEFAULT '',
     classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -153,6 +155,7 @@ CREATE TABLE IF NOT EXISTS coles_catalogue_history (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     checked_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS coles_catalogue_history_latest ON coles_catalogue_history(coles_id, checked_at DESC, id DESC);
@@ -179,6 +182,7 @@ CREATE TABLE IF NOT EXISTS woolworths_catalogue (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     category TEXT NOT NULL DEFAULT '',
     classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -192,6 +196,7 @@ CREATE TABLE IF NOT EXISTS woolworths_catalogue_history (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     checked_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS woolworths_catalogue_history_latest ON woolworths_catalogue_history(stockcode, checked_at DESC, id DESC);
@@ -215,6 +220,7 @@ CREATE TABLE IF NOT EXISTS aldi_catalogue (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     category TEXT NOT NULL DEFAULT '',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -227,6 +233,7 @@ CREATE TABLE IF NOT EXISTS aldi_catalogue_history (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     checked_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS aldi_catalogue_history_latest ON aldi_catalogue_history(item_id, checked_at DESC, id DESC);
@@ -247,6 +254,7 @@ CREATE TABLE IF NOT EXISTS iga_catalogue (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     category TEXT NOT NULL DEFAULT '',
     classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -260,6 +268,7 @@ CREATE TABLE IF NOT EXISTS iga_catalogue_history (
     was_price REAL,
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
+    price_basis TEXT NOT NULL DEFAULT '{}',
     checked_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS iga_catalogue_history_latest ON iga_catalogue_history(item_id, checked_at DESC, id DESC);
@@ -518,6 +527,14 @@ def init_db():
         conn.execute("""INSERT INTO order_history(product_id,amount,unit_id)
             SELECT product_id,amount,unit_id FROM shopping_list WHERE done=1 AND product_id IS NOT NULL""")
         conn.execute("INSERT INTO schema_migrations(name) VALUES('order_history_backfill')")
+    # Retain the selling unit separately from comparative unit prices.
+    for table in ('store_price_checks', 'coles_catalogue', 'coles_catalogue_history',
+                  'woolworths_catalogue', 'woolworths_catalogue_history',
+                  'aldi_catalogue', 'aldi_catalogue_history', 'iga_catalogue', 'iga_catalogue_history'):
+        if 'price_basis' not in {r['name'] for r in conn.execute(f'PRAGMA table_info({table})')}:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN price_basis TEXT NOT NULL DEFAULT '{{}}'")
+            if table.endswith('_catalogue'):
+                conn.execute(f"DELETE FROM {table.removesuffix('_catalogue')}_crawl_progress")
     # Keep the crawl bucket and every existing row; retailer classifications
     # arrive on the next browse pass, without rebuilding the catalogue.
     for store in ("coles", "woolworths", "iga"):

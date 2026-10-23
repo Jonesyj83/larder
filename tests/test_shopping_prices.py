@@ -66,6 +66,25 @@ const api = async (path, options) => {
 })().catch(e => {console.error(e); process.exit(1);});
 ''')
 
+    def test_catalogue_titles_only_remove_unintentional_trailing_repeats(self):
+        self.run_logic('shopping.html', r'''
+const page = shoppingPage();
+assert.equal(page.productTitle('Pura Full Cream Milk Milk'), 'Pura Full Cream Milk');
+assert.equal(page.productTitle('Nutino Hazelnut Spread Spread'), 'Nutino Hazelnut Spread');
+assert.equal(page.productTitle('Kraft Singles Original ORIGINAL'), 'Kraft Singles Original');
+assert.equal(page.productTitle('Tea Tea Tea'), 'Tea');
+for (const name of ['Cous Cous', 'Moroccan Medley Cous Cous', 'Vanilla & Ylang Ylang', 'Fifty Fifty',
+                    'MCoBeauty Cream Stick Lou Lou', 'Peri Peri', 'Paw Paw',
+                    'Very Very Light Blonde', 'Cold And Chesty Cough Cough Liquid Raspberry']) {
+  assert.equal(page.productTitle(name), name);
+}
+assert.equal(page.productTitle(null), '');
+''')
+        for file in ('shopping.html', 'stock.html'):
+            template = (ROOT / 'app/templates' / file).read_text()
+            self.assertIn('productTitle(candidate.name)', template)
+            self.assertIn('productTitle(storeLink(', template)
+
     def test_stock_prices(self):
         template = (ROOT / 'app/templates/stock.html').read_text()
         self.assertIn('<template x-if="prices">', template)
