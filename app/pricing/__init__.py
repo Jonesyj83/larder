@@ -309,6 +309,12 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None):
             continue
         if preferred_size:
             size = pack_size(candidate.get('size') or '')
+            # A shared single-item count cannot make powder measured in
+            # kilograms a size match for milk requested in litres.
+            dimensions = {'mass', 'volume'}
+            if (generic_type and dimensions & preferred_size.keys() and dimensions & size.keys()
+                    and not dimensions & preferred_size.keys() & size.keys()):
+                continue
             similarities = [min(value, size[key]) / max(value, size[key])
                             for key, value in preferred_size.items()
                             if key in size and value > 0 and size[key] > 0]
@@ -351,10 +357,19 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None):
             # Container words are packaging, not flavours. Embedded pack
             # sizes have already disappeared from the same comparison.
             def extra_words(pair):
-                return candidate_words(pair[1]) - words - {'can', 'bottle', 'single'}
-            by_extra = sorted(tied, key=lambda pair: len(extra_words(pair)))
-            fewest_extra = len(extra_words(by_extra[0]))
-            plainest = [pair for pair in by_extra if len(extra_words(pair)) == fewest_extra]
+                extra = candidate_words(pair[1]) - words - {'can', 'bottle', 'single'}
+                # A bare household default favours everyday milk over
+                # premium lines. Keep dietary words intact, and never
+                # apply this preference to an explicit or remembered type.
+                premium = 0
+                if default_type and not preferred_type:
+                    premium = len(extra & {'organic', 'biodynamic', 'premium'})
+                    premium += int({'free', 'range'} <= extra)
+                    premium += int({'high', 'protein'} <= extra)
+                return premium, len(extra)
+            by_extra = sorted(tied, key=extra_words)
+            fewest_extra = extra_words(by_extra[0])
+            plainest = [pair for pair in by_extra if extra_words(pair) == fewest_extra]
             if len(plainest) == 1:
                 return plainest[0][1]
             if not preferred_size:

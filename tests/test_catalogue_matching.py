@@ -87,6 +87,29 @@ class CatalogueMatching(unittest.TestCase):
             dict(store_item_id='1', name='White Bread'),
             dict(store_item_id='2', name='Wholemeal Bread')]))
 
+    def test_milk_default_prefers_plain_over_premium_lines(self):
+        self.db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
+                (301721,'Full Cream Long Life Milk','Devondale','1L'),
+                (1079516,'Organic Dairy Full Cream Milk','Living Planet','1L'),
+                (1329781,'High Protein Full Cream Milk','Devondale','1L'),
+                (1850656,'Lactose Free Long Life Full Cream Milk','Coles','1L'),
+                (2067115,'Instant Full Cream Milk Powder','Devondale','1kg');
+        """)
+        self.assertEqual(self.match('coles', '1l milk')['store_item_id'], '301721')
+        self.assertEqual(self.match('coles', '1l living planet organic milk')['store_item_id'], '1079516')
+        self.assertEqual(self.match('coles', '1l devondale high protein milk')['store_item_id'], '1329781')
+        self.assertEqual(self.match('coles', '1l lactose free long life milk')['store_item_id'], '1850656')
+        # Equal-length names still distinguish an everyday default from
+        # an organic line, without dropping any explicitly typed words.
+        plain = dict(store_item_id='1', name='Full Cream Long Life Milk', brand='Dairy', size='1L')
+        organic = dict(store_item_id='2', name='Organic Dairy Full Cream Milk', brand='Farm', size='1L')
+        self.assertEqual(len(pricing.name_words(plain['name'])), len(pricing.name_words(organic['name'])))
+        self.assertEqual(pricing.strongest_match('1l milk', [organic, plain]), plain)
+        self.assertEqual(pricing.strongest_match('organic dairy full cream milk', [organic, plain]), organic)
+        self.assertEqual(pricing.strongest_match('milk', [organic, plain],
+                         preferred_type={'organic', 'full', 'cream'}), organic)
+
     def test_aldi_category_substitute_and_direct_stock(self):
         self.db.executescript("""
             INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
