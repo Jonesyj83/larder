@@ -3,12 +3,16 @@ Aldi and IGA crawlers. Each store's own script just supplies its category list,
 its own fetch function, and which tables/id column to write into -- the
 resume-on-failure, backoff and append-only history bits are identical
 across the stores so they live here once."""
+import json
 import time
 
 
 def crawl(db, *, catalogue_table, history_table, progress_table, id_field,
-          categories, fetch, delay=12.0, page_size=48, sleep=None, log=print, max_retries=2):
+          categories, fetch, delay=12.0, page_size=48, sleep=None, log=print, max_retries=2, classification=False):
     sleep = sleep or time.sleep
+    extra_column = ", classification" if classification else ""
+    extra_value = ",?" if classification else ""
+    extra_update = ", classification=excluded.classification" if classification else ""
     progress = {r["category"]: r for r in db.execute(
         f"SELECT category, next_page, done FROM {progress_table}").fetchall()}
     total_written = 0
@@ -50,14 +54,15 @@ def crawl(db, *, catalogue_table, history_table, progress_table, id_field,
                     break
                 for p in products:
                     db.execute(f"""INSERT INTO {catalogue_table}
-                            ({id_field}, name, brand, size, price, was_price, unit_price, unit_measure, category, updated_at)
-                        VALUES (?,?,?,?,?,?,?,?,?,datetime('now'))
+                            ({id_field}, name, brand, size, price, was_price, unit_price, unit_measure, category{extra_column}, updated_at)
+                        VALUES (?,?,?,?,?,?,?,?,?{extra_value},datetime('now'))
                         ON CONFLICT({id_field}) DO UPDATE SET
                             name=excluded.name, brand=excluded.brand, size=excluded.size,
                             price=excluded.price, was_price=excluded.was_price, unit_price=excluded.unit_price,
-                            unit_measure=excluded.unit_measure, category=excluded.category, updated_at=excluded.updated_at""",
+                            unit_measure=excluded.unit_measure, category=excluded.category{extra_update}, updated_at=excluded.updated_at""",
                         (p[id_field], p["name"], p["brand"], p["size"], p["price"], p["was_price"],
-                         p["unit_price"], p["unit_measure"], category))
+                         p["unit_price"], p["unit_measure"], category) +
+                        ((json.dumps(p.get("classification") or {}, ensure_ascii=False),) if classification else ()))
                     # Append-only -- this is what the price-history graph and
                     # fake-special checks actually read from. The row above
                     # only ever holds the latest snapshot for fast matching.

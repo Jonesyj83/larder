@@ -31,7 +31,7 @@ def crawl(db, categories=None, delay=1.0, page_size=36, fetch=None, sleep=None, 
     try:
         return _crawl(db, catalogue_table="woolworths_catalogue", history_table="woolworths_catalogue_history",
                       progress_table="woolworths_crawl_progress", id_field="stockcode", categories=categories,
-                      fetch=fetch, delay=delay, page_size=page_size, sleep=sleep, log=log, max_retries=max_retries)
+                      classification=True, fetch=fetch, delay=delay, page_size=page_size, sleep=sleep, log=log, max_retries=max_retries)
     finally:
         if session is not None:
             session.close()

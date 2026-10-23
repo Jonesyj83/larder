@@ -36,7 +36,7 @@ def crawl(db, categories=None, delay=12.0, page_size=48, fetch=None, sleep=None,
     try:
         return _crawl(db, catalogue_table="coles_catalogue", history_table="coles_catalogue_history",
                       progress_table="coles_crawl_progress", id_field="coles_id", categories=categories,
-                      fetch=fetch, delay=delay, page_size=page_size, sleep=sleep, log=log, max_retries=max_retries)
+                      classification=True, fetch=fetch, delay=delay, page_size=page_size, sleep=sleep, log=log, max_retries=max_retries)
     finally:
         if session is not None:
             session.close()

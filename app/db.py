@@ -133,6 +133,7 @@ CREATE TABLE IF NOT EXISTS coles_catalogue (
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '',
+    classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS coles_catalogue_name ON coles_catalogue(name);
@@ -177,6 +178,7 @@ CREATE TABLE IF NOT EXISTS woolworths_catalogue (
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '',
+    classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS woolworths_catalogue_name ON woolworths_catalogue(name);
@@ -244,6 +246,7 @@ CREATE TABLE IF NOT EXISTS iga_catalogue (
     unit_price REAL,
     unit_measure TEXT NOT NULL DEFAULT '',
     category TEXT NOT NULL DEFAULT '',
+    classification TEXT NOT NULL DEFAULT '{}',
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS iga_catalogue_name ON iga_catalogue(name);
@@ -509,6 +512,14 @@ def init_db():
         conn.execute("""INSERT INTO order_history(product_id,amount,unit_id)
             SELECT product_id,amount,unit_id FROM shopping_list WHERE done=1 AND product_id IS NOT NULL""")
         conn.execute("INSERT INTO schema_migrations(name) VALUES('order_history_backfill')")
+    # Keep the crawl bucket and every existing row; retailer classifications
+    # arrive on the next browse pass, without rebuilding the catalogue.
+    for store in ("coles", "woolworths", "iga"):
+        table = f"{store}_catalogue"
+        if "classification" not in {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN classification TEXT NOT NULL DEFAULT '{{}}'")
+            # A partial old pass has no classification on its earlier pages.
+            conn.execute(f"UPDATE {store}_crawl_progress SET next_page=1, done=0")
     if "size" not in {r["name"] for r in conn.execute("PRAGMA table_info(product_store_links)")}:
         conn.execute("ALTER TABLE product_store_links ADD COLUMN size TEXT NOT NULL DEFAULT ''")
     if "list_id" not in {r["name"] for r in conn.execute("PRAGMA table_info(shopping_list)")}:

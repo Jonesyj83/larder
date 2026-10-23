@@ -120,6 +120,64 @@ def payload(text, script_id):
     return json.loads("".join(page.parts))
 
 
+def _classification(store, product):
+    """Retain retailer identities as well as ordered, comparable names.
+
+    Primary paths are merchandise classifications. Online aisles/tags can
+    overlap (plain Coles water even appears in Sparkling Water), so they
+    only supply matching paths when merchandise data is unavailable.
+    """
+    def mapping(value):
+        return value if isinstance(value, dict) else {}
+
+    def objects(value):
+        return [v for v in value if isinstance(v, dict)] if isinstance(value, list) else []
+
+    def label(value):
+        return value.strip() if isinstance(value, str) else ''
+
+    def path(data, keys):
+        return [label(data.get(key)) for key in keys]
+
+    primary, secondary, raw = [], [], {}
+    if store == 'woolworths':
+        attrs = mapping(product.get('AdditionalAttributes'))
+        sap = {key: value for key, value in attrs.items() if key.startswith('sap')}
+        primary = [path(sap, ('sapcategoryname', 'sapsubcategoryname', 'sapsegmentname'))]
+        tags = attrs.get('piessubcategorynamesjson')
+        try:
+            tags = json.loads(tags) if isinstance(tags, str) else tags
+        except (ValueError, TypeError):
+            tags = []
+        tags = [label(tag) for tag in tags if label(tag)] if isinstance(tags, list) else []
+        secondary = [[tag] for tag in tags]
+        raw = {'sap': sap, 'piessubcategorynamesjson': tags}
+    elif store == 'coles':
+        merchandise = mapping(product.get('merchandiseHeir'))
+        online = objects(product.get('onlineHeirs'))
+        primary = [path(merchandise, ('category', 'subCategory', 'className'))]
+        # Coles calls the department subCategory, and the leaf aisle.
+        secondary = [path(item, ('category', 'aisle')) for item in online]
+        raw = {'merchandiseHeir': merchandise, 'onlineHeirs': online}
+    elif store == 'iga':
+        categories = objects(product.get('categories'))
+        default = objects(product.get('defaultCategory'))
+        def breadcrumbs(items):
+            return [label(item.get('categoryBreadcrumb')).split('/')[2:] for item in items
+                    if label(item.get('categoryBreadcrumb'))]
+        primary = breadcrumbs(default)
+        secondary = breadcrumbs(categories)
+        # Parent entries are breadcrumbs too; only retain complete paths.
+        secondary = [p for p in secondary if not any(len(q) > len(p) and q[:len(p)] == p
+                                                    for q in secondary)]
+        raw = {'categories': categories, 'defaultCategory': default}
+    primary = [p for p in primary if any(p)]
+    secondary = [p for p in secondary if any(p)]
+    if not primary and not secondary:
+        return {}
+    return {'primary': primary, 'secondary': secondary, 'retailer': raw}
+
+
 def search_woolworths(query: str, limit: int = 12):
     with client() as session:
         session.get("https://www.woolworths.com.au/").raise_for_status()
@@ -183,7 +241,8 @@ def browse_woolworths_category(category_id: str, page: int = 1, page_size: int =
                 continue
             out.append({"stockcode": p["Stockcode"], "name": p["Name"], "brand": p.get("Brand") or "",
                         "size": p.get("PackageSize") or "", "price": p.get("Price"), "was_price": p.get("WasPrice"),
-                        "unit_price": p.get("CupPrice"), "unit_measure": p.get("CupMeasure") or ""})
+                        "unit_price": p.get("CupPrice"), "unit_measure": p.get("CupMeasure") or "",
+                        "classification": _classification("woolworths", p)})
     return out, data.get("TotalRecordCount") or 0
 
 
@@ -275,7 +334,8 @@ def browse_coles_category(category: str, page: int = 1, session=None):
         out.append({"coles_id": p["id"], "name": p["name"], "brand": p.get("brand", ""),
                     "size": p.get("size", ""), "price": pricing.get("now"), "was_price": pricing.get("was") or None,
                     "unit_price": unit.get("price"),
-                    "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}"})
+                    "unit_measure": f"{unit.get('ofMeasureQuantity') or ''}{unit.get('ofMeasureType') or ''}",
+                    "classification": _classification("coles", p)})
     return out, search.get("noOfResults") or 0
 
 
@@ -550,7 +610,8 @@ def browse_iga_category(store_id, category, page=1, page_size=36, session=None):
         results.append({"item_id": item_id, "name": p["name"], "brand": p.get("brand") or "", "size": size,
                         "price": p.get("priceNumeric"), "was_price": p.get("wasPriceNumeric"),
                         "unit_price": p.get("wholePrice"),
-                        "unit_measure": (p.get("unitOfPrice") or {}).get("abbreviation", "")})
+                        "unit_measure": (p.get("unitOfPrice") or {}).get("abbreviation", ""),
+                        "classification": _classification("iga", p)})
     if not results and (page - 1) * page_size < data["total"]:
         raise ValueError("Incomplete IGA category page")
     return results, data["total"]

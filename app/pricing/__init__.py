@@ -1,4 +1,5 @@
 """Product matching and append-only store price observations."""
+import json
 import logging
 import math
 import re
@@ -157,6 +158,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
         return []
     if limit is None:
         limit = 200
+    classification_sql = "c.classification" if store != "aldi" else "'{}'"
     owns_conn = conn is None
     if owns_conn:
         from .. import db as database
@@ -187,7 +189,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
                                  (name_words(name or "") | name_words(brand or ""))))
         found = conn.execute(
             f"WITH candidates AS MATERIALIZED (SELECT c.{id_field} AS item_id, c.name, c.brand, c.size, c.price, "
-            f"c.was_price, c.unit_price, c.unit_measure, matching_coverage(c.name,c.brand) AS coverage, "
+            f"c.was_price, c.unit_price, c.unit_measure, {classification_sql} AS classification, matching_coverage(c.name,c.brand) AS coverage, "
             f"bm25({index}) AS retrieval_rank FROM {index} "
             f"JOIN {table} c ON c.rowid={index}.rowid "
             f"WHERE {index} MATCH ? ORDER BY coverage DESC, matching_length(c.name), "
@@ -201,7 +203,7 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
                 index = f"{table}_trigrams"
                 found = conn.execute(
                     f"SELECT c.{id_field} AS item_id, c.name, c.brand, c.size, c.price, "
-                    f"c.was_price, c.unit_price, c.unit_measure FROM {index} "
+                    f"c.was_price, c.unit_price, c.unit_measure, {classification_sql} AS classification FROM {index} "
                     f"JOIN {table} c ON c.rowid={index}.rowid WHERE {index} MATCH ? "
                     f"ORDER BY bm25({index}), c.rowid LIMIT ?",
                     (" OR ".join(quoted(fragment) for fragment in fragments), limit)).fetchall()
@@ -210,7 +212,8 @@ def _catalogue_lookup(store, query, limit=None, conn=None, postcode=""):
             conn.close()
     return [{"store_item_id": str(r["item_id"]), "name": r["name"], "brand": r["brand"], "size": r["size"],
              "price": r["price"], "was_price": r["was_price"], "unit_price": r["unit_price"],
-             "unit_measure": r["unit_measure"], "on_special": bool(r["was_price"])} for r in found]
+             "unit_measure": r["unit_measure"], "on_special": bool(r["was_price"]),
+             "classification": _classification_data(r["classification"])} for r in found]
 
 
 def search(store, query, postcode="", conn=None):
@@ -421,7 +424,99 @@ def type_preference(db, product_id, store):
     return set.intersection(*choices)
 
 
-def strongest_match(name, candidates, preferred_size=None, preferred_type=None, *, store=None):
+def _classification_data(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (ValueError, TypeError):
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _classification_paths(value):
+    value = _classification_data(value)
+    for key in ('primary', 'secondary'):
+        paths = value.get(key)
+        if not isinstance(paths, list):
+            continue
+        paths = [[name_words(label) if isinstance(label, str) else set() for label in path]
+                 for path in paths if isinstance(path, list)]
+        paths = [path for path in paths if any(path)]
+        if paths:
+            return paths
+    return []
+
+
+def classification_preference(db, product_id, store):
+    """Only compare real labels, never assume retailer IDs share a taxonomy.
+
+    Agreement across remembered stores can identify a finer class. Broad
+    ancestors are retained in paths but cannot win over a more specific
+    shared label. Conflicting choices supply no structural preference.
+    """
+    choices = []
+    for link in db.execute("SELECT store,store_item_id FROM product_store_links WHERE product_id=?",
+                           (product_id,)):
+        if link['store'] == store:
+            continue
+        table, key = _CATALOGUE_TABLES[link['store']]
+        if link['store'] == 'aldi':
+            continue
+        item = db.execute(f"SELECT classification FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
+        if not item:
+            continue
+        paths = _classification_paths(item['classification'])
+        labels = {frozenset(label) for path in paths for label in path if label}
+        if labels:
+            choices.append(labels)
+    return set.intersection(*choices) if choices else set()
+
+
+def _classification_filter(words, candidates, preferred=(), plain_category=None):
+    paths = {str(c['store_item_id']): _classification_paths(c.get('classification')) for c in candidates}
+
+    def classified(c):
+        return paths[str(c['store_item_id'])]
+
+    # The existing plain-category check also applies to classification:
+    # soda water is a segment of Mixers, not the retailer's Water branch.
+    # An exact terminal label still allows water sold as lunchbox drinks.
+    eligible = [c for c in candidates if not plain_category or not classified(c) or any(
+        len(path) == 1 or any(words <= label for label in path[:-1]) or path[-1] == words
+        for path in classified(c))]
+
+    # Reuse the established format guards when a title omits a detail
+    # that the retailer still declares (for example NOODLES - CUP).
+    eligible = [c for c in eligible if not any(
+        words & category and not words & qualifiers and
+        any(label & category and label & qualifiers for path in classified(c) for label in path)
+        for category, qualifiers in CATEGORY_QUALIFIERS.items())]
+
+    # Typed words must identify a complete real label before a class can
+    # narrow the pool. Flavour words absent from the taxonomy leave all
+    # existing title, brand, size and history decisions alone.
+    for depth in range(max((len(p) for ps in paths.values() for p in ps), default=0)):
+        def labels(c):
+            return [p[depth] for p in classified(c) if len(p) > depth and p[depth]]
+        agree = [c for c in eligible if any(words <= label for label in labels(c))]
+        disagree = [c for c in eligible if labels(c) and not any(words <= label for label in labels(c))]
+        if agree:
+            eligible = [c for c in eligible if c not in disagree]
+            # Once the query identifies a shared branch, its children are
+            # alternatives, not evidence that one is a better category.
+            break
+
+    # Cross-store labels must match exactly after normal word normalization.
+    # A shared broad ancestor cannot distinguish its own sibling classes.
+    preferred = set(preferred)
+    for label in sorted(preferred, key=lambda label: (-len(label), sorted(label))):
+        agree = [c for c in eligible if any(label == part for path in classified(c) for part in path)]
+        if agree and any(classified(c) and c not in agree for c in eligible):
+            return [c for c in eligible if not classified(c) or c in agree]
+    return eligible
+
+
+def strongest_match(name, candidates, preferred_size=None, preferred_type=None, *, store=None, preferred_classification=None):
     if candidates and all(c.get('_match_query') == candidates[0].get('_match_query') for c in candidates):
         name = candidates[0].get('_match_query') or name
     name = QUERY_CORRECTIONS.get(name.casefold().strip(), name)
@@ -482,6 +577,10 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         # not inside the name text.
         return name_words(c["name"]) | name_words(c.get("brand") or "")
     plain_category = PLAIN_CATEGORY_WORDS.get(next(iter(words))) if len(words) == 1 else None
+    class_words = words - name_words(required_brand or '')
+    # Explicit descriptors outrank remembered classes. Only use history
+    # when the complete typed request can describe that class as well.
+    class_history = [label for label in (preferred_classification or ()) if class_words <= label]
     scored = {}
     exact_sizes = set()
     for candidate in candidates:
@@ -551,7 +650,11 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                 if len(similarities) == len(preferred_size) and min(similarities) == 1:
                     exact_sizes.add(str(candidate["store_item_id"]))
         scored[str(candidate["store_item_id"])] = (score, candidate)
-    ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
+    eligible = _classification_filter(class_words or words, [pair[1] for pair in scored.values()],
+                                      class_history, plain_category)
+    eligible_ids = {str(c['store_item_id']) for c in eligible}
+    ranked = sorted((pair for key, pair in scored.items() if key in eligible_ids),
+                    key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < .5:
         return None
     tied = [pair for pair in ranked if ranked[0][0] - pair[0] < .15]
@@ -721,7 +824,8 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
             else:
                 candidates = search(setting["store"], name, setting["postcode"], conn=db)
             candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]),
-                                        type_preference(db, product_id, setting["store"]), store=setting["store"])
+                                        type_preference(db, product_id, setting["store"]), store=setting["store"],
+                                        preferred_classification=classification_preference(db, product_id, setting["store"]))
             if candidate is None:
                 continue
             with db:
@@ -762,7 +866,8 @@ def auto_match_live(db, product_id, name, excluded_stores=()):
                 log.warning("Product lookup failed for %s", store, exc_info=exc)
                 continue
             candidate = strongest_match(name, candidates, size_preference(db, product_id, store),
-                                        type_preference(db, product_id, store), store=store)
+                                        type_preference(db, product_id, store), store=store,
+                                        preferred_classification=classification_preference(db, product_id, store))
             if candidate is None:
                 continue
             try:

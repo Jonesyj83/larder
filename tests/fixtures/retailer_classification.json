@@ -1,0 +1,404 @@
+{
+  "woolworths": [
+    {
+      "Stockcode": 116784,
+      "CupPrice": 0.65,
+      "CupMeasure": "1L",
+      "Price": 9.4,
+      "Name": "Woolworths Spring Water Bottles",
+      "WasPrice": 9.4,
+      "PackageSize": "600mL x 24 pack",
+      "Brand": "Woolworths",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "LIFESTYLE/WATER NON CARBONATED",
+        "sapsegmentname": "MULTIPACKS OVER 20",
+        "piessubcategorynamesjson": "[\"Kids Drinks\",\"Water\",\"Still Water\",\"Water\"]",
+        "sapsegmentno": "8",
+        "sapsubcategoryname": "SOFT DRINKS - WATER",
+        "sapcategoryno": "41",
+        "sapsubcategoryno": "106",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 799637,
+      "CupPrice": 0.92,
+      "CupMeasure": "1L",
+      "Price": 1.15,
+      "Name": "Woolworths Soda Water",
+      "WasPrice": 1.15,
+      "PackageSize": "1.25L",
+      "Brand": "Woolworths",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "CARBONATED SOFT DRINKS",
+        "sapsegmentname": "SODA WATER",
+        "piessubcategorynamesjson": "[\"Mixers\"]",
+        "sapsegmentno": "11",
+        "sapsubcategoryname": "SOFT DRINKS - MIXERS",
+        "sapcategoryno": "44",
+        "sapsubcategoryno": "93",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 634277,
+      "CupPrice": 3,
+      "CupMeasure": "1L",
+      "Price": 3.3,
+      "Name": "Schweppes Indian Tonic Water Mixer Bottle",
+      "WasPrice": 3.3,
+      "PackageSize": "1.1L",
+      "Brand": "Schweppes",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "CARBONATED SOFT DRINKS",
+        "sapsegmentname": "TONIC",
+        "piessubcategorynamesjson": "[\"Schweppes\",\"Mixers\"]",
+        "sapsegmentno": "10",
+        "sapsubcategoryname": "SOFT DRINKS - MIXERS",
+        "sapcategoryno": "44",
+        "sapsubcategoryno": "93",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 343890,
+      "CupPrice": 1.39,
+      "CupMeasure": "100G",
+      "Price": 5,
+      "Name": "Maggi 2 Minute Chicken Flavour Instant Noodles",
+      "WasPrice": 5,
+      "PackageSize": "360g 5 pack",
+      "Brand": "Maggi",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "PASTA / RICE",
+        "sapsegmentname": "2 MIN NOODLE CAKE MULTI",
+        "piessubcategorynamesjson": "[\"Instant Noodles\",\"Noodles\"]",
+        "sapsegmentno": "2",
+        "sapsubcategoryname": "NOODLES",
+        "sapcategoryno": "59",
+        "sapsubcategoryno": "76",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 224905,
+      "CupPrice": 2.08,
+      "CupMeasure": "100G",
+      "Price": 1.25,
+      "Name": "Maggi Chicken Flavour Cup Instant Noodles",
+      "WasPrice": 2.5,
+      "PackageSize": "60g",
+      "Brand": "Maggi",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "PASTA / RICE",
+        "sapsegmentname": "NOODLES - CUP",
+        "piessubcategorynamesjson": "[\"Instant Noodles\"]",
+        "sapsegmentno": "8",
+        "sapsubcategoryname": "NOODLES",
+        "sapcategoryno": "59",
+        "sapsubcategoryno": "76",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 479502,
+      "CupPrice": 4.1,
+      "CupMeasure": "100G",
+      "Price": 5.5,
+      "Name": "Pringles Sour Cream & Onion Potato Chips",
+      "WasPrice": 5.5,
+      "PackageSize": "134g",
+      "Brand": "Pringles",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "SNACKS",
+        "sapsegmentname": "STACKED",
+        "piessubcategorynamesjson": "[\"Chips Sharing\"]",
+        "sapsegmentno": "12",
+        "sapsubcategoryname": "CHIPS - SHARING",
+        "sapcategoryno": "58",
+        "sapsubcategoryno": "65",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 479501,
+      "CupPrice": 4.1,
+      "CupMeasure": "100G",
+      "Price": 5.5,
+      "Name": "Pringles Original Salted Potato Chips",
+      "WasPrice": 5.5,
+      "PackageSize": "134g",
+      "Brand": "Pringles",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "SNACKS",
+        "sapsegmentname": "STACKED",
+        "piessubcategorynamesjson": "[\"Chips Sharing\"]",
+        "sapsegmentno": "12",
+        "sapsubcategoryname": "CHIPS - SHARING",
+        "sapcategoryno": "58",
+        "sapsubcategoryno": "65",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 70787,
+      "CupPrice": 1.12,
+      "CupMeasure": "100G",
+      "Price": 4.2,
+      "Name": "Woolworths Spaghetti Bolognese Frozen Meal",
+      "WasPrice": 4.2,
+      "PackageSize": "375g",
+      "Brand": "Woolworths",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "FROZEN MEALS",
+        "sapsegmentname": "TRADITIONAL MEALS UNDER 400G",
+        "piessubcategorynamesjson": "[\"Italian Ready Meals\",\"Frozen Meals\",\"Single Meals\"]",
+        "sapsegmentno": "7",
+        "sapsubcategoryname": "FREEZER - MEALS & INGREDIENTS",
+        "sapcategoryno": "97",
+        "sapsubcategoryno": "91",
+        "sapdepartmentno": "5"
+      }
+    },
+    {
+      "Stockcode": 388386,
+      "CupPrice": 1.12,
+      "CupMeasure": "100G",
+      "Price": 4.2,
+      "Name": "Woolworths Beef Lasagne",
+      "WasPrice": 4.2,
+      "PackageSize": "375g",
+      "Brand": "Woolworths",
+      "AdditionalAttributes": {
+        "sapdepartmentname": "GROCERIES",
+        "sapcategoryname": "FROZEN MEALS",
+        "sapsegmentname": "TRADITIONAL MEALS UNDER 400G",
+        "piessubcategorynamesjson": "[\"Italian Ready Meals\",\"Frozen Meals\",\"Single Meals\"]",
+        "sapsegmentno": "7",
+        "sapsubcategoryname": "FREEZER - MEALS & INGREDIENTS",
+        "sapcategoryno": "97",
+        "sapsubcategoryno": "91",
+        "sapdepartmentno": "5"
+      }
+    }
+  ],
+  "coles": [
+    {
+      "_type": "PRODUCT",
+      "id": 4661649,
+      "name": "Water 12x600ml",
+      "brand": "Coles",
+      "size": "12 Pack",
+      "merchandiseHeir": {
+        "tradeProfitCentre": "GROCERY",
+        "categoryGroup": "IMPULSE",
+        "category": "WATER",
+        "subCategory": "STILL WATER",
+        "className": "MULTI PACK"
+      },
+      "onlineHeirs": [
+        {
+          "aisle": "Still Water",
+          "category": "Water",
+          "subCategory": "Drinks",
+          "categoryId": "98623",
+          "aisleId": "98635",
+          "subCategoryId": "11456"
+        },
+        {
+          "aisle": "Sparkling Water",
+          "category": "Water",
+          "subCategory": "Drinks",
+          "categoryId": "98623",
+          "aisleId": "98637",
+          "subCategoryId": "11456"
+        }
+      ],
+      "pricing": {
+        "now": 5.6,
+        "rawPriceNow": 5.6,
+        "was": 0,
+        "unit": {
+          "quantity": 1,
+          "ofMeasureQuantity": 1,
+          "ofMeasureUnits": "l",
+          "price": 0.78,
+          "ofMeasureType": "l",
+          "isWeighted": false,
+          "isIncremental": false
+        },
+        "comparable": "$0.78/ 1L",
+        "promotionType": "SPECIAL",
+        "specialType": "MULTI_SAVE",
+        "onlineSpecial": true,
+        "offerDescription": "Buy 2 for $9.40",
+        "multiBuyPromotion": {
+          "type": "MultibuySingleSku",
+          "id": "730843960",
+          "minQuantity": 2,
+          "reward": 4.7,
+          "unitPriceDisplay": "$0.65/ 1L"
+        }
+      }
+    },
+    {
+      "_type": "PRODUCT",
+      "id": 3536674,
+      "name": "Elderflower Tonic Water 4x200ml",
+      "brand": "Fever-Tree",
+      "size": "0.8L",
+      "merchandiseHeir": {
+        "tradeProfitCentre": "GROCERY",
+        "categoryGroup": "IMPULSE",
+        "category": "SOFTDRINKS",
+        "subCategory": "MIXERS",
+        "className": "MIXERS"
+      },
+      "onlineHeirs": [
+        {
+          "aisle": "Mixers",
+          "category": "Soft Drinks",
+          "subCategory": "Drinks",
+          "categoryId": "98621",
+          "aisleId": "98632",
+          "subCategoryId": "11456"
+        }
+      ],
+      "pricing": {
+        "now": 5.9,
+        "rawPriceNow": 5.9,
+        "was": 9.95,
+        "saveAmount": 4.05,
+        "saveStatement": "save $4.05",
+        "unit": {
+          "quantity": 1,
+          "ofMeasureQuantity": 1,
+          "ofMeasureUnits": "l",
+          "price": 7.38,
+          "ofMeasureType": "l",
+          "isWeighted": false,
+          "isIncremental": false
+        },
+        "comparable": "$7.38/ 1L",
+        "promotionType": "SPECIAL",
+        "onlineSpecial": false
+      }
+    }
+  ],
+  "iga": [
+    {
+      "brand": "Aqua Pura",
+      "categories": [
+        {
+          "category": "Grocery",
+          "categoryBreadcrumb": "Grocery",
+          "categoryId": "df3c7713-38f0-40c3-84ad-757ff32c25d4",
+          "retailerId": "Grocery"
+        },
+        {
+          "category": "Drinks",
+          "categoryBreadcrumb": "Grocery/Drinks",
+          "categoryId": "79a1069b-5d11-4bcb-854f-b8dc8a98e1dd",
+          "retailerId": "Drinks"
+        },
+        {
+          "category": "Water",
+          "categoryBreadcrumb": "Grocery/Drinks/Water",
+          "categoryId": "deaf1857-fcdd-41a4-885f-f92c480f95d9",
+          "retailerId": "Water"
+        },
+        {
+          "category": "Still Water",
+          "categoryBreadcrumb": "Grocery/Drinks/Water/Still Water",
+          "categoryId": "161adac3-b621-4ac9-8923-32009107cbb3",
+          "retailerId": "Still_Water"
+        }
+      ],
+      "defaultCategory": [
+        {
+          "category": "Still Water",
+          "categoryBreadcrumb": "Grocery/Drinks/Water/Still Water",
+          "categoryId": "161adac3-b621-4ac9-8923-32009107cbb3",
+          "retailerId": "Still_Water"
+        }
+      ],
+      "name": "Aqua Pura Pure Water",
+      "priceNumeric": 2.5,
+      "productId": "722102",
+      "unitOfPrice": {
+        "abbreviation": "",
+        "label": "Each",
+        "size": 1,
+        "type": "each"
+      },
+      "unitOfSize": {
+        "abbreviation": "l",
+        "label": "Litre",
+        "size": 1,
+        "type": "litre"
+      },
+      "wholePrice": 2.5
+    },
+    {
+      "brand": "Fentimans",
+      "categories": [
+        {
+          "category": "Grocery",
+          "categoryBreadcrumb": "Grocery",
+          "categoryId": "df3c7713-38f0-40c3-84ad-757ff32c25d4",
+          "retailerId": "Grocery"
+        },
+        {
+          "category": "Drinks",
+          "categoryBreadcrumb": "Grocery/Drinks",
+          "categoryId": "79a1069b-5d11-4bcb-854f-b8dc8a98e1dd",
+          "retailerId": "Drinks"
+        },
+        {
+          "category": "Soft Drinks",
+          "categoryBreadcrumb": "Grocery/Drinks/Soft Drinks",
+          "categoryId": "e5a69840-9087-4ea9-b214-120e4c92d6fa",
+          "retailerId": "Soft_Drinks"
+        },
+        {
+          "category": "Mixers",
+          "categoryBreadcrumb": "Grocery/Drinks/Soft Drinks/Mixers",
+          "categoryId": "f0e24939-f141-4836-baf9-f246d6f2294f",
+          "retailerId": "Mixers"
+        }
+      ],
+      "defaultCategory": [
+        {
+          "category": "Mixers",
+          "categoryBreadcrumb": "Grocery/Drinks/Soft Drinks/Mixers",
+          "categoryId": "f0e24939-f141-4836-baf9-f246d6f2294f",
+          "retailerId": "Mixers"
+        }
+      ],
+      "name": "Fentimans Tonic Light",
+      "priceNumeric": 8.8,
+      "productId": "750257",
+      "unitOfPrice": {
+        "abbreviation": "",
+        "label": "Each",
+        "size": 1,
+        "type": "each"
+      },
+      "unitOfSize": {
+        "abbreviation": "",
+        "label": "Each",
+        "size": 4,
+        "type": "each"
+      },
+      "wholePrice": 8.8
+    }
+  ]
+}
