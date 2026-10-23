@@ -76,6 +76,32 @@ class OrderHistory(unittest.TestCase):
         pricing.auto_match(self.db, 1, 'Water', search_fn=lambda *args: candidates)
         self.assertEqual(self.db.execute('SELECT store_item_id FROM product_store_links').fetchone()[0], '24')
 
+    def test_linked_milk_type_outweighs_default_at_another_store(self):
+        self.db.execute("UPDATE products SET name='Milk' WHERE id=1")
+        self.db.execute("DELETE FROM product_store_links")
+        self.db.execute("DELETE FROM store_settings")
+        self.db.execute("INSERT INTO store_settings(store,enabled) VALUES('aldi',1)")
+        pricing.link_product(self.db, 1, 'woolworths', 'skim', 'Skim Long Life Milk', size='1L')
+        skim = dict(store_item_id='1', name='Skim Long Life Milk', size='1L')
+        full = dict(store_item_id='2', name='Full Cream Long Life Milk', size='1L')
+        candidates = [full, skim]
+        self.assertEqual(pricing.strongest_match('Milk', candidates), full)
+        self.assertEqual(pricing.type_preference(self.db, 1, 'aldi'), {'skim', 'long', 'life'})
+        result = pricing.auto_match(self.db, 1, 'Milk', search_fn=lambda *args: candidates)
+        self.assertEqual([r['store'] for r in result], ['aldi'])
+        self.assertEqual(self.db.execute("SELECT store_item_id FROM product_store_links WHERE store='aldi'").fetchone()[0], '1')
+        self.assertEqual(pricing.strongest_match('full cream milk', candidates,
+            preferred_type={'skim', 'long', 'life'}), full)
+        self.assertIsNone(pricing.strongest_match('Milk', [skim, dict(skim, store_item_id='3')],
+            preferred_type={'skim', 'long', 'life'}))
+
+    def test_conflicting_links_only_remember_shared_words(self):
+        self.db.execute("UPDATE products SET name='Milk' WHERE id=1")
+        self.db.execute("DELETE FROM product_store_links")
+        pricing.link_product(self.db, 1, 'woolworths', 'skim', 'Skim Milk')
+        pricing.link_product(self.db, 1, 'coles', 'full', 'Full Cream Milk')
+        self.assertEqual(pricing.type_preference(self.db, 1, 'aldi'), set())
+
     def test_bought_records_before_deletion(self):
         item = self.add(2)
         shopping.bought(item['id'], shopping.BoughtIn(store='coles'), db=self.db, user={'id': None}, list_id=1)

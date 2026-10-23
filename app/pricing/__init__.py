@@ -24,6 +24,9 @@ GENERIC_EQUIVALENTS = {
 
 # Only aliases backed by a stored catalogue brand belong here.
 BRAND_ALIASES = {"coke": "coca-cola"}
+# Only household-confirmed defaults belong here.
+DEFAULT_VARIANT = {"milk": "full cream"}
+
 QUERY_CORRECTIONS = {"redbull": "red bull"}
 
 
@@ -62,6 +65,9 @@ def _catalogue_lookup(store, query, limit=None, conn=None):
     # Keep the window bounded; ambiguity still belongs to strongest_match.
     if limit is None:
         limit = 200 if len(words) == 1 else 30
+    # Keep literal names too: some stores call it Coke, others Coca-Cola.
+    words = list(dict.fromkeys(words + [alias_word for word in words
+        for alias_word in re.findall(r"\w+", BRAND_ALIASES.get(word, ""))]))
     owns_conn = conn is None
     if owns_conn:
         from .. import db as database
@@ -216,13 +222,36 @@ def size_preference(db, product_id, store):
     return {}
 
 
-def strongest_match(name, candidates, preferred_size=None):
+def type_preference(db, product_id, store):
+    product = db.execute("SELECT name FROM products WHERE id=?", (product_id,)).fetchone()
+    if not product:
+        return set()
+    links = db.execute("""SELECT store_name FROM product_store_links
+        WHERE product_id=? AND store != ?""", (product_id, store)).fetchall()
+    choices = [name_words(link['store_name']) - name_words(product['name']) for link in links]
+    # Conflicting store choices give no reliable preference. Only carry
+    # words shared by every remembered choice across to another store.
+    return set.intersection(*choices) if choices else set()
+
+
+def strongest_match(name, candidates, preferred_size=None, preferred_type=None):
     if candidates and all(c.get('_match_query') == candidates[0].get('_match_query') for c in candidates):
         name = candidates[0].get('_match_query') or name
     name = QUERY_CORRECTIONS.get(name.casefold().strip(), name)
     words = name_words(name)
     if not words:
         return None
+    default_type = name_words(DEFAULT_VARIANT.get(next(iter(words)), "")) if len(words) == 1 else set()
+    type_words = set(preferred_type or ()) or default_type
+    # A bare category needs a real type signal before descriptive titles
+    # can clear the name floor. Explicit query words still take precedence.
+    generic_type = bool(type_words) and len(words) == 1
+    def type_overlap(candidate):
+        other = name_words(candidate['name'])
+        if preferred_type:
+            return len(type_words & other)
+        return len(default_type) if default_type <= other else 0
+
     # A size claim right there in what was typed ("1.25L Pepsi") is real
     # specificity, same as typing an extra descriptor word -- it's not
     # "just a brand name" with nothing else to go on, even though the
@@ -275,6 +304,8 @@ def strongest_match(name, candidates, preferred_size=None):
         # its own ("Pepsi Max Cola Drink" vs "...Vanilla...").
         if required_brand and (len(words) > 1 or size_in_name) and recall == 1:
             score = max(score, .5)
+        elif generic_type and recall == 1 and type_overlap(candidate):
+            score = max(score, .5)
         elif score < .5:
             continue
         if preferred_size:
@@ -307,6 +338,17 @@ def strongest_match(name, candidates, preferred_size=None):
         # actually typed ("Pork Chops" vs "Pork Loin Chops") is a real
         # gap, not just a plainer name, and must stay a toss-up.
         if all(words <= candidate_words(pair[1]) for pair in tied):
+            if generic_type:
+                overlaps = [(type_overlap(pair[1]), pair) for pair in tied]
+                best = max(overlap for overlap, _ in overlaps)
+                if best:
+                    tied = [pair for overlap, pair in overlaps if overlap == best]
+                    if len(tied) == 1:
+                        return tied[0][1]
+                else:
+                    # A type absent from this store is no reason to guess
+                    # another one or fall back from a remembered choice.
+                    return None
             # Container words are packaging, not flavours. Embedded pack
             # sizes have already disappeared from the same comparison.
             def extra_words(pair):
@@ -337,6 +379,9 @@ def strongest_match(name, candidates, preferred_size=None):
                     comparison = by_size[-1] if explicit_single else by_size[1]
                     if total_size(comparison[1]) >= 4 * smallest > 0 and total_size(by_size[1][1]) > smallest:
                         return by_size[0][1]
+        # Full Cream still leaves brands and nearby sizes undecided.
+        # Classic and Diet Coke can still tie at the same bottle size;
+        # neither an alias nor a size claim identifies the intended type.
         return None
     return ranked[0][1]
 
@@ -356,7 +401,8 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
                 candidates = search_fn(setting["store"], name, setting["postcode"])
             else:
                 candidates = search(setting["store"], name, setting["postcode"], conn=db)
-            candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]))
+            candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]),
+                                        type_preference(db, product_id, setting["store"]))
             if candidate is None:
                 continue
             with db:
@@ -396,7 +442,8 @@ def auto_match_live(db, product_id, name, excluded_stores=()):
             if exc is not None:
                 log.warning("Product lookup failed for %s", store, exc_info=exc)
                 continue
-            candidate = strongest_match(name, candidates, size_preference(db, product_id, store))
+            candidate = strongest_match(name, candidates, size_preference(db, product_id, store),
+                                        type_preference(db, product_id, store))
             if candidate is None:
                 continue
             try:

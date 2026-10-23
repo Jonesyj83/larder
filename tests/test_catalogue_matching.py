@@ -37,7 +37,28 @@ class CatalogueMatching(unittest.TestCase):
         """)
         self.assertEqual(self.match('coles', 'coke zero')['store_item_id'], '1')
 
-    def test_milk_window_reaches_real_variants_and_abstains(self):
+    def test_coke_retrieval_includes_formal_and_literal_names(self):
+        self.db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
+                (1,'Coca Cola Classic','Coca-Cola','2L'),
+                (2,'Diet Coke 10x375ml','Coca-Cola','3.75L');
+        """)
+        candidates = pricing.search('coles', '2l coke', conn=self.db)
+        self.assertEqual({c['store_item_id'] for c in candidates}, {'1', '2'})
+        self.assertEqual(pricing.strongest_match('2l coke', candidates)['store_item_id'], '1')
+
+    def test_coke_size_does_not_choose_between_classic_and_diet(self):
+        self.db.executescript("""
+            INSERT INTO coles_catalogue(coles_id,name,brand,size) VALUES
+                (1,'Classic Soft Drink Bottle','Coca-Cola','2L'),
+                (2,'Diet Soft Drink Bottle','Coca-Cola','2L'),
+                (3,'Zero Sugar Soft Drink Bottle','Coca-Cola','2L');
+        """)
+        self.assertIsNone(self.match('coles', '2l coke'))
+        self.assertEqual(self.match('coles', '2l coke classic')['store_item_id'], '1')
+        self.assertEqual(self.match('coles', '2l coke diet')['store_item_id'], '2')
+
+    def test_milk_window_reaches_full_cream_default(self):
         self.db.executemany("INSERT INTO coles_catalogue(coles_id,name,size) VALUES(?,?,'2L')",
                             [(i, 'Flavoured Milk') for i in range(40)])
         self.db.executescript("""
@@ -47,13 +68,24 @@ class CatalogueMatching(unittest.TestCase):
         candidates = pricing.search('coles', '1l milk', conn=self.db)
         self.assertIn('100', [c['store_item_id'] for c in candidates])
         full = next(c for c in candidates if c['store_item_id'] == '100')
-        self.assertIsNone(pricing.strongest_match('1l milk', [full]))
-        # The full-cream candidate is evaluated but misses the name floor.
-        # Neither the typed size nor word overlap identifies a milk type.
-        self.assertIsNone(pricing.strongest_match('1l milk', candidates))
+        self.assertEqual(pricing.strongest_match('1l milk', [full]), full)
+        self.assertEqual(pricing.strongest_match('1l milk', candidates), full)
         self.db.executemany("INSERT INTO coles_catalogue(coles_id,name) VALUES(?,'Milk')",
                             [(i,) for i in range(200, 450)])
         self.assertEqual(len(pricing.search('coles', 'milk', conn=self.db)), 200)
+
+    def test_milk_default_only_applies_to_a_bare_category(self):
+        full = dict(store_item_id='1', name='Full Cream Milk', size='1L')
+        skim = dict(store_item_id='2', name='Skim Milk', size='1L')
+        soy = dict(store_item_id='3', name='Soy Milk', size='1L')
+        for query in ('milk', '1l milk'):
+            self.assertEqual(pricing.strongest_match(query, [skim, soy, full]), full)
+        self.assertEqual(pricing.strongest_match('skim milk', [full, skim]), skim)
+        self.assertEqual(pricing.strongest_match('soy milk', [full, soy]), soy)
+        self.assertIsNone(pricing.strongest_match('milk', [full, dict(full, store_item_id='4')]))
+        self.assertIsNone(pricing.strongest_match('bread', [
+            dict(store_item_id='1', name='White Bread'),
+            dict(store_item_id='2', name='Wholemeal Bread')]))
 
     def test_aldi_category_substitute_and_direct_stock(self):
         self.db.executescript("""
