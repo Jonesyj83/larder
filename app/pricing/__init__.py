@@ -254,10 +254,12 @@ def normalized_name(name):
 # A size token anywhere in a name -- "1.25L Pepsi Max", "Milk 2L", "Water
 # 12x600mL" -- never appears in what a store calls the product itself, so
 # it's pure noise for word-overlap scoring and has to come out first.
-SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\s*x\s*\d+\s*(?:pack|pk)?\b"
-              r"|\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
-              r"|\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\b"
-              r"|\d+(?:\.\d+)?\s*[- ]?\s*(?:pack|pk|bottles?|pieces?|each)\b")
+SIZE_UNIT = r"(?:ml|kg|grams?|g|litres?|l)"
+SIZE_COUNT = r"(?:pack|pk|pac|bottles?|pieces?|each|ea|pcs?)"
+SIZE_TOKEN = (rf"\d+(?:\.\d+)?\s*{SIZE_UNIT}\s*x\s*\d+\s*(?:pack|pk|case)?\b"
+              rf"|\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*{SIZE_UNIT}\s*(?:pack|pk|case)?\b"
+              rf"|\d+(?:\.\d+)?\s*{SIZE_UNIT}\b"
+              rf"|\d+(?:\.\d+)?\s*[- ]?\s*{SIZE_COUNT}\b")
 
 
 # Australian supermarkets swap these words for the same thing -- both
@@ -265,7 +267,46 @@ SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\s*x\s*\d+\s*(?:pack|pk)?\b"
 # Reduced-fat milk in particular has three real spellings in the wild:
 # Coles/Woolworths call it Lite, IGA's Brownes/Country Dairy call it
 # Hi-Lo, Aldi's Farmdale calls it Light -- same product, same intent.
-SYNONYMS = {"shredded": "grated", "sach": "sachet", "hilo": "lite", "light": "lite"}
+SYNONYMS = {
+    "shredded": "grated", "sach": "sachet", "hilo": "lite", "light": "lite",
+    "yogurt": "yoghurt", "chocolate": "choc", "bbq": "barbecue", "barbeque": "barbecue",
+    "feta": "fetta", "fettucine": "fettuccine", "lasagna": "lasagne",
+    "soya": "soy", "mayonnaise": "mayo", "smokey": "smoky", "chili": "chilli",
+    "aluminum": "aluminium", "specialty": "speciality", "squeezy": "squeezie",
+    "licorice": "liquorice", "masaman": "massaman", "panaeng": "panang",
+    "café": "cafe", "qualità": "qualita", "choco": "choc",
+    "doughnut": "donut", "doughnuts": "donuts", "bottl": "bottle",
+    "crispibread": "crispbread", "mueli": "muesli", "four": "4", "five": "5",
+    "brasied": "braised", "cheescake": "cheesecake", "cranbery": "cranberry",
+    "glentle": "gentle", "invorating": "invigorating", "lisio": "liscio",
+    "matifying": "mattifying", "maxium": "maximum", "monoploy": "monopoly",
+    "proetin": "protein", "sald": "salad", "sauekraut": "sauerkraut",
+    "sheperd": "shepherd", "sherbert": "sherbet", "shitake": "shiitake",
+    "shortbrtead": "shortbread", "strengh": "strength", "traditonal": "traditional",
+    "tumeric": "turmeric", "vanlla": "vanilla", "jalepeno": "jalapeno",
+    "chedder": "cheddar", "defense": "defence",
+    # Keep plural retrieval and singular scoring on the same product word.
+    "anchovies": "anchovy", "anchovie": "anchovy", "blackberries": "blackberry",
+    "blackberrie": "blackberry", "chillies": "chilli", "chillie": "chilli",
+    "mangoes": "mango", "mangoe": "mango", "pastries": "pastry",
+    "pastrie": "pastry", "patties": "patty", "pattie": "patty",
+    "lollies": "lolly", "lollie": "lolly", "jellies": "jelly",
+    "jellie": "jelly", "gummies": "gummy", "gummie": "gummy",
+    "batteries": "battery", "batterie": "battery", "nappies": "nappy",
+    "nappie": "nappy", "patches": "patch", "patche": "patch",
+    "brushes": "brush", "brushe": "brush", "toothbrushes": "toothbrush",
+    "toothbrushe": "toothbrush", "pouches": "pouch", "pouche": "pouch",
+    "sandwiches": "sandwich", "sandwiche": "sandwich", "matches": "match",
+    "matche": "match", "mixes": "mix", "mixe": "mix",
+    "berries": "berry",
+    "berrie": "berry", "blueberries": "blueberry", "blueberrie": "blueberry",
+    "cranberries": "cranberry", "cranberrie": "cranberry", "cherries": "cherry",
+    "cherrie": "cherry", "strawberries": "strawberry", "strawberrie": "strawberry",
+    "raspberries": "raspberry", "raspberrie": "raspberry", "peaches": "peach",
+    "peache": "peach",
+    # Singular scoring drops the final s; retrieval keeps the stored spelling.
+    "hummus": "hommus", "hummu": "hommu",
+}
 
 
 def name_words(name, *, singular=True):
@@ -292,14 +333,17 @@ def name_words(name, *, singular=True):
 
 def pack_size(size):
     text = size.casefold().strip().replace('×', 'x')
+    # Coles spells out some measures; Aldi and Woolworths abbreviate counts.
+    text = re.sub(r"(?<=\d)\s*grams?\b", 'g', text)
+    text = re.sub(r"(?<=\d)\s*litres?\b", 'l', text)
     # Retailers also write the measure before the pack count.
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\s*x\s*(\d+)\s*(?:pack|pk)?\b", r"\3 x \1\2", text)
+    text = re.sub(r"(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\s*x\s*(\d+)\s*(?:pack|pk)?\b", r"\3 x \1\2 ", text)
     multi = re.search(r"(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\b", text)
     if multi:
         count, amount, unit = multi.groups()
         factor = 1000 if unit in ('kg', 'l') else 1
         return {'count': float(count), 'volume' if unit in ('ml', 'l') else 'mass': float(count) * float(amount) * factor}
-    count = re.search(r"(\d+(?:\.\d+)?)\s*[- ]?\s*(?:pack|pk|bottles?|pieces?|each)\b", text)
+    count = re.search(rf"(\d+(?:\.\d+)?)\s*[- ]?\s*{SIZE_COUNT}\b", text)
     measure = re.search(r"(\d+(?:\.\d+)?)\s*(ml|kg|g|l)\b", text)
     result = {'count': float(count[1])} if count else {}
     if measure:

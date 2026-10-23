@@ -1,0 +1,838 @@
+[
+  {
+    "alias": "yogurt",
+    "canonical": "yoghurt",
+    "examples": {
+      "coles": {"yogurt": [{"id": 1001630, "name": "Everyday Vanilla Yogurt", "brand": "Easiyo", "size": "200g"}], "yoghurt": [{"id": 455827, "name": "Pot Set 99% Fat Free Yoghurt Natural", "brand": "Jalna", "size": "1Kg"}]},
+      "woolworths": {"yogurt": [{"id": 205017, "name": "Chobani Greek Yogurt Vanilla", "brand": "Chobani", "size": "907g"}], "yoghurt": [{"id": 13834, "name": "Vaalia Probiotic Yoghurt French Vanilla", "brand": "Vaalia", "size": "900g"}]},
+      "aldi": {"yogurt": [{"id": "000000000416810001", "name": "Apple & Raisin with Yogurt Fruit & Oat Bars 12+ Months 6 Pack 90g", "brand": "MAMIA", "size": "90 g"}], "yoghurt": [{"id": "000000000000400326", "name": "French Vanilla Yoghurt 900g", "brand": "VAALIA", "size": "900 g"}]},
+      "iga": {"yogurt": [{"id": "1800000081128", "name": "Chobani 20G Greek Yogurt Drinks Mixed Berry Vanilla", "brand": "Chobani", "size": "270 ml"}], "yoghurt": [{"id": "641518", "name": "Carmans Protein Bars Coconut Yoghurt & Roasted Nut", "brand": "Carman's", "size": "200 g"}]}
+    },
+    "comparable_titles": [["coles", "Coconut Yoghurt Blueberry", "woolworths", "Cocobella Coconut Yogurt Blueberry"], ["coles", "No Added Sugar Greek Yogurt Strawberry", "woolworths", "Chobani No Sugar Added Greek Yoghurt Strawberry"], ["coles", "Greek Yogurt Natural Light", "iga", "Chobani Greek Yoghurt Natural Light"]]
+  },
+  {
+    "alias": "chocolate",
+    "canonical": "choc",
+    "examples": {
+      "coles": {"chocolate": [{"id": 13079, "name": "Chocolate Flavoured Milk", "brand": "Oak", "size": "600mL"}], "choc": [{"id": 142413, "name": "Milk Choc Box", "brand": "Smarties", "size": "50g"}]},
+      "woolworths": {"chocolate": [{"id": 25, "name": "Arnott's Caramel Crown Chocolate Biscuits", "brand": "Arnott's", "size": "200g"}], "choc": [{"id": 9772, "name": "Bulla Crunch Double Choc", "brand": "Bulla", "size": "8 pack"}]},
+      "aldi": {"chocolate": [{"id": "000000000000416390", "name": "Chocolate Custard 6+ Months Baby Food 120g", "brand": "MAMIA", "size": "120 g"}], "choc": [{"id": "000000000000593891", "name": "Triple Choc Cookies 5 Pack 320g", "brand": "BILLIE'S BAKEHOUSE", "size": "320 g"}]},
+      "iga": {"chocolate": [{"id": "1800000075011", "name": "Allen's Chocolate Block Party Bar", "brand": "Allen's", "size": "44 g"}], "choc": [{"id": "20000006877", "name": "Byron Bay Cookies Gluten Free White Choc Macadamia Cookies", "brand": "Byron Bay Cookies", "size": "60 g"}]}
+    },
+    "comparable_titles": [["coles", "Chocolate Lactose Free Flavoured Milk", "woolworths", "Oak Lactose Free Choc Flavoured Milk"], ["coles", "Oat Chocolate Brownie Milk", "woolworths", "Vitasoy Oat Milk Choc Brownie"], ["coles", "Cookie Dough Chocolate Chip", "woolworths", "Aunty Kath's Cookie Dough Choc Chip"]]
+  },
+  {
+    "alias": "bbq",
+    "canonical": "barbecue",
+    "examples": {
+      "coles": {"bbq": [{"id": 419492, "name": "BBQ Sauce", "brand": "Yeo's Satay", "size": "250mL"}], "barbecue": [{"id": 234577, "name": "Original Barbecue Sauce", "brand": "ETA", "size": "375mL"}]},
+      "woolworths": {"bbq": [{"id": 11303, "name": "Moira Mac's Marinated BBQ Chicken Breast Sliced From The Deli", "brand": "Moira Mac's", "size": "per 100g"}], "barbecue": [{"id": 34425, "name": "Eta Barbecue Sauce", "brand": "Eta", "size": "375mL"}]},
+      "aldi": {"bbq": [{"id": "000000000000543466", "name": "Stone Baked BBQ Chicken & Bacon Pizza 490g", "brand": "WORLD KITCHEN", "size": "490 g"}], "barbecue": [{"id": "000000000000369342", "name": "Barbecue Crinkle Cut Potato Chips 230g", "brand": "SPRINTERS", "size": "230 g"}]},
+      "iga": {"bbq": [{"id": "611929", "name": "Arnott's Shapes Original BBQ", "brand": "Arnott's", "size": "175 g"}], "barbecue": [{"id": "372847", "name": "Fountain Barbecue Sauce Squeeze", "brand": "Fountain", "size": "500 ml"}]}
+    },
+    "comparable_titles": [["coles", "Backyard Barbecue Seasoning", "woolworths", "Mingle Backyard BBQ Seasoning"]]
+  },
+  {
+    "alias": "barbeque",
+    "canonical": "barbecue",
+    "examples": {
+      "coles": {"barbeque": [{"id": 1114016, "name": "Waves Barbeque", "brand": "Hooleys", "size": "95g"}], "barbecue": [{"id": 234577, "name": "Original Barbecue Sauce", "brand": "ETA", "size": "375mL"}]},
+      "woolworths": {"barbeque": [{"id": 96154, "name": "Vege Chips Barbeque", "brand": "Vege Chips", "size": "100g"}], "barbecue": [{"id": 34425, "name": "Eta Barbecue Sauce", "brand": "Eta", "size": "375mL"}]},
+      "aldi": {"barbeque": [{"id": "000000000365204001", "name": "Barbeque Sauce 500ml", "brand": "COLWAY", "size": "500 ml"}], "barbecue": [{"id": "000000000000369342", "name": "Barbecue Crinkle Cut Potato Chips 230g", "brand": "SPRINTERS", "size": "230 g"}]},
+      "iga": {"barbeque": [{"id": "492914", "name": "Ajitas Vege Chips Barbeque", "brand": "Ajitas", "size": "100 g"}], "barbecue": [{"id": "372847", "name": "Fountain Barbecue Sauce Squeeze", "brand": "Fountain", "size": "500 ml"}]}
+    },
+    "comparable_titles": [["coles", "Chinese Barbeque Stir Fry Sauce", "woolworths", "Kan Tong Stir Fry Sauce Chinese Barbecue"]]
+  },
+  {
+    "alias": "feta",
+    "canonical": "fetta",
+    "examples": {
+      "coles": {"feta": [{"id": 1092398, "name": "Dairy Free Feta Greek White", "brand": "Bio Cheese", "size": "200g"}], "fetta": [{"id": 1051663, "name": "Fetta And Basil Dip", "brand": "Nuffin", "size": "200g"}]},
+      "woolworths": {"feta": [{"id": 3122, "name": "Dodoni Authentic Greek Feta Cheese", "brand": "Dodoni", "size": "per 100g"}], "fetta": [{"id": 19080, "name": "F Mayer Danish Fetta Cheese Cheese", "brand": "F Mayer", "size": "per 100g"}]},
+      "aldi": {"feta": [{"id": "000000000000744265", "name": "Persian Feta Dip 150g", "brand": "DELI ORIGINALS FRESH", "size": "150 g"}], "fetta": [{"id": "000000000000399383", "name": "Marinated Fetta 350g", "brand": "EMPORIUM SELECTION", "size": "350 g"}]},
+      "iga": {"feta": [{"id": "1800000070660", "name": "Black Swan Crafted Spinach And Feta Dip", "brand": "Black Swan", "size": "170 g"}], "fetta": [{"id": "20000000287", "name": "Castello Fetta Cheese Cubes", "brand": "Castello", "size": "430 g"}]}
+    },
+    "comparable_titles": [["coles", "Dip Balsamic Beetroot Feta & Cashew", "woolworths", "Red Rock Deli Balsamic Beetroot Fetta & Cashews Dip"]]
+  },
+  {
+    "alias": "fettucine",
+    "canonical": "fettuccine",
+    "examples": {
+      "coles": {"fettucine": [{"id": 3771540, "name": "Beef Ragu Fettucine", "brand": "Coles Finest", "size": "400g"}], "fettuccine": [{"id": 207825, "name": "Plain Fettuccine Pasta", "brand": "San Remo", "size": "500g"}]},
+      "woolworths": {"fettucine": [{"id": 81571, "name": "Rana Fresh Traditional Fettucine", "brand": "Rana", "size": "325g"}], "fettuccine": [{"id": 22081, "name": "Latina Fresh Egg Fettuccine Pasta", "brand": "Latina Fresh", "size": "375g"}]},
+      "aldi": {"fettucine": [], "fettuccine": [{"id": "000000000000656588", "name": "Pasta Fettuccine 500g", "brand": "CUCINA", "size": "500 g"}]},
+      "iga": {"fettucine": [{"id": "189841", "name": "On The Menu Chicken Fettucine", "brand": "On The Menu", "size": "260 g"}], "fettuccine": [{"id": "1800000068492", "name": "Community Co Dry Pasta #12 Fettuccine", "brand": "Community Co", "size": "500 g"}]}
+    },
+    "comparable_titles": [["coles", "Tricolore Fettuccine Pasta", "woolworths", "Guzzi's Tricolore Fettucine Pasta"]]
+  },
+  {
+    "alias": "lasagna",
+    "canonical": "lasagne",
+    "examples": {
+      "coles": {"lasagna": [{"id": 412799, "name": "Red Box Tray Lasagna", "brand": "McCain", "size": "400g"}], "lasagne": [{"id": 1054785, "name": "Wellness Bowl Wholemeal Beef Pumpkin Lasagne", "brand": "Super Nature", "size": "350g"}]},
+      "woolworths": {"lasagna": [{"id": 28059, "name": "Rana Fresh Egg Lasagna Sheets", "brand": "Rana", "size": "250g"}], "lasagne": [{"id": 5033, "name": "Latina Fresh Lasagne Sheets Sheets", "brand": "Latina Fresh", "size": "375g"}]},
+      "aldi": {"lasagna": [], "lasagne": [{"id": "000000000000403620", "name": "Fresh Lasagne Sheets 7 Pack 375g", "brand": "WORLD KITCHEN", "size": "375 g"}]},
+      "iga": {"lasagna": [{"id": "410792", "name": "San Remo Instant Lasagna", "brand": "San Remo", "size": "250 g"}], "lasagne": [{"id": "390353", "name": "Dolmio Bechamel Lasagne Sauce", "brand": "Dolmio", "size": "490 g"}]}
+    },
+    "comparable_titles": [["coles", "Gluten Free Lasagna Bolognese", "woolworths", "Tutto Pasta Gluten Free Bolognese Lasagne"], ["coles", "Gluten Free Lasagna", "woolworths", "San Remo Gluten Free Lasagne"]]
+  },
+  {
+    "alias": "soya",
+    "canonical": "soy",
+    "examples": {
+      "coles": {"soya": [{"id": 3736990, "name": "Gluten Free Soya Sauce", "brand": "Lee Kum Kee", "size": "250mL"}], "soy": [{"id": 52897, "name": "Salt Reduced Soy Sauce", "brand": "Kikkoman", "size": "250mL"}]},
+      "woolworths": {"soya": [{"id": 750533, "name": "Woolworths Soya Crisps Chilli & Lime Snacks", "brand": "Woolworths", "size": "400g"}], "soy": [{"id": 86, "name": "Pearl River Bridge Soy Sauce Superior Light", "brand": "Pearl River Bridge", "size": "500mL"}]},
+      "aldi": {"soya": [], "soy": [{"id": "000000000000402615", "name": "Soy & Linseed Sourdough 630g", "brand": "WILD ORIGINS ARTISAN SOURDOUGH", "size": "630 g"}]},
+      "iga": {"soya": [], "soy": [{"id": "341626", "name": "ABC Kecap Manis Sweet Soy Sauce Bottle", "brand": "ABC", "size": "275 ml"}]}
+    },
+    "comparable_titles": [["coles", "Gluten Free Soya Sauce", "woolworths", "Lee Kum Kee Gluten Free Soy Sauce Soy Sauce"]]
+  },
+  {
+    "alias": "mayonnaise",
+    "canonical": "mayo",
+    "examples": {
+      "coles": {"mayonnaise": [{"id": 169012, "name": "Traditional Mayonnaise", "brand": "Praise", "size": "700g"}], "mayo": [{"id": 208646, "name": "Salad Cream Salad Dressing Mayo", "brand": "Heinz", "size": "250g"}]},
+      "woolworths": {"mayonnaise": [{"id": 18475, "name": "Kewpie Sriracha Mayonnaise", "brand": "Kewpie", "size": "300g"}], "mayo": [{"id": 104232, "name": "Gevity Rx Bone Broth Sauce Great Guts Mayo", "brand": "Gevity Rx", "size": "200g"}]},
+      "aldi": {"mayonnaise": [{"id": "000000000000403367", "name": "RSPCA Approved Chicken Bites With Sriracha  Mayonnaise 500g", "brand": "READY, SET…COOK!", "size": "500 g"}], "mayo": []},
+      "iga": {"mayonnaise": [{"id": "190000010600", "name": "Community Co Traditional Mayonnaise", "brand": "Community Co", "size": "500 ml"}], "mayo": [{"id": "34931", "name": "Heinz Shredded Chicken Mayo", "brand": "Heinz", "size": "85 g"}]}
+    },
+    "comparable_titles": [["coles", "Squeeze 99% Fat Free Traditional Mayo", "iga", "Praise Mayonnaise Traditional 99% Fat Free Squeeze"]]
+  },
+  {
+    "alias": "hummus",
+    "canonical": "hommus",
+    "examples": {
+      "coles": {"hummus": [{"id": 1701033, "name": "Harissa Hummus Dip", "brand": "Dari's Table", "size": "200g"}], "hommus": [{"id": 1051696, "name": "Hommus Snack Pack 2x50g", "brand": "Nuffin", "size": "100g"}]},
+      "woolworths": {"hummus": [{"id": 722151, "name": "Pilpel Hummus", "brand": "Pilpel", "size": "200g"}], "hommus": [{"id": 12507, "name": "Pilpel Chilli Lemon Hommus", "brand": "Pilpel", "size": "330g"}]},
+      "aldi": {"hummus": [], "hommus": [{"id": "000000000000398465", "name": "Multipack Hommus Dip 3 Pack 65g", "brand": "DELI ORIGINALS FRESH", "size": "195 g"}]},
+      "iga": {"hummus": [], "hommus": [{"id": "177637", "name": "Black Swan Hommus Dip", "brand": "Black Swan", "size": "200 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "smokey",
+    "canonical": "smoky",
+    "examples": {
+      "coles": {"smokey": [{"id": 1062230, "name": "Smokey Chipotle Wing Dings", "brand": "Inghams", "size": "1kg"}], "smoky": [{"id": 1136992, "name": "Deli Chef Series Smoky Beef Ribs", "brand": "Red Rock", "size": "150g"}]},
+      "woolworths": {"smokey": [{"id": 51631, "name": "MasterFoods Smokey BBQ Marinade", "brand": "MasterFoods", "size": "375g"}], "smoky": [{"id": 180654, "name": "The Happy Snack Company Roasted Fava Beans Smoky BBQ", "brand": "The Happy Snack Company", "size": "6 pack"}]},
+      "aldi": {"smokey": [{"id": "000000000476819001", "name": "BBQ Smokey Beef 360g", "brand": "HEALTH & VITALITY FIT", "size": "360 g"}], "smoky": []},
+      "iga": {"smokey": [{"id": "180000000373", "name": "Corn Snack Smokey BBQ", "brand": "Corn Snack", "size": "35 g"}], "smoky": [{"id": "1800000067448", "name": "Cheeky Brothers Pizza Smoky Chunky Chorizo", "brand": "Cheeky Brothers", "size": "505 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "aluminum",
+    "canonical": "aluminium",
+    "examples": {
+      "coles": {"aluminum": [{"id": 4486287, "name": "Aluminum Foil Extra Strong", "brand": "Coles Simply", "size": "30m"}], "aluminium": [{"id": 106395, "name": "Aluminium Foil Wrap 10m x 30cm", "brand": "Multix", "size": "10m"}]},
+      "woolworths": {"aluminum": [{"id": 1095089063, "name": "1X Embellir Makeup Case Portable Beauty Cosmetic Aluminum Box Travel Organiser", "brand": "Embellir", "size": "1EA"}], "aluminium": [{"id": 6300, "name": "Redwin Anti-Perspirant Deodorant Aerosol Aluminium Free Sport", "brand": "Redwin", "size": "150mL"}]},
+      "aldi": {"aluminum": [], "aluminium": [{"id": "000000000000618988", "name": "Aluminium Foil 30m", "brand": "POWER FORCE", "size": "30 m"}]},
+      "iga": {"aluminum": [{"id": "180000005761", "name": "Dove Men Deodorant Roll On Clean Comfort Zero % Aluminum", "brand": "Dove", "size": "50 ml"}], "aluminium": [{"id": "52366", "name": "Multix Aluminium Foil 20m", "brand": "Multix", "size": "1"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "specialty",
+    "canonical": "speciality",
+    "examples": {
+      "coles": {"specialty": [{"id": 255861, "name": "Delicates Specialty Washing Liquid", "brand": "Softly", "size": "1.25L"}], "speciality": [{"id": 3635199, "name": "Gluten Free Pistachio & Fig Speciality Crackers", "brand": "OB Finest", "size": "130g"}]},
+      "woolworths": {"specialty": [{"id": 6247, "name": "Moccona Freeze Dried Instant Coffee Specialty Blend Ristretto", "brand": "Moccona", "size": "200g"}], "speciality": [{"id": 60276, "name": "OB Finest Gluten Free Speciality Crackers Fig & Pistachio", "brand": "OB Finest", "size": "130g"}]},
+      "aldi": {"specialty": [], "speciality": []},
+      "iga": {"specialty": [{"id": "751936", "name": "OB Finest Specialty Crackers Cranberry & Pumpkin Seed", "brand": "OB Finest", "size": "150 g"}], "speciality": []}
+    },
+    "comparable_titles": [["woolworths", "OB Finest Speciality Crackers Cranberry & Pumpkin Seed", "iga", "OB Finest Specialty Crackers Cranberry & Pumpkin Seed"], ["coles", "Specialty Crackers Date & Almond Gluten Free", "woolworths", "OB Finest Gluten Free Speciality Crackers Date & Almond"]]
+  },
+  {
+    "alias": "squeezy",
+    "canonical": "squeezie",
+    "examples": {
+      "coles": {"squeezy": [{"id": 1822989, "name": "No Stir Squeezy Smooth Peanut Butter", "brand": "Mayver's", "size": "300g"}], "squeezie": [{"id": 1013471, "name": "Squeezie Yoghurt Pouch Strawberry", "brand": "Coles", "size": "70g"}]},
+      "woolworths": {"squeezy": [{"id": 83563, "name": "Heinz Tomato Ketchup Squeezy Bottle", "brand": "Heinz", "size": "500mL"}], "squeezie": [{"id": 207915, "name": "Rosella Tomato Sauce Squeezie", "brand": "Rosella", "size": "500mL"}]},
+      "aldi": {"squeezy": [], "squeezie": []},
+      "iga": {"squeezy": [{"id": "50128", "name": "Cottee's Squeezy Chocolate Topping", "brand": "Cottee's", "size": "615 g"}], "squeezie": [{"id": "409848", "name": "Rosella Tomato Sauce Squeezie", "brand": "Rosella", "size": "500 ml"}]}
+    },
+    "comparable_titles": [["coles", "Squeezy Tomato Sauce", "woolworths", "Rosella Tomato Sauce Squeezie"], ["coles", "Squeezy Tomato Sauce", "iga", "Rosella Tomato Sauce Squeezie"]]
+  },
+  {
+    "alias": "licorice",
+    "canonical": "liquorice",
+    "examples": {
+      "coles": {"licorice": [{"id": 1768668, "name": "Organic Licorice Tea Bags", "brand": "Higher Living", "size": "15 Pack"}], "liquorice": [{"id": 3448351, "name": "Dark Chocolate Liquorice Bullets", "brand": "Darrell Lea", "size": "204g"}]},
+      "woolworths": {"licorice": [{"id": 95185, "name": "Higher Living Peppermint & Licorice Tea", "brand": "Higher Living", "size": "15 pack"}], "liquorice": [{"id": 80421, "name": "Darrell Lea Milk Chocolate Coated Original Liquorice Twists", "brand": "Darrell Lea", "size": "200g"}]},
+      "aldi": {"licorice": [], "liquorice": [{"id": "000000000000399511", "name": "Red and Green Liquorice 275g", "brand": "DARRELL LEA", "size": "275 g"}]},
+      "iga": {"licorice": [{"id": "20000003206", "name": "Big Lolly Licorice Allsorts", "brand": "Big Lolly", "size": "160 g"}], "liquorice": [{"id": "463928", "name": "Darrell Lea Allsorts Liquorice", "brand": "Darrell Lea", "size": "270 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "masaman",
+    "canonical": "massaman",
+    "examples": {
+      "coles": {"masaman": [{"id": 1323832, "name": "Masaman Curry Paste", "brand": "Maesri", "size": "114g"}], "massaman": [{"id": 1752180, "name": "High Protein Beef Massaman & Rice", "brand": "Coles Perform", "size": "435g"}]},
+      "woolworths": {"masaman": [{"id": 59121, "name": "Maesri Paste Masaman Curry", "brand": "Maesri", "size": "114g"}], "massaman": [{"id": 3414, "name": "The Spice Tailor Thai Massaman Curry Kit", "brand": "The Spice Tailor", "size": "275g"}]},
+      "aldi": {"masaman": [], "massaman": [{"id": "000000000000630823", "name": "Beef Massaman Curry 800g", "brand": "WORLD KITCHEN", "size": "800 g"}]},
+      "iga": {"masaman": [], "massaman": [{"id": "923119", "name": "Marion's Kitchen Massaman Curry Paste", "brand": "Marion's Kitchen", "size": "190 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "panaeng",
+    "canonical": "panang",
+    "examples": {
+      "coles": {"panaeng": [{"id": 6823683, "name": "Panaeng Curry Paste", "brand": "Valcom", "size": "210g"}], "panang": [{"id": 1323843, "name": "Panang Curry Paste", "brand": "Maesri", "size": "114g"}]},
+      "woolworths": {"panaeng": [{"id": 82127, "name": "Valcom Thai Panaeng Curry Paste", "brand": "Valcom", "size": "210g"}], "panang": [{"id": 506579, "name": "Maesri Panang Curry Paste", "brand": "Maesri", "size": "114g"}]},
+      "aldi": {"panaeng": [], "panang": []},
+      "iga": {"panaeng": [], "panang": []}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "café",
+    "canonical": "cafe",
+    "examples": {
+      "coles": {"café": [], "cafe": [{"id": 1309274, "name": "Cafe Thick Raisin Toast Bread", "brand": "Tip Top", "size": "600g"}]},
+      "woolworths": {"café": [{"id": 160720, "name": "Grinders Café-Q Organico Coffee Beans", "brand": "Grinders", "size": "1kg"}], "cafe": [{"id": 212722, "name": "Vitasoy Oat Milk Cafe Latte", "brand": "Vitasoy", "size": "330mL"}]},
+      "aldi": {"café": [{"id": "000000000000673175", "name": "Café Style Raisin Loaf 600g", "brand": "BAKERS LIFE", "size": "600 g"}], "cafe": []},
+      "iga": {"café": [{"id": "3354", "name": "Everyday Café Toastie Ham Cheese & Tomato", "brand": "Everyday Cafe", "size": "187 g"}], "cafe": [{"id": "20000002204", "name": "Cafe 26 Original Dressing", "brand": "Cafe 26", "size": "26 g"}]}
+    },
+    "comparable_titles": [["coles", "Cafe - Q Organico Coffee Beans", "woolworths", "Grinders Café-Q Organico Coffee Beans"], ["coles", "Cafe - Q Darkoko Coffee Beans", "iga", "Grinders Café-Q Darkoko Coffee Beans"], ["coles", "Cafe - Q Cremello Coffee Beans", "iga", "Grinders Café-Q Cremello Coffee Beans"]]
+  },
+  {
+    "alias": "qualità",
+    "canonical": "qualita",
+    "examples": {
+      "coles": {"qualità": [], "qualita": [{"id": 1789453, "name": "Qualita Oro Dark Roast Coffee Beans", "brand": "Lavazza", "size": "1Kg"}]},
+      "woolworths": {"qualità": [{"id": 74006, "name": "Lavazza Qualità Oro Coffee Coffee Beans", "brand": "Lavazza", "size": "1kg"}], "qualita": [{"id": 95682, "name": "Lavazza Qualita Oro Ground Coffee", "brand": "Lavazza", "size": "250g"}]},
+      "aldi": {"qualità": [], "qualita": []},
+      "iga": {"qualità": [], "qualita": [{"id": "190000004253", "name": "Lavazza Qualita Oro Ground Coffee", "brand": "Lavazza", "size": "2"}]}
+    },
+    "comparable_titles": [["coles", "Qualita Oro Coffee Beans", "woolworths", "Lavazza Qualità Oro Coffee Coffee Beans"]]
+  },
+  {
+    "alias": "brasied",
+    "canonical": "braised",
+    "examples": {
+      "coles": {"brasied": [], "braised": [{"id": 1447733, "name": "Bowl Noodle Braised Beef", "brand": "KSF", "size": "110g"}]},
+      "woolworths": {"brasied": [{"id": 44192, "name": "Suimin Brasied Beef Noodle Cup", "brand": "Suimin", "size": "70g"}], "braised": [{"id": 141143, "name": "Strength Meals Co Frozen Braised Beef Ragu & Mash High Protein", "brand": "Strength Meals Co", "size": "350g"}]},
+      "aldi": {"brasied": [], "braised": []},
+      "iga": {"brasied": [], "braised": [{"id": "30568", "name": "Harvest Beef Braised Steak & Onion", "brand": "Harvest", "size": "425 g"}]}
+    },
+    "comparable_titles": [["woolworths", "Suimin Brasied Beef Noodle Cup", "iga", "Suimin Noodle Cup Braised Beef"]]
+  },
+  {
+    "alias": "cheescake",
+    "canonical": "cheesecake",
+    "examples": {
+      "coles": {"cheescake": [{"id": 5554407, "name": "Deluxe Mini Lemon Cheescake Mix", "brand": "Greens", "size": "275g"}], "cheesecake": [{"id": 1048283, "name": "Chocolate Chip Cheesecake", "brand": "Yalla Foods", "size": "120g"}]},
+      "woolworths": {"cheescake": [], "cheesecake": [{"id": 72276, "name": "Woolworths Free From Gluten Dairy Free Chocolate Cheesecake", "brand": "Woolworths", "size": "220g"}]},
+      "aldi": {"cheescake": [], "cheesecake": []},
+      "iga": {"cheescake": [], "cheesecake": [{"id": "1800000079490", "name": "Cadbury Raspberry Cheesecake Block", "brand": "Cadbury", "size": "195 g"}]}
+    },
+    "comparable_titles": [["coles", "Deluxe Mini Lemon Cheescake Mix", "woolworths", "Green's Deluxe Lemon Mini Cheesecake Mix"]]
+  },
+  {
+    "alias": "cranbery",
+    "canonical": "cranberry",
+    "examples": {
+      "coles": {"cranbery": [{"id": 7083254, "name": "Crafted Blends Cranbery & Buckwheat Flakes", "brand": "Freedom", "size": "400g"}], "cranberry": [{"id": 1018362, "name": "Almond Cashew & Cranberry Nut Bars 5 Pack", "brand": "Carman's", "size": "175g"}]},
+      "woolworths": {"cranbery": [], "cranberry": [{"id": 25528, "name": "Ocean Spray Fruit Sauce Cranberry Whole Berry", "brand": "Ocean Spray", "size": "275g"}]},
+      "aldi": {"cranbery": [], "cranberry": [{"id": "000000000000733625", "name": "Stuffed Turkey Breast Roast with Cranberry and Apple 1kg", "brand": "CURATED COLLECTION", "size": "1 kg"}]},
+      "iga": {"cranbery": [], "cranberry": [{"id": "180000005611", "name": "Arnott's Gold Label Lightly Toasted Crackers Cranberry Almond Linseed", "brand": "Arnott's", "size": "100 g"}]}
+    },
+    "comparable_titles": [["coles", "Crafted Blends Cranbery & Buckwheat Flakes", "woolworths", "Freedom Crafted Blends Cranberry & Buckwheat Flakes"]]
+  },
+  {
+    "alias": "glentle",
+    "canonical": "gentle",
+    "examples": {
+      "coles": {"glentle": [], "gentle": [{"id": 135804, "name": "Gentle Mild Moisturising Baby Oil", "brand": "Johnson's", "size": "200mL"}]},
+      "woolworths": {"glentle": [{"id": 368693, "name": "Huggies Glentle Cleanse Baby Wipes Cucumber & Aloe", "brand": "Huggies", "size": "80 pack"}], "gentle": [{"id": 13865, "name": "Nivea Extra Gentle Eye Makeup Remover With Provitamin B5", "brand": "Nivea", "size": "125mL"}]},
+      "aldi": {"glentle": [], "gentle": []},
+      "iga": {"glentle": [], "gentle": [{"id": "636990", "name": "Pears Pure & Gentle With Natural Oils Transparent Soap", "brand": "Pears", "size": "3"}]}
+    },
+    "comparable_titles": [["coles", "Gentle Cleanse Baby Wipes Coconut Oil", "woolworths", "Huggies Glentle Cleanse Baby Wipes Coconut Oil"]]
+  },
+  {
+    "alias": "invorating",
+    "canonical": "invigorating",
+    "examples": {
+      "coles": {"invorating": [], "invigorating": [{"id": 9036470, "name": "Deep Clean Invigorating Foaming Scrub", "brand": "Neutrogena", "size": "150g"}]},
+      "woolworths": {"invorating": [{"id": 908674, "name": "Neutrogena Deep Clean Invorating Foaming Scrub", "brand": "Neutrogena", "size": "150g"}], "invigorating": [{"id": 567542, "name": "TheraBreath Mouthwash Invigorating Icy Mint", "brand": "TheraBreath", "size": "473mL"}]},
+      "aldi": {"invorating": [], "invigorating": []},
+      "iga": {"invorating": [], "invigorating": [{"id": "606160", "name": "Neutrogena Deep Clean Invigorating Foam Scrub", "brand": "Neutrogena", "size": "150 g"}]}
+    },
+    "comparable_titles": [["coles", "Deep Clean Invigorating Foaming Scrub", "woolworths", "Neutrogena Deep Clean Invorating Foaming Scrub"]]
+  },
+  {
+    "alias": "lisio",
+    "canonical": "liscio",
+    "examples": {
+      "coles": {"lisio": [{"id": 125550, "name": "Lisio Piccolo Pasta No 40", "brand": "Zafarelli", "size": "500g"}], "liscio": []},
+      "woolworths": {"lisio": [], "liscio": [{"id": 94849, "name": "Zafarelli Liscio Piccolo Pasta No 40", "brand": "Zafarelli", "size": "500g"}]},
+      "aldi": {"lisio": [], "liscio": []},
+      "iga": {"lisio": [], "liscio": []}
+    },
+    "comparable_titles": [["coles", "Lisio Piccolo Pasta No 40", "woolworths", "Zafarelli Liscio Piccolo Pasta No 40"]]
+  },
+  {
+    "alias": "matifying",
+    "canonical": "mattifying",
+    "examples": {
+      "coles": {"matifying": [{"id": 1856619, "name": "Matifying Blemish Moisturiser", "brand": "Cetaphil", "size": "100mL"}], "mattifying": []},
+      "woolworths": {"matifying": [{"id": 1136765884, "name": "Clarins SOS Primer - # Matifying 30ml/1oz Matifying / 30ml/1oz", "brand": "Clarins", "size": ""}], "mattifying": [{"id": 6066857, "name": "Garnier Skin Active AHA + BHA Charcoal Mattifying Serum Mask", "brand": "Garnier", "size": "each"}]},
+      "aldi": {"matifying": [], "mattifying": []},
+      "iga": {"matifying": [], "mattifying": []}
+    },
+    "comparable_titles": [["coles", "Matifying Blemish Moisturiser", "woolworths", "Cetaphil Mattifying Blemish Moisturiser"]]
+  },
+  {
+    "alias": "maxium",
+    "canonical": "maximum",
+    "examples": {
+      "coles": {"maxium": [], "maximum": [{"id": 59455, "name": "Taft Maximum Hold Styling Lacquer", "brand": "Schwarzkopf", "size": "200g"}]},
+      "woolworths": {"maxium": [{"id": 935903, "name": "SKYN Maxium Performance Lubricant", "brand": "SKYN", "size": "80mL"}], "maximum": [{"id": 433997, "name": "Colgate Toothpaste Maximum Cavity Protection Great Regular Pump", "brand": "Colgate", "size": "130g"}]},
+      "aldi": {"maxium": [], "maximum": []},
+      "iga": {"maxium": [], "maximum": [{"id": "942016", "name": "Schwarzkopf Taft Mega Styling Gel Maximum Hold", "brand": "Schwarzkopf", "size": "300 g"}]}
+    },
+    "comparable_titles": [["coles", "Maximum Performance Lubricant", "woolworths", "SKYN Maxium Performance Lubricant"]]
+  },
+  {
+    "alias": "monoploy",
+    "canonical": "monopoly",
+    "examples": {
+      "coles": {"monoploy": [], "monopoly": [{"id": 1845805, "name": "Favourites Monopoly Games Box", "brand": "Cadbury", "size": "489g"}]},
+      "woolworths": {"monoploy": [], "monopoly": [{"id": 1116328225, "name": "Monopoly: Luxury Edition Board Game", "brand": "Monopoly", "size": "1EA"}]},
+      "aldi": {"monoploy": [], "monopoly": []},
+      "iga": {"monoploy": [{"id": "1800000079496", "name": "Cadbury Favourites Monoploy Games Box", "brand": "Cadbury", "size": "489 g"}], "monopoly": [{"id": "650774", "name": "Allen's Confectionery Inspired By Monopoly", "brand": "Allen's", "size": "160 g"}]}
+    },
+    "comparable_titles": [["coles", "Favourites Monopoly Games Box", "iga", "Cadbury Favourites Monoploy Games Box"]]
+  },
+  {
+    "alias": "proetin",
+    "canonical": "protein",
+    "examples": {
+      "coles": {"proetin": [{"id": 1002597, "name": "Proetin Lean Bar Strawberries & Cream", "brand": "Oxyshred", "size": "50g"}], "protein": [{"id": 252706, "name": "Protein Enriched Regular Hair Preparation For Men", "brand": "Brylcreem", "size": "150mL"}]},
+      "woolworths": {"proetin": [], "protein": [{"id": 8049, "name": "Musashi Plant Protein Vanilla", "brand": "Musashi", "size": "320g"}]},
+      "aldi": {"proetin": [], "protein": [{"id": "000000000000543414", "name": "Protein Pancakes 160g", "brand": "FOOD ENVY", "size": "160 g"}]},
+      "iga": {"proetin": [], "protein": [{"id": "180000005964", "name": "Carman's Clusters Protein Cereal Vanilla Cinnamon Crumble", "brand": "Carman's", "size": "425 g"}]}
+    },
+    "comparable_titles": [["coles", "Proetin Lean Bar Strawberries & Cream", "woolworths", "Oxyshred Protein Lean Bar Strawberries & Cream"]]
+  },
+  {
+    "alias": "sald",
+    "canonical": "salad",
+    "examples": {
+      "coles": {"sald": [{"id": 3320176, "name": "Italian Style Sald With Tuna", "brand": "Sirena", "size": "170g"}], "salad": [{"id": 208646, "name": "Salad Cream Salad Dressing Mayo", "brand": "Heinz", "size": "250g"}]},
+      "woolworths": {"sald": [], "salad": [{"id": 35067, "name": "Heinz Salad Cream With Natural Flavours & No Preservatives", "brand": "Heinz", "size": "250g"}]},
+      "aldi": {"sald": [], "salad": [{"id": "000000000000509600", "name": "Pumpkin and Mint Cous Cous Salad 500g", "brand": "THE FRESH SALAD CO", "size": "500 g"}]},
+      "iga": {"sald": [], "salad": [{"id": "421308", "name": "Community Co Baby Spinach & Rocket Salad", "brand": "Community Co", "size": "120 g"}]}
+    },
+    "comparable_titles": [["coles", "Italian Style Sald With Tuna", "woolworths", "Sirena Italian Style Salad With Tuna"], ["coles", "Italian Style Sald With Tuna", "iga", "Sirena Italian Style Salad With Tuna"]]
+  },
+  {
+    "alias": "sauekraut",
+    "canonical": "sauerkraut",
+    "examples": {
+      "coles": {"sauekraut": [{"id": 1092300, "name": "Classic Sauekraut", "brand": "Kehoe's Kitchen", "size": "410g"}], "sauerkraut": [{"id": 1753219, "name": "Sauerkraut", "brand": "Bornibus", "size": "860g"}]},
+      "woolworths": {"sauekraut": [], "sauerkraut": [{"id": 172109, "name": "Bryne Co Sauerkraut", "brand": "Bryne Co", "size": "475g"}]},
+      "aldi": {"sauekraut": [], "sauerkraut": []},
+      "iga": {"sauekraut": [], "sauerkraut": [{"id": "983981", "name": "Sandhurst Polish Sauerkraut", "brand": "Sandhurst", "size": "500 g"}]}
+    },
+    "comparable_titles": [["coles", "Classic Sauekraut", "woolworths", "Kehoe's Kitchen Classic Sauerkraut"]]
+  },
+  {
+    "alias": "sheperd",
+    "canonical": "shepherd",
+    "examples": {
+      "coles": {"sheperd": [], "shepherd": []},
+      "woolworths": {"sheperd": [], "shepherd": [{"id": 1096374294, "name": "AUSTRALIAN SHEPHERD(R) UGG Slippers Muffin Chestnut / AU Ladies 8 / AU Men 6 / EU 39", "brand": "UGG Australian Shepherd", "size": "1EA"}]},
+      "aldi": {"sheperd": [], "shepherd": [{"id": "000000000365287002", "name": "Shepherd's Pie 400g", "brand": "HEALTH & VITALITY", "size": "400 g"}]},
+      "iga": {"sheperd": [{"id": "330934", "name": "Continental Recipe Base Sheperd's Pie", "brand": "Continental", "size": "50 g"}], "shepherd": []}
+    },
+    "comparable_titles": [["coles", "Shepherds Pie Recipe Base", "iga", "Continental Recipe Base Sheperd's Pie"], ["woolworths", "Continental Recipe Base Shepherds Pie", "iga", "Continental Recipe Base Sheperd's Pie"]]
+  },
+  {
+    "alias": "sherbert",
+    "canonical": "sherbet",
+    "examples": {
+      "coles": {"sherbert": [{"id": 2086801, "name": "Sherbert Fizz Milk Choc Block", "brand": "Allen's", "size": "170g"}], "sherbet": [{"id": 1750844, "name": "Creatine Sherbet Berry Pouch 28 Sachets", "brand": "Noway", "size": "70g"}]},
+      "woolworths": {"sherbert": [{"id": 310026, "name": "Life Savers Raspberry Sherbert Fizz Stix Lollies", "brand": "Life Savers", "size": "200g"}], "sherbet": [{"id": 595462, "name": "Mother Energy Drink Rainbow Sherbet", "brand": "Mother", "size": "500mL"}]},
+      "aldi": {"sherbert": [], "sherbet": []},
+      "iga": {"sherbert": [{"id": "180000005833", "name": "Life Savers Lemon Sherbert Bombs Fizz", "brand": "Life Savers", "size": "150 g"}], "sherbet": [{"id": "180000004593", "name": "Mother Energy Drink Rainbow Sherbet Cans", "brand": "Mother Energy", "size": "4"}]}
+    },
+    "comparable_titles": [["coles", "Energy Drink Rainbow Sherbert", "woolworths", "Mother Energy Drink Rainbow Sherbet"]]
+  },
+  {
+    "alias": "shitake",
+    "canonical": "shiitake",
+    "examples": {
+      "coles": {"shitake": [{"id": 1317942, "name": "Shitake Dashi Soup Stock", "brand": "Ajishima", "size": "90g"}], "shiitake": [{"id": 3850577, "name": "Mushroom Dry Shiitake", "brand": "Coles", "size": "20g"}]},
+      "woolworths": {"shitake": [], "shiitake": [{"id": 89143, "name": "DJ&A Shiitake Mushroom Crisps", "brand": "DJ&A", "size": "65g"}]},
+      "aldi": {"shitake": [], "shiitake": []},
+      "iga": {"shitake": [], "shiitake": []}
+    },
+    "comparable_titles": [["coles", "Shitake Mushroom Crisps", "woolworths", "DJ&A Shiitake Mushroom Crisps"]]
+  },
+  {
+    "alias": "shortbrtead",
+    "canonical": "shortbread",
+    "examples": {
+      "coles": {"shortbrtead": [{"id": 8089755, "name": "Protein Cookie Lemon Shortbrtead", "brand": "Food To Nourish", "size": "60g"}], "shortbread": [{"id": 328863, "name": "Arno Shortbread Biscuits", "brand": "Arnott's", "size": "250g"}]},
+      "woolworths": {"shortbrtead": [], "shortbread": [{"id": 36033, "name": "Arnott's Shortbread Cream Biscuits", "brand": "Arnott's", "size": "250g"}]},
+      "aldi": {"shortbrtead": [], "shortbread": [{"id": "000000000000740920", "name": "Butter Shortbread Fingers 300g", "brand": "FESTIVE SELECTION", "size": "300 g"}]},
+      "iga": {"shortbrtead": [], "shortbread": [{"id": "366545", "name": "Arnott's Biscuits Shortbread Cream", "brand": "Arnott's", "size": "250 g"}]}
+    },
+    "comparable_titles": [["coles", "Protein Cookie Lemon Shortbrtead", "woolworths", "Food to Nourish Protein Cookie Lemon Shortbread 60g"]]
+  },
+  {
+    "alias": "strengh",
+    "canonical": "strength",
+    "examples": {
+      "coles": {"strengh": [{"id": 7489995, "name": "Extra Strengh Cream", "brand": "Deep Heat", "size": "100g"}], "strength": [{"id": 1020397, "name": "Febreze Extra Strength Fabric Freshener Trigger Spray", "brand": "Ambi Pur", "size": "370mL"}]},
+      "woolworths": {"strengh": [], "strength": [{"id": 1999, "name": "Ratsak Rat & Mouse Baits Double Strength", "brand": "Ratsak", "size": "350g"}]},
+      "aldi": {"strengh": [], "strength": []},
+      "iga": {"strengh": [], "strength": [{"id": "1800000077647", "name": "Dilmah Eb Extra Strength Tea Bags", "brand": "Dilmah", "size": "40"}]}
+    },
+    "comparable_titles": [["coles", "Extra Strengh Cream", "woolworths", "Deep Heat Extra  Strength Cream"]]
+  },
+  {
+    "alias": "traditonal",
+    "canonical": "traditional",
+    "examples": {
+      "coles": {"traditonal": [{"id": 1011997, "name": "Traditonal Gravy Mix", "brand": "Gravox", "size": "29g"}], "traditional": [{"id": 121151, "name": "Traditional Gravy Mix", "brand": "Gravox", "size": "425g"}]},
+      "woolworths": {"traditonal": [], "traditional": [{"id": 771, "name": "Berri Estates Cask Wine Traditional Dry Red", "brand": "Berri Estates", "size": "5L"}]},
+      "aldi": {"traditonal": [], "traditional": [{"id": "000000000000399365", "name": "Bakehouse Traditional Wholemeal Bread 750g", "brand": "BAKERS LIFE", "size": "750 g"}]},
+      "iga": {"traditonal": [], "traditional": [{"id": "7955", "name": "Altimate Funtime Traditional Wafer Cups", "brand": "Altimate", "size": "21"}]}
+    },
+    "comparable_titles": [["coles", "Traditonal Gravy Mix", "iga", "Gravox Traditional Gravy Mix"]]
+  },
+  {
+    "alias": "tumeric",
+    "canonical": "turmeric",
+    "examples": {
+      "coles": {"tumeric": [{"id": 1859005, "name": "Garnier Good 7.43 Tumeric Copper", "brand": "L'Oreal", "size": "1 Pack"}], "turmeric": [{"id": 1591591, "name": "Turmeric Powder", "brand": "Wildearth", "size": "100g"}]},
+      "woolworths": {"tumeric": [{"id": 102305, "name": "Macro Organic Tumeric", "brand": "Macro", "size": "75g"}], "turmeric": [{"id": 94625, "name": "Hoyt's Turmeric", "brand": "Hoyt's", "size": "25g"}]},
+      "aldi": {"tumeric": [], "turmeric": [{"id": "000000000000569601", "name": "Turmeric Ground 60g", "brand": "STONEMILL", "size": "60 g"}]},
+      "iga": {"tumeric": [{"id": "908834", "name": "G-FRESH Ground Tumeric", "brand": "G-FRESH", "size": "100 g"}], "turmeric": []}
+    },
+    "comparable_titles": [["coles", "Antioxidant Carrot Tumeric Orange Apple Lime", "woolworths", "Nudie Antioxidant Carrot Turmeric Orange Apple & Lime"]]
+  },
+  {
+    "alias": "vanlla",
+    "canonical": "vanilla",
+    "examples": {
+      "coles": {"vanlla": [{"id": 7206977, "name": "Light & Creamy Classic Vanlla Ice Cream", "brand": "Peters", "size": "1.8L"}], "vanilla": [{"id": 141024, "name": "Naturals Foaming Hand Wash Vanilla & Berry Refill", "brand": "Palmolive", "size": "1L"}]},
+      "woolworths": {"vanlla": [], "vanilla": [{"id": 684, "name": "Blue Ribbon Light Vanilla Tub Fat Ice Cream Dessert Tub", "brand": "Blue Ribbon", "size": "2L"}]},
+      "aldi": {"vanlla": [], "vanilla": [{"id": "000000000000416391", "name": "Vanilla Custard 6+ Months Baby Food 120g", "brand": "MAMIA", "size": "120 g"}]},
+      "iga": {"vanlla": [], "vanilla": [{"id": "921256", "name": "Betty Crocker Vanilla Frosting", "brand": "Betty Crocker", "size": "400 g"}]}
+    },
+    "comparable_titles": [["coles", "Light & Creamy Classic Vanlla Ice Cream", "woolworths", "Peters Light & Creamy Classic Vanilla Ice Cream"], ["coles", "Light & Creamy Classic Vanlla Ice Cream", "iga", "Peters Light & Creamy Classic Vanilla Ice Cream"]]
+  },
+  {
+    "alias": "jalepeno",
+    "canonical": "jalapeno",
+    "examples": {
+      "coles": {"jalepeno": [{"id": 3935578, "name": "Lime & Jalepeno 4 Pack", "brand": "Strangelove", "size": "300mL"}], "jalapeno": [{"id": 1048589, "name": "Spicy Jalapeno Garlic And Parsley", "brand": "Fresh Fodder", "size": "200g"}]},
+      "woolworths": {"jalepeno": [], "jalapeno": [{"id": 41049, "name": "Sandhurst Chillies Jalapeno Medium Hot", "brand": "Sandhurst", "size": "270g"}]},
+      "aldi": {"jalepeno": [], "jalapeno": [{"id": "000000000401557003", "name": "Zesty Jalapeno Topped Hommus Dip 200g", "brand": "DELI ORIGINALS FRESH", "size": "200 g"}]},
+      "iga": {"jalepeno": [], "jalapeno": [{"id": "236863", "name": "Calbee Harvest Snaps Scoopers Veggie Crisps Jalapeno Cheddar Flavour", "brand": "Calbee", "size": "90 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "chedder",
+    "canonical": "cheddar",
+    "examples": {
+      "coles": {"chedder": [{"id": 1743215, "name": "Snackz Crackers Tasty Chedder Cheese", "brand": "Ritz", "size": "100g"}], "cheddar": [{"id": 127431, "name": "Cheddar Cheese Block", "brand": "Bega", "size": "250g"}]},
+      "woolworths": {"chedder": [], "cheddar": [{"id": 46024, "name": "Cracker Barrel Vintage Cheddar Block Extra Sharp", "brand": "Cracker Barrel", "size": "500g"}]},
+      "aldi": {"chedder": [], "cheddar": [{"id": "000000000000398578", "name": "Club Cheddar Cheese Original 235g", "brand": "EMPORIUM SELECTION", "size": "235 g"}]},
+      "iga": {"chedder": [], "cheddar": [{"id": "305099", "name": "Arnott's Shapes Cheddar", "brand": "Arnott's", "size": "175 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "defense",
+    "canonical": "defence",
+    "examples": {
+      "coles": {"defense": [{"id": 4165330, "name": "First Defense Nasal Spray", "brand": "Vicks", "size": "15mL"}], "defence": [{"id": 1419217, "name": "Sun Beach Defence Sunscreen Spray SPF 50", "brand": "Neutrogena", "size": "184g"}]},
+      "woolworths": {"defense": [{"id": 169114, "name": "Nature's Way Immunity Defense Garlic & Horseradish", "brand": "Nature's Way", "size": "200 pack"}], "defence": [{"id": 72133, "name": "Neutrogena SPF 50 Beach Defence Sunscreen Lotion", "brand": "Neutrogena", "size": "400mL"}]},
+      "aldi": {"defense": [], "defence": [{"id": "000000000402953001", "name": "Daily Defence Face Moisturiser Sunscreen Light Tint SPF50+ 60ml", "brand": "OMBRA", "size": "60 ml"}]},
+      "iga": {"defense": [], "defence": [{"id": "1800000068734", "name": "Neutrogena Beach Defence Spray Spf50+", "brand": "Neutrogena", "size": "184 g"}]}
+    },
+    "comparable_titles": [["coles", "First Defense Nasal Spray", "woolworths", "Vicks First Defence Nasal Spray"], ["coles", "Live Well Defense Tea Bags", "woolworths", "Twinings Live Well Defence Tea Bags"]]
+  },
+  {
+    "alias": "berries",
+    "canonical": "berry",
+    "examples": {
+      "coles": {"berries": [{"id": 1115336, "name": "Nurture Immunity Berries Pear & Oats 12m+", "brand": "Rafferty's Garden", "size": "120g"}], "berry": [{"id": 141024, "name": "Naturals Foaming Hand Wash Vanilla & Berry Refill", "brand": "Palmolive", "size": "1L"}]},
+      "woolworths": {"berries": [{"id": 105785, "name": "YoPRO Perform High Protein Yoghurt Pouch Mixed Berries", "brand": "YoPRO", "size": "175g"}], "berry": [{"id": 6086, "name": "Aeroplane Original Berry Blue Flavoured Jelly", "brand": "Aeroplane", "size": "85g"}]},
+      "aldi": {"berries": [{"id": "000000000000635644", "name": "Mixed Berries 500g", "brand": "ORCHARD & VINE", "size": "500 g"}], "berry": [{"id": "000000000000524626", "name": "Mixed Berry Kombucha 4x250ml", "brand": "THE GOOD CULTURE SOCIETY", "size": "1 l"}]},
+      "iga": {"berries": [{"id": "1800000072218", "name": "Jols Forest Berries", "brand": "Jols", "size": "23 g"}], "berry": [{"id": "180000005331", "name": "Allen's Berry Bunch", "brand": "Allen's", "size": "160 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "blueberries",
+    "canonical": "blueberry",
+    "examples": {
+      "coles": {"blueberries": [{"id": 1736275, "name": "Blueberries Premium", "brand": "Eureka", "size": "200g"}], "blueberry": [{"id": 1064360, "name": "Muesli Cup &  Blueberry Yoghurt", "brand": "Oasis", "size": "230g"}]},
+      "woolworths": {"blueberries": [{"id": 53192, "name": "Blueberry Blueberries Punnet", "brand": "Blueberry", "size": "170g"}], "blueberry": [{"id": 26837, "name": "St Dalfour Wild Blueberry 284g", "brand": "St Dalfour", "size": "284g"}]},
+      "aldi": {"blueberries": [{"id": "000000000000481416", "name": "Blueberries 500g", "brand": "ORCHARD & VINE", "size": "500 g"}], "blueberry": [{"id": "000000000000417784", "name": "Apple, Banana & Blueberry 4+ Months Baby Food 120g", "brand": "MAMIA", "size": "120 g"}]},
+      "iga": {"blueberries": [{"id": "116673", "name": "Angas Park Blueberries", "brand": "Angas Park", "size": "70 g"}], "blueberry": [{"id": "80050023", "name": "Blueberry Punnet", "brand": "", "size": "125 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "cranberries",
+    "canonical": "cranberry",
+    "examples": {
+      "coles": {"cranberries": [{"id": 2749410, "name": "Dried Cranberries", "brand": "Coles", "size": "150g"}], "cranberry": [{"id": 1018362, "name": "Almond Cashew & Cranberry Nut Bars 5 Pack", "brand": "Carman's", "size": "175g"}]},
+      "woolworths": {"cranberries": [{"id": 387127, "name": "Uncle Tobys Plus Cranberries & Blueberries Breakfast Cereal", "brand": "Uncle Tobys", "size": "1.15kg"}], "cranberry": [{"id": 25528, "name": "Ocean Spray Fruit Sauce Cranberry Whole Berry", "brand": "Ocean Spray", "size": "275g"}]},
+      "aldi": {"cranberries": [{"id": "000000000652939003", "name": "Torroncini Con Mandorle Mini Soft Nougat Almonds and Cranberries 130g", "brand": "BRANDED", "size": "130 g"}], "cranberry": [{"id": "000000000000733625", "name": "Stuffed Turkey Breast Roast with Cranberry and Apple 1kg", "brand": "CURATED COLLECTION", "size": "1 kg"}]},
+      "iga": {"cranberries": [], "cranberry": [{"id": "180000005611", "name": "Arnott's Gold Label Lightly Toasted Crackers Cranberry Almond Linseed", "brand": "Arnott's", "size": "100 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "cherries",
+    "canonical": "cherry",
+    "examples": {
+      "coles": {"cherries": [{"id": 1063083, "name": "Happy Cherries Sour", "brand": "Haribo", "size": "140g"}], "cherry": [{"id": 1299454, "name": "Kombucha Small Batch Cherry Pomegranate", "brand": "Remedy", "size": "300mL"}]},
+      "woolworths": {"cherries": [{"id": 58659, "name": "Woolworths Morello Cherries", "brand": "Woolworths", "size": "680g"}], "cherry": [{"id": 26662, "name": "St Dalfour Black Cherry 284g", "brand": "St Dalfour", "size": "284g"}]},
+      "aldi": {"cherries": [{"id": "000000000000744001", "name": "Sandhurst Maraschino Cherries 284g", "brand": "SANDHURST", "size": "400 g"}], "cherry": [{"id": "000000000000637974", "name": "Delightful Cherry Liqueurs 200g", "brand": "CHOCEUR", "size": "200 g"}]},
+      "iga": {"cherries": [{"id": "190000005013", "name": "Winn Cherries Red Glace", "brand": "Winn", "size": "200 g"}], "cherry": [{"id": "386993", "name": "Cadbury Cherry Ripe", "brand": "Cadbury", "size": "52 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "strawberries",
+    "canonical": "strawberry",
+    "examples": {
+      "coles": {"strawberries": [{"id": 1002597, "name": "Proetin Lean Bar Strawberries & Cream", "brand": "Oxyshred", "size": "50g"}], "strawberry": [{"id": 116129, "name": "Nesquik Strawberry Flavoured Milk Drink", "brand": "Nestle", "size": "250g"}]},
+      "woolworths": {"strawberries": [{"id": 71946, "name": "Frisp Strawberries Crisps Chocolate Coated", "brand": "Frisp", "size": "100g"}], "strawberry": [{"id": 5665, "name": "Aeroplane Jelly Lite Crystals Strawberry", "brand": "Aeroplane", "size": "9g x 2 pack"}]},
+      "aldi": {"strawberries": [{"id": "000000000000597275", "name": "Strawberries 500g", "brand": "ORCHARD & VINE", "size": "500 g"}], "strawberry": [{"id": "000000000416810003", "name": "Strawberry Fruit & Oat Bars 12+ Months 6 Pack 90g", "brand": "MAMIA", "size": "90 g"}]},
+      "iga": {"strawberries": [{"id": "160000014087", "name": "Tamar Valley Dairy Strawberries & Cream Yoghurt", "brand": "Tamar Valley Dairy", "size": "170 g"}], "strawberry": [{"id": "80050030", "name": "Strawberry Punnet", "brand": "", "size": "1"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "raspberries",
+    "canonical": "raspberry",
+    "examples": {
+      "coles": {"raspberries": [{"id": 134029, "name": "Raspberries", "brand": "Coles", "size": "125g"}], "raspberry": [{"id": 219267, "name": "Cordial Raspberry", "brand": "Golden Circle", "size": "2L"}]},
+      "woolworths": {"raspberries": [{"id": 165262, "name": "Driscoll's Raspberries Punnet", "brand": "Driscoll's", "size": "125g"}], "raspberry": [{"id": 6094, "name": "Aeroplane Original Raspberry Flavoured Jelly", "brand": "Aeroplane", "size": "85g"}]},
+      "aldi": {"raspberries": [{"id": "000000000000481435", "name": "Raspberries 500g", "brand": "ORCHARD & VINE", "size": "500 g"}], "raspberry": [{"id": "000000000416238003", "name": "Fruit Snack Cereal Bars Apple & Raspberry 12+ Months 8 Pack 128g", "brand": "MAMIA", "size": "128 g"}]},
+      "iga": {"raspberries": [{"id": "2353", "name": "Allen's Ripe Raspberries", "brand": "Allen's", "size": "190 g"}], "raspberry": [{"id": "886888", "name": "Beerenberg Raspberry Jam", "brand": "Beerenberg", "size": "300 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "peaches",
+    "canonical": "peach",
+    "examples": {
+      "coles": {"peaches": [{"id": 1857451, "name": "Peaches Slices In Natural Juice", "brand": "Goulburn Valley", "size": "700g"}], "peach": [{"id": 373405, "name": "Peach Slices In Juice", "brand": "Coles", "size": "825g"}]},
+      "woolworths": {"peaches": [{"id": 32321, "name": "SPC Peaches Sliced In Juice Canned Fruit", "brand": "SPC", "size": "825g"}], "peach": [{"id": 37281, "name": "Australian Organic Food Co. Apple Plum Apricot & Peach Fruit Puree Pouch", "brand": "Australian Organic Food Co.", "size": "120g"}]},
+      "aldi": {"peaches": [{"id": "000000000000465652", "name": "Diced Peaches in Juice 4 Pack 125g", "brand": "SWEET VALLEY", "size": "500 g"}], "peach": [{"id": "000000000000517175", "name": "Peach Iced Tea 1.25L", "brand": "TEA BURST", "size": "1.25 l"}]},
+      "iga": {"peaches": [{"id": "981861", "name": "Allen's Peaches & Cream", "brand": "Allen's", "size": "170 g"}], "peach": [{"id": "20000002221", "name": "Community Co Diced Peach In Juice", "brand": "Community Co", "size": "4"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "choco",
+    "canonical": "choc",
+    "examples": {
+      "coles": {"choco": [{"id": 1993427, "name": "Fantastik Choco Creme Wafer", "brand": "Dark Fantasy", "size": "150g"}], "choc": [{"id": 142413, "name": "Milk Choc Box", "brand": "Smarties", "size": "50g"}]},
+      "woolworths": {"choco": [{"id": 167216, "name": "Orion Turtle Chips Choco Churros", "brand": "Orion", "size": "160g"}], "choc": [{"id": 9772, "name": "Bulla Crunch Double Choc", "brand": "Bulla", "size": "8 pack"}]},
+      "aldi": {"choco": [{"id": "000000000000564111", "name": "Choco Rice Cereal 650g", "brand": "HILLCREST", "size": "650 g"}], "choc": [{"id": "000000000000593891", "name": "Triple Choc Cookies 5 Pack 320g", "brand": "BILLIE'S BAKEHOUSE", "size": "320 g"}]},
+      "iga": {"choco": [{"id": "180000000337", "name": "Pico Choco Organic Coconut Milk", "brand": "Pico", "size": "80 g"}], "choc": [{"id": "20000006877", "name": "Byron Bay Cookies Gluten Free White Choc Macadamia Cookies", "brand": "Byron Bay Cookies", "size": "60 g"}]}
+    },
+    "comparable_titles": [["coles", "97% Sugar Free Dark Choco Baking Chips", "woolworths", "Noshu 97% Sugar Free Dark Choc Baking Chips"], ["coles", "Choco Chip Waffles 4 Pack", "woolworths", "Toscano Waffles Choc Chip"]]
+  },
+  {
+    "alias": "doughnut",
+    "canonical": "donut",
+    "examples": {
+      "coles": {"doughnut": [{"id": 1800534, "name": "Krispy Kreme Doughnut Latte Coffee Sachets", "brand": "Nescafe", "size": "8 Pack"}], "donut": [{"id": 1789920, "name": "High Protein Pudding Cinnamon Donut Flavour", "brand": "Fresh Fodder", "size": "200g"}]},
+      "woolworths": {"doughnut": [{"id": 6059364, "name": "Nescafe Krispy Kreme Doughnut Latte Sachets", "brand": "Nescafe", "size": "8 pack"}], "donut": [{"id": 237859, "name": "Elmer's Gue Strawberry Donut Slime", "brand": "Elmer's", "size": "236.5mL"}]},
+      "aldi": {"doughnut": [], "donut": []},
+      "iga": {"doughnut": [], "donut": [{"id": "244549", "name": "Baked Provision Donut Jam & Cream", "brand": "Baked Provisions", "size": "150 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "doughnuts",
+    "canonical": "donuts",
+    "examples": {
+      "coles": {"doughnuts": [], "donuts": [{"id": 1064563, "name": "Donuts", "brand": "Squishy", "size": "1 Each"}]},
+      "woolworths": {"doughnuts": [{"id": 116913, "name": "Krispy Kreme Original Glazed Doughnuts", "brand": "Krispy Kreme", "size": "9 pack"}], "donuts": [{"id": 7927, "name": "Woolworths Cinnamon Donuts", "brand": "Woolworths", "size": "6 pack"}]},
+      "aldi": {"doughnuts": [], "donuts": []},
+      "iga": {"doughnuts": [], "donuts": []}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "bottl",
+    "canonical": "bottle",
+    "examples": {
+      "coles": {"bottl": [{"id": 7715530, "name": "MATSO'S GINGER BEER BOTTL", "brand": "MATSO'S", "size": ""}], "bottle": [{"id": 10078, "name": "Bottle 375ml", "brand": "Victoria Bitter", "size": "24 Pack"}]},
+      "woolworths": {"bottl": [], "bottle": [{"id": 7985, "name": "Pepsi Max Cola No Sugar Soft Drink Bottle", "brand": "Pepsi", "size": "1.25L"}]},
+      "aldi": {"bottl": [], "bottle": []},
+      "iga": {"bottl": [], "bottle": [{"id": "341626", "name": "ABC Kecap Manis Sweet Soy Sauce Bottle", "brand": "ABC", "size": "275 ml"}]}
+    },
+    "comparable_titles": [["coles", "MATSO'S GINGER BEER BOTTL", "woolworths", "Matso's Ginger Beer Bottles"]]
+  },
+  {
+    "alias": "crispibread",
+    "canonical": "crispbread",
+    "examples": {
+      "coles": {"crispibread": [{"id": 7242267, "name": "Corn Crispibread", "brand": "Orgran", "size": "125g"}], "crispbread": [{"id": 117256, "name": "Vita- Weat Original Crispbread Crackers", "brand": "Arnott's", "size": "250g"}]},
+      "woolworths": {"crispibread": [{"id": 1122719355, "name": "Orgran Corn Crispibread 125g", "brand": "Orgran", "size": "125G"}], "crispbread": [{"id": 179939, "name": "Orgran Gluten Free Crispbread Sweet Potato & Pumpkin", "brand": "Orgran", "size": "125g"}]},
+      "aldi": {"crispibread": [], "crispbread": [{"id": "000000000000366641", "name": "Salada Original Crispbread 250g", "brand": "ARNOTT'S", "size": "250 g"}]},
+      "iga": {"crispibread": [], "crispbread": [{"id": "180000014154", "name": "Olina's Bakehouse Seeded Brown Rice Crispbread Original", "brand": "Olina's Bakehouse", "size": "126 g"}]}
+    },
+    "comparable_titles": [["coles", "Corn Crispibread", "iga", "Orgran Crispbread Corn"], ["woolworths", "Orgran Corn Crispibread 125g", "iga", "Orgran Crispbread Corn"]]
+  },
+  {
+    "alias": "mueli",
+    "canonical": "muesli",
+    "examples": {
+      "coles": {"mueli": [{"id": 9068127, "name": "Chokito Mueli Bars", "brand": "Uncle Tobys", "size": "145g"}], "muesli": [{"id": 132748, "name": "Natural Style Muesli", "brand": "Uncle Tobys", "size": "1kg"}]},
+      "woolworths": {"mueli": [], "muesli": [{"id": 11709, "name": "Woolworths Fruit Free Toasted Muesli", "brand": "Woolworths", "size": "750g"}]},
+      "aldi": {"mueli": [], "muesli": [{"id": "000000000000367817", "name": "Muesli Bars 6 Pack 185g", "brand": "HILLCREST", "size": "185 g"}]},
+      "iga": {"mueli": [], "muesli": [{"id": "975543", "name": "Carman's Classic Fruit & Nut Muesli", "brand": "Carman's", "size": "500 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "anchovies",
+    "canonical": "anchovy",
+    "examples": {
+      "coles": {"anchovies": [{"id": 1800997, "name": "Anchovies Chilli", "brand": "Colomba", "size": "80g"}], "anchovy": [{"id": 94547, "name": "Anchovy Fillets", "brand": "Colomba", "size": "80g"}]},
+      "woolworths": {"anchovies": [{"id": 312067, "name": "Ortiz Anchovies In Olive Oil", "brand": "Ortiz", "size": "47.5g"}], "anchovy": [{"id": 56191, "name": "Woolworths Anchovy Stuffed Green Mediterranean Olives", "brand": "Woolworths", "size": "230g"}]},
+      "aldi": {"anchovies": [], "anchovy": [{"id": "000000000000564723", "name": "Anchovy Fillets in Oil 50g", "brand": "OCEAN RISE", "size": "50 g"}]},
+      "iga": {"anchovies": [{"id": "180000000685", "name": "Sandhurst Anchovies In Oil", "brand": "Sandhurst", "size": "100 g"}], "anchovy": [{"id": "20000006728", "name": "Mare Blu Anchovy Fillets", "brand": "Mare Blu", "size": "80 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "blackberries",
+    "canonical": "blackberry",
+    "examples": {
+      "coles": {"blackberries": [{"id": 134040, "name": "Blackberries", "brand": "Coles", "size": "125g"}], "blackberry": [{"id": 1000961, "name": "Energy Voodoo Blackberry 4x355ml", "brand": "Oxyshred", "size": "1.42L"}]},
+      "woolworths": {"blackberries": [{"id": 296813, "name": "Blackberry Blackberries Punnet", "brand": "Blackberry", "size": "125g"}], "blackberry": [{"id": 37552, "name": "Nanna's Frozen Blackberry & Apple Pies Apple & Blackberry Pie", "brand": "Nanna's", "size": "4 pack"}]},
+      "aldi": {"blackberries": [{"id": "000000000000380200", "name": "Blackberries 125g", "brand": "", "size": "125 g"}], "blackberry": [{"id": "000000000371392002", "name": "Apple & Blackberry Pies 4 Pack 500g", "brand": "SWEET HAVEN", "size": "500 g"}]},
+      "iga": {"blackberries": [], "blackberry": [{"id": "266740", "name": "Cottee's Blackberry Jam", "brand": "Cottee's", "size": "375 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "chillies",
+    "canonical": "chilli",
+    "examples": {
+      "coles": {"chillies": [{"id": 318553, "name": "Ground Hot Chillies", "brand": "MasterFoods", "size": "27g"}], "chilli": [{"id": 56661, "name": "Chilli Pepper Assorted", "brand": "S&B", "size": "15g"}]},
+      "woolworths": {"chillies": [{"id": 41049, "name": "Sandhurst Chillies Jalapeno Medium Hot", "brand": "Sandhurst", "size": "270g"}], "chilli": [{"id": 6255, "name": "Hong Gong Chilli Oil", "brand": "Hong Gong", "size": "150mL"}]},
+      "aldi": {"chillies": [{"id": "000000000000380106", "name": "Jalapeno Chillies 80g", "brand": "", "size": "80 g"}], "chilli": [{"id": "000000000000400717", "name": "Sweet Chilli Cream Cheese 200g", "brand": "EMPORIUM SELECTION", "size": "200 g"}]},
+      "iga": {"chillies": [{"id": "80060099", "name": "Red Chillies", "brand": "", "size": "50 g"}], "chilli": [{"id": "274552", "name": "ABC Extra Hot Chilli Sauce", "brand": "ABC", "size": "335 ml"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "mangoes",
+    "canonical": "mango",
+    "examples": {
+      "coles": {"mangoes": [{"id": 409772, "name": "Kensington Pride Mangoes Medium", "brand": "Coles", "size": "1 Each"}], "mango": [{"id": 200145, "name": "Tetra Pineapple Mango Drink", "brand": "Golden Circle", "size": "1L"}]},
+      "woolworths": {"mangoes": [{"id": 591706, "name": "SPC Tropics Mangoes In Juice Fruit Cups", "brand": "SPC", "size": "120g x 4 pack"}], "mango": [{"id": 949, "name": "Creative Gourmet Frozen Mango Chunks", "brand": "Creative Gourmet", "size": "500g"}]},
+      "aldi": {"mangoes": [], "mango": [{"id": "000000000000499805", "name": "Organic Baby Food Banana Apple & Mango 6+ Months 120g", "brand": "MAMIA", "size": "120 g"}]},
+      "iga": {"mangoes": [], "mango": [{"id": "80050083", "name": "Calypso Mango", "brand": "", "size": "1"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "pastries",
+    "canonical": "pastry",
+    "examples": {
+      "coles": {"pastries": [{"id": 3790500, "name": "Pop Tarts Chocotastic 8 Toaster Pastries", "brand": "Kellogg's", "size": "384g"}], "pastry": [{"id": 125345, "name": "Frozen Puff Pastry Sheets Regular", "brand": "Pampas", "size": "1kg"}]},
+      "woolworths": {"pastries": [{"id": 87845, "name": "Kellogg's Pop Tarts Frosted Chocotastic Toaster Pastries", "brand": "Kellogg's", "size": "384g"}], "pastry": [{"id": 18366, "name": "Woolworths Puff Pastry Sheets", "brand": "Woolworths", "size": "1kg"}]},
+      "aldi": {"pastries": [], "pastry": [{"id": "000000000000750122", "name": "Puff Pastry 1kg", "brand": "ELMSBURY", "size": "1 kg"}]},
+      "iga": {"pastries": [], "pastry": [{"id": "132302", "name": "Black & Gold Puff Pastry Sheets", "brand": "Black & Gold", "size": "1 kg"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "patties",
+    "canonical": "patty",
+    "examples": {
+      "coles": {"patties": [{"id": 8698141, "name": "Chicken Patties", "brand": "Olga's Fine Foods", "size": "500g"}], "patty": [{"id": 1871281, "name": "Small Striped Patty Pans", "brand": "Dollar Sweets", "size": "100 Pack"}]},
+      "woolworths": {"patties": [{"id": 30748, "name": "Patties Sausage Roll Party", "brand": "Patties", "size": "450g"}], "patty": [{"id": 147533, "name": "Dollar Sweets Striped Patty Pans Small Assorted", "brand": "Dollar Sweets", "size": "100 pack"}]},
+      "aldi": {"patties": [], "patty": []},
+      "iga": {"patties": [{"id": "111178", "name": "Patties Mini Combo Pack Party Pies & Sausage Rolls", "brand": "Patties", "size": "1 kg"}], "patty": [{"id": "477710", "name": "Multix Patty Pans", "brand": "Multix", "size": "100"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "lollies",
+    "canonical": "lolly",
+    "examples": {
+      "coles": {"lollies": [{"id": 1002165, "name": "Spearmint Leaves Lollies", "brand": "Allen's", "size": "160 GRAM"}], "lolly": [{"id": 3179497, "name": "Lollies Ripe Raspberries Lolly Bag", "brand": "Allen's", "size": "190g"}]},
+      "woolworths": {"lollies": [{"id": 46358, "name": "Trolli Strawberry Clouds Lollies", "brand": "Trolli", "size": "150g"}], "lolly": [{"id": 54558, "name": "Whiz Pop Bang Party Lolly Bags Clear", "brand": "Whiz Pop Bang", "size": "30 pack"}]},
+      "aldi": {"lollies": [], "lolly": []},
+      "iga": {"lollies": [{"id": "190000003434", "name": "Allen's Cheekies Lollies Bag", "brand": "Allen's", "size": "190 g"}], "lolly": [{"id": "562997", "name": "Big Lolly Banana", "brand": "Big Lolly", "size": "100 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "jellies",
+    "canonical": "jelly",
+    "examples": {
+      "coles": {"jellies": [{"id": 1075617, "name": "Fruit Salad Soft Jellies", "brand": "The Natural Confectionery Co.", "size": "400g"}], "jelly": [{"id": 102179, "name": "Petroleum Jelly", "brand": "Vaseline", "size": "50mL"}]},
+      "woolworths": {"jellies": [{"id": 210601, "name": "The Natural Confectionery Co. Fruit Salad Soft Jellies Lollies", "brand": "The Natural Confectionery Co.", "size": "220g"}], "jelly": [{"id": 5665, "name": "Aeroplane Jelly Lite Crystals Strawberry", "brand": "Aeroplane", "size": "9g x 2 pack"}]},
+      "aldi": {"jellies": [], "jelly": [{"id": "000000000365738001", "name": "Lime Jelly 85g", "brand": "BROOKDALE", "size": "85 g"}]},
+      "iga": {"jellies": [{"id": "180000007068", "name": "Allen's Confectionery Mountain Dew Jellies", "brand": "Allen's", "size": "190 g"}], "jelly": [{"id": "17497", "name": "Allen's Jelly Beans Lollies Bag", "brand": "Allen's", "size": "190 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "gummies",
+    "canonical": "gummy",
+    "examples": {
+      "coles": {"gummies": [{"id": 1063196, "name": "Ashwagnadha Gummies", "brand": "Ultralife", "size": "72 Pack"}], "gummy": [{"id": 1075639, "name": "Gummy Bears Lollies", "brand": "The Natural Confectionery Co.", "size": "180g"}]},
+      "woolworths": {"gummies": [{"id": 57343, "name": "Nature's Way Kids Smart Vita Gummies Vitamin C Plus Zinc", "brand": "Nature's Way", "size": "120 pack"}], "gummy": [{"id": 184441, "name": "Funday Natural Sweets No Sugar Added Lollies Raspberry Gummy Frogs", "brand": "Funday", "size": "50g"}]},
+      "aldi": {"gummies": [], "gummy": []},
+      "iga": {"gummies": [], "gummy": [{"id": "1800000068337", "name": "Big Lolly Freeze Dried Gummy Worms", "brand": "Big Lolly", "size": "60 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "batteries",
+    "canonical": "battery",
+    "examples": {
+      "coles": {"batteries": [{"id": 108889, "name": "Coppertop 9V Alkaline Batteries", "brand": "Duracell", "size": "1 Pack"}], "battery": [{"id": 1014601, "name": "Recharge CEF14 Hi-Speed Battery Charger", "brand": "Duracell", "size": "1 Pack"}]},
+      "woolworths": {"batteries": [{"id": 10286, "name": "Eveready All Purpose Handheld Torch 65 Lumens AA Batteries", "brand": "Eveready", "size": "each"}], "battery": [{"id": 54677, "name": "Colgate Battery Powered Toothbrush Whitening Optic White", "brand": "Colgate", "size": "each"}]},
+      "aldi": {"batteries": [{"id": "000000000000318200", "name": "AA Batteries 10 Pack", "brand": "ACTIV ENERGY", "size": "10 each"}], "battery": []},
+      "iga": {"batteries": [{"id": "150000007522", "name": "Duracell Coppertop AA Alkaline Batteries", "brand": "Duracell", "size": "10"}], "battery": [{"id": "20000007347", "name": "Energizer 1632 3V Lithium Battery", "brand": "Energizer", "size": "1"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "nappies",
+    "canonical": "nappy",
+    "examples": {
+      "coles": {"nappies": [{"id": 1108909, "name": "Premmie Nappies", "brand": "Huggies", "size": "30 Pack"}], "nappy": [{"id": 1007071, "name": "Nappy Pants Size 5 (12-17kg)", "brand": "Babylove", "size": "25 Pack"}]},
+      "woolworths": {"nappies": [{"id": 16135, "name": "Huggies Ultra Dry Nappies Boys Size 3 (6-11kg)", "brand": "Huggies", "size": "44 pack"}], "nappy": [{"id": 140756, "name": "Sudocrem Nappy Rash Cream", "brand": "Sudocrem", "size": "125g"}]},
+      "aldi": {"nappies": [{"id": "000000000000638333", "name": "Size 1 Nappies Newborn Up to 5kg 28 Pack", "brand": "MAMIA", "size": ""}], "nappy": [{"id": "000000000000418031", "name": "Size 4 Nappy Pants 9-14kg 29 Pack", "brand": "MAMIA", "size": "29 each"}]},
+      "iga": {"nappies": [{"id": "180000003413", "name": "BabyBoo Crawler Nappies Size 3", "brand": "BabyBoo", "size": "56"}], "nappy": [{"id": "951426", "name": "Baby U Scented Nappy Bags", "brand": "Baby U", "size": "200"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "patches",
+    "canonical": "patch",
+    "examples": {
+      "coles": {"patches": [{"id": 1724550, "name": "Nose Pore Extraction Patches", "brand": "Urbane Mess", "size": "6 Pack"}], "patch": [{"id": 1105627, "name": "Sour Patch Kids Biscuits", "brand": "Oreo", "size": "131g"}]},
+      "woolworths": {"patches": [{"id": 102945, "name": "Skin Control Pimple Patches XL", "brand": "Skin Control", "size": "12 pack"}], "patch": [{"id": 60051, "name": "Skin Control Pimple Patch Glossy", "brand": "Skin Control", "size": "36 pack"}]},
+      "aldi": {"patches": [{"id": "000000000000644893", "name": "Pimple Patches 36 Pack", "brand": "LACURA", "size": "36 each"}], "patch": []},
+      "iga": {"patches": [], "patch": [{"id": "395052", "name": "Oreo Sour Patch Kids Double Stuffed", "brand": "Orea", "size": "136 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "brushes",
+    "canonical": "brush",
+    "examples": {
+      "coles": {"brushes": [{"id": 1611542, "name": "Interdental Brushes Size 1", "brand": "Piksters", "size": "40 Pack"}], "brush": [{"id": 1092060, "name": "Brush Flexi Brush & Shine", "brand": "Totalcare", "size": "1 Pack"}]},
+      "woolworths": {"brushes": [{"id": 83515, "name": "Piksters Interdental Brushes Size 00", "brand": "Piksters", "size": "10 pack"}], "brush": [{"id": 17194, "name": "Little One's Bottle Brush", "brand": "Little One's", "size": "each"}]},
+      "aldi": {"brushes": [], "brush": []},
+      "iga": {"brushes": [], "brush": [{"id": "189621", "name": "Colgate Tooth Brush Charcoal Soft", "brand": "Colgate", "size": "3"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "toothbrushes",
+    "canonical": "toothbrush",
+    "examples": {
+      "coles": {"toothbrushes": [{"id": 4661300, "name": "Multi Angle Soft Toothbrushes", "brand": "Coles", "size": "6 Pack"}], "toothbrush": [{"id": 1000718, "name": "Toothbrush Wisp On-the-go", "brand": "Colgate", "size": "24 Pack"}]},
+      "woolworths": {"toothbrushes": [{"id": 331600, "name": "All Smiles Recycled Plastic Toothbrushes Soft", "brand": "All Smiles", "size": "4 pack"}], "toothbrush": [{"id": 54677, "name": "Colgate Battery Powered Toothbrush Whitening Optic White", "brand": "Colgate", "size": "each"}]},
+      "aldi": {"toothbrushes": [{"id": "000000000531219001", "name": "Assorted Kids Toothbrushes 2 Pack", "brand": "DENTITEX", "size": "2 each"}], "toothbrush": [{"id": "000000000568120001", "name": "Toothbrush 2 Pack, Soft Bristle", "brand": "DENTITEX", "size": "2 each"}]},
+      "iga": {"toothbrushes": [], "toothbrush": [{"id": "305002", "name": "Colgate 360 Degrees Whole Mouth Clean Compact Head Toothbrush Medium", "brand": "Colgate", "size": "2"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "pouches",
+    "canonical": "pouch",
+    "examples": {
+      "coles": {"pouches": [{"id": 1157438, "name": "As Good As It Looks Mixed Selection In Jelly Cat Food Pouches 48x85g", "brand": "Felix", "size": "48 Pack"}], "pouch": [{"id": 1000106, "name": "Dessert Pouch Double Espresso", "brand": "Dare", "size": "150g"}]},
+      "woolworths": {"pouches": [{"id": 238465, "name": "Applaws Pouches Fish Selection In Jelly Wet Cat Food", "brand": "Applaws", "size": "50g x 5 pack"}], "pouch": [{"id": 37211, "name": "Ben's Original Golden Vegetable Microwave Rice Pouch", "brand": "Ben's Original", "size": "250g"}]},
+      "aldi": {"pouches": [{"id": "000000000000402447", "name": "Cat Food Pouches Beef Selection in Gravy 12 Pack 85g", "brand": "SILVESTERS", "size": "1.02 kg"}], "pouch": [{"id": "000000000000402503", "name": "Vanilla Custard Pouch 70g", "brand": "BROOKLEA", "size": "70 g"}]},
+      "iga": {"pouches": [], "pouch": [{"id": "190000005246", "name": "Ben's Original Brown Mexican Style Microwave Rice Pouch", "brand": "Ben's Original", "size": "250 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "sandwiches",
+    "canonical": "sandwich",
+    "examples": {
+      "coles": {"sandwiches": [{"id": 1338727, "name": "Creamy Classics Vanilla Sandwiches 4 Pack", "brand": "Bulla", "size": "448mL"}], "sandwich": [{"id": 127307, "name": "Spreadable Sweet Mustard Sandwich Pickles", "brand": "Leggo's", "size": "250g"}]},
+      "woolworths": {"sandwiches": [{"id": 6080219, "name": "Ben & Jerry's Cookie Dough Mini Ice Cream Sandwiches", "brand": "Ben & Jerry's", "size": "4 pack"}], "sandwich": [{"id": 19899, "name": "Tip Top Sunblest Soft White Sandwich Slice Bread Loaf Bakery", "brand": "Tip Top", "size": "650g"}]},
+      "aldi": {"sandwiches": [], "sandwich": [{"id": "000000000000398871", "name": "White Sandwich Sliced Bread 650g", "brand": "BAKERS LIFE", "size": "650 g"}]},
+      "iga": {"sandwiches": [], "sandwich": [{"id": "659236", "name": "Fehlbergs Sandwich Stackers", "brand": "Fehlbergs", "size": "500 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "matches",
+    "canonical": "match",
+    "examples": {
+      "coles": {"matches": [{"id": 492845, "name": "Extra Long Safety Matches", "brand": "Redheads", "size": "45 Pack"}], "match": [{"id": 1344038, "name": "Paris True Match Radiant Serum Concealer 1n", "brand": "L'oreal", "size": "10mL"}]},
+      "woolworths": {"matches": [{"id": 21304, "name": "Redheads Shrink Wrapped Matches", "brand": "Redheads", "size": "45 pack"}], "match": [{"id": 6026394, "name": "Rimmel London Match Perfection Foundation Soft Beige", "brand": "Rimmel London", "size": "30mL"}]},
+      "aldi": {"matches": [], "match": []},
+      "iga": {"matches": [{"id": "160000014478", "name": "Redheads Classic Safety Matches", "brand": "Redheads", "size": "45"}], "match": [{"id": "220647", "name": "Decor Match-Ups Storer Oblong 1L", "brand": "Decor", "size": "1"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "mixes",
+    "canonical": "mix",
+    "examples": {
+      "coles": {"mixes": [], "mix": [{"id": 121151, "name": "Traditional Gravy Mix", "brand": "Gravox", "size": "425g"}]},
+      "woolworths": {"mixes": [], "mix": [{"id": 15260, "name": "Tandaco Prepared Suet Mix Suet", "brand": "Tandaco", "size": "250g"}]},
+      "aldi": {"mixes": [], "mix": [{"id": "000000000755487001", "name": "Silicone Baking Mix", "brand": "JOIE", "size": ""}]},
+      "iga": {"mixes": [{"id": "180000004757", "name": "Nescafe Cappuccino Coffee Mixes", "brand": "Nescafe", "size": "10"}], "mix": [{"id": "421248", "name": "Community Co Leafy Mix", "brand": "Community Co", "size": "120 g"}]}
+    },
+    "comparable_titles": []
+  },
+  {
+    "alias": "chili",
+    "canonical": "chilli",
+    "examples": {
+      "coles": {"chili": [{"id": 1001252, "name": "Chili Paste With Basil Leaves Pad Kapao", "brand": "Maesri", "size": "200g"}], "chilli": [{"id": 56661, "name": "Chilli Pepper Assorted", "brand": "S&B", "size": "15g"}]},
+      "woolworths": {"chili": [{"id": 51960, "name": "HotPot Queen Crunchy Garlic Chili Crisp", "brand": "HotPot Queen", "size": "300g"}], "chilli": [{"id": 6255, "name": "Hong Gong Chilli Oil", "brand": "Hong Gong", "size": "150mL"}]},
+      "aldi": {"chili": [], "chilli": [{"id": "000000000000400717", "name": "Sweet Chilli Cream Cheese 200g", "brand": "EMPORIUM SELECTION", "size": "200 g"}]},
+      "iga": {"chili": [{"id": "701800", "name": "Old El Paso Cooking Sauce Chili Con Carne", "brand": "Old El Paso", "size": "170 g"}], "chilli": [{"id": "274552", "name": "ABC Extra Hot Chilli Sauce", "brand": "ABC", "size": "335 ml"}]}
+    },
+    "comparable_titles": [["coles", "Black Bean Chili Oil", "woolworths", "De Zhuang Black Bean Chilli Oil"], ["woolworths", "Doritos Corn Chips Thai Sweet Chili", "iga", "Doritos Thai Sweet Chilli Corn Chips"], ["coles", "Chilli Con Carne Cooking Sauce", "iga", "Old El Paso Cooking Sauce Chili Con Carne"]]
+  },
+  {
+    "alias": "four",
+    "canonical": "4",
+    "examples": {
+      "coles": {"four": [{"id": 6691072, "name": "Seed Beans Four Bean Mix 4 Pack", "brand": "Edgell", "size": "500g"}], "4": [{"id": 137945, "name": "Beans 4 Bean Mix", "brand": "Edgell", "size": "400g"}]},
+      "woolworths": {"four": [{"id": 301303, "name": "Edgell Four Bean Mix Ready to Eat", "brand": "Edgell", "size": "125g x 4 pack"}], "4": [{"id": 663583, "name": "Macro Organic 4 Bean Mix No Added Salt", "brand": "Macro", "size": "420g"}]},
+      "aldi": {"four": [], "4": [{"id": "000000000000371028", "name": "4 Bean Mix 420g", "brand": "NEW SEASON", "size": "420 g"}]},
+      "iga": {"four": [{"id": "3113", "name": "Edgell Four Bean Mix", "brand": "Edgell", "size": "4"}], "4": []}
+    },
+    "comparable_titles": [["coles", "Beans 4 Bean Mix", "iga", "Edgell Four Bean Mix"]]
+  },
+  {
+    "alias": "five",
+    "canonical": "5",
+    "examples": {
+      "coles": {"five": [{"id": 318531, "name": "Chinese Five Spice", "brand": "MasterFoods", "size": "30g"}], "5": [{"id": 1323989, "name": "Chinese 5 Spices", "brand": "Soul Papa & Co", "size": "100g"}]},
+      "woolworths": {"five": [{"id": 6014682, "name": "Soul Papa Chinese Five Spice Spice", "brand": "Soul Papa", "size": "100g"}], "5": [{"id": 35546, "name": "MasterFoods Chinese 5 Spice", "brand": "MasterFoods", "size": "30g"}]},
+      "aldi": {"five": [], "5": []},
+      "iga": {"five": [{"id": "676550", "name": "G-FRESH Chinese Five Spice", "brand": "G-FRESH", "size": "80 g"}], "5": []}
+    },
+    "comparable_titles": [["coles", "Adult Wet Dog Food With 5 Kinds Of Meat Loaf Can", "woolworths", "Pedigree Adult Wet Dog Food with Five Kinds of Meat Loaf Can"], ["coles", "Chinese Five Spice", "woolworths", "MasterFoods Chinese 5 Spice"]]
+  }
+]
