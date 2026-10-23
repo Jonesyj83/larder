@@ -169,10 +169,12 @@ def strongest_match(name, candidates, preferred_size=None):
     words = name_words(name)
     if not words:
         return None
+    # A size claim right there in what was typed ("1.25L Pepsi") is real
+    # specificity, same as typing an extra descriptor word -- it's not
+    # "just a brand name" with nothing else to go on, even though the
+    # size token itself gets stripped out of word-overlap scoring below.
+    size_in_name = bool(pack_size(name))
     if not preferred_size:
-        # No buying history yet -- but if the size is right there in what
-        # was typed ("1.25L Pepsi Max"), that's a real claim worth gating
-        # on too, not just a word to throw away.
         preferred_size = pack_size(name)
     # The leading word decides the brand check -- but it has to be the
     # first REAL word, not a size token's leftover digits ("1" out of
@@ -199,7 +201,7 @@ def strongest_match(name, candidates, preferred_size=None):
         # to the floor, never past it -- a messy full-recall name must
         # never outrank a cleaner one that already cleared the floor on
         # its own ("Pepsi Max Cola Drink" vs "...Vanilla...").
-        if required_brand and len(words) > 1 and recall == 1:
+        if required_brand and (len(words) > 1 or size_in_name) and recall == 1:
             score = max(score, .5)
         elif score < .5:
             continue

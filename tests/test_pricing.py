@@ -414,6 +414,28 @@ class ScoredMatching(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertIsNotNone(pricing.strongest_match(name, [self.candidate(candidate)]))
 
+    def test_a_single_word_brand_plus_a_real_size_still_matches(self):
+        # "1.25L Pepsi" strips down to just the one word "pepsi" for
+        # word-overlap purposes once the size token's taken out -- that
+        # used to always fail the overlap floor against any real,
+        # descriptive store title, even when there's only one sane
+        # candidate and the size is an exact match.
+        candidates = [self.candidate('Pepsi Max Cola No Sugar Soft Drink Bottle', brand='Pepsi')]
+        candidates[0]['size'] = '1.25L'
+        self.assertIsNotNone(pricing.strongest_match('1.25L Pepsi', candidates))
+        self.assertIsNotNone(pricing.strongest_match('400g Nutella', [dict(self.candidate(
+            'Nutella Hazelnut Spread', brand='Nutella'), size='400g')]))
+
+    def test_bare_brand_with_no_size_claim_still_abstains_on_real_variants(self):
+        # Without a size to anchor on, "vegemite" alone genuinely can't
+        # tell two different real products apart -- this is the case the
+        # single-word floor was protecting against, and it still should.
+        candidates = [self.candidate('Vegemite Spread 220g', item='1', brand='Vegemite'),
+                      self.candidate('Vegemite Cheesybite 220g', item='2', brand='Vegemite')]
+        for c in candidates:
+            c['size'] = '220g'
+        self.assertIsNone(pricing.strongest_match('Vegemite', candidates))
+
     def test_plain_plural_isnt_treated_as_a_different_word(self):
         # A household item typed as "carrot" has to find a store listing
         # that only ever says "Carrots" -- same thing, not a name mismatch.
