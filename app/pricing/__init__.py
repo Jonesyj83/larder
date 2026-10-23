@@ -441,6 +441,18 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         required_brand = next((normalized_name(" ".join(leading[:n]))
                                for n in range(len(leading), 1, -1)
                                if normalized_name(" ".join(leading[:n])) in brands), None)
+    required_brands = {required_brand} if required_brand else set()
+    if required_brand and any(normalized_name(" ".join(leading[:n])) == required_brand
+                              for n in range(1, len(leading) + 1)):
+        # A real shorter label can share the typed phrase with a longer
+        # stored brand. Keep both eligible; recall and size still decide.
+        # Only whole-word prefixes of brands in this retrieval qualify.
+        for candidate in candidates:
+            label = re.findall(r"\w+", unicodedata.normalize(
+                "NFKC", candidate.get("brand") or "").casefold())
+            if any(normalized_name(" ".join(label[:n])) == required_brand
+                   for n in range(1, len(label))):
+                required_brands.add(normalized_name(candidate["brand"]))
     def candidate_words(c):
         # Some stores (Coles especially) strip the brand clean out of the
         # name itself ("Soft Drink Cola Bottle" with brand="Pepsi" sitting
@@ -452,7 +464,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
     scored = {}
     exact_sizes = set()
     for candidate in candidates:
-        if required_brand and normalized_name(candidate.get("brand") or "") != required_brand:
+        if required_brands and normalized_name(candidate.get("brand") or "") not in required_brands:
             continue
         other = candidate_words(candidate)
         score = len(words & other) / len(words | other)

@@ -16,6 +16,39 @@ class CatalogueMatching(unittest.TestCase):
     def match(self, store, query):
         return pricing.strongest_match(query, pricing.search(store, query, conn=self.db), store=store)
 
+    def test_shorter_stored_brand_keeps_longer_word_prefix_eligible(self):
+        chips = dict(store_item_id='1786160', name='Honey Soy Chicken Potato Chips',
+                     brand='Red Rock Deli', size='165g', price=4)
+        crackers = dict(store_item_id='3979019', name='Deli Honey Soy Chicken Deli Style Crackers',
+                        brand='Red Rock', size='135g', price=5)
+        capsicum = dict(store_item_id='135306', name='Red Capsicum', brand='Red', size='each')
+        unrelated = dict(chips, store_item_id='other', brand='Red Rockefeller')
+        for candidates in ([chips, crackers], [crackers, chips], [capsicum, chips]):
+            self.assertEqual(pricing.strongest_match('red rock soy chips', candidates), chips)
+        # The shorter label remains available when its product is requested.
+        self.assertEqual(pricing.strongest_match('red rock soy crackers', [chips, crackers]), crackers)
+        self.assertIsNone(pricing.strongest_match('red rock soy chips', [crackers, unrelated]))
+        longer_crackers = dict(crackers, store_item_id='longer', brand='Red Rock Deli',
+                               name='Honey Soy Chicken Crackers With Sesame')
+        self.assertEqual(pricing.strongest_match('red rock soy crackers',
+                         [longer_crackers, crackers]), crackers)
+        self.assertIsNone(pricing.strongest_match('red rock soy chips 500g', [chips, crackers]))
+        self.assertIsNone(pricing.strongest_match('red rock spicy chips', [chips, crackers]))
+        self.db.executemany(
+            'INSERT INTO coles_catalogue(coles_id,name,brand,size,price) VALUES(?,?,?,?,?)',
+            [(c['store_item_id'], c['name'], c['brand'], c['size'], c['price'])
+             for c in (chips, crackers)])
+        self.assertEqual(self.match('coles', 'red rock soy chips')['store_item_id'], '1786160')
+        self.assertEqual(self.match('coles', 'red rock soy crackers')['store_item_id'], '3979019')
+
+    def test_shorter_brand_only_query_does_not_admit_unrelated_brand(self):
+        crackers = dict(store_item_id='3979019', name='Deli Honey Soy Chicken Deli Style Crackers',
+                        brand='Red Rock', size='135g')
+        other = dict(crackers, store_item_id='other', brand='Other',
+                     name='Red Rock Honey Soy Crackers', price=1)
+        self.assertEqual(pricing.strongest_match('red rock soy crackers', [other, crackers]), crackers)
+        self.assertIsNone(pricing.strongest_match('red rock soy chips', [other, crackers]))
+
     def test_soy_milk_residual_tie_uses_plainest_house_title(self):
         candidates = json.loads((Path(__file__).parent / 'fixtures' / 'soy_milk_tie.json').read_text())
         self.db.executemany(
