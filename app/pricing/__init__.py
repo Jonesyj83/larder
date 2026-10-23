@@ -253,23 +253,26 @@ SIZE_TOKEN = (r"\d+(?:\.\d+)?\s*(?:ml|kg|g|l)\s*x\s*\d+\s*(?:pack|pk)?\b"
 
 # Australian supermarkets swap these words for the same thing -- both
 # sides have to collapse onto one form or they anti-match each other.
-SYNONYMS = {"shredded": "grated"}
+SYNONYMS = {"shredded": "grated", "sach": "sachet"}
 
 
 def name_words(name):
     # Keep size tokens consistent: "2 L" and "2L" mean the same thing.
     name = unicodedata.normalize("NFKC", name).casefold().replace("×", "x")
+    name = re.sub(r"\b(\w+)[’']n\b", r"\1 n", name)
     name = re.sub(r"[’']", "", name)
     name = re.sub(r"\bhi[ -]+lo\b", "hilo", name)
+    name = re.sub(r"\bww\b", "woolworths", name)
     for alias, formal in BRAND_ALIASES.items():
         name = re.sub(r"\b" + re.escape(alias) + r"\b", formal, name)
-    name = re.sub(r"(\d)\s+(?=[a-zA-Z])", r"\1", name)
+    name = re.sub(r"(\d)\s+(?=(?:ml|kg|g|l)\b)", r"\1", name)
     name = re.sub(SIZE_TOKEN, " ", name, flags=re.IGNORECASE)
     # Supermarket names are scoring noise; keep stored names and brand guards intact.
     words = set(re.findall(r"\w+", unicodedata.normalize("NFKC", name).casefold())) - {"woolworths", "coles", "aldi", "iga", "and"}
     # A plain trailing "s" shouldn't count as a different word -- "carrot"
     # and "carrots" are the same item, not a mismatch.
-    words = {w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
+    words = {w[:-2] if w in {"potatoes", "tomatoes"} else
+             w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words}
     # Collapse swapped naming onto one canonical word.
     return {SYNONYMS.get(w, w) for w in words}
 
@@ -315,17 +318,28 @@ def type_preference(db, product_id, store):
     if not product:
         return set()
     links = db.execute("""SELECT store,store_item_id,store_name FROM product_store_links
-        WHERE product_id=? AND store != ?""", (product_id, store)).fetchall()
+        WHERE product_id=?""", (product_id,)).fetchall()
     choices = []
+    all_choices = []
     for link in links:
         table, key = _CATALOGUE_TABLES[link['store']]
         item = db.execute(f"SELECT brand FROM {table} WHERE {key}=?", (link['store_item_id'],)).fetchone()
         brand_words = name_words(item['brand'] or '') if item else set()
-        choices.append(name_words(link['store_name']) - name_words(product['name']) - brand_words
-                       - {'bottle', 'can', 'single'})
+        choice = (name_words(link['store_name']) - name_words(product['name']) - brand_words
+                  - {'bottle', 'can', 'single'})
+        all_choices.append(choice)
+        if link['store'] != store:
+            choices.append(choice)
     # Conflicting store choices give no reliable preference. Only carry
     # words shared by every remembered choice across to another store.
-    return set.intersection(*choices) if choices else set()
+    if not choices:
+        return set()
+    # Agreement may contain harmless extra packaging words. Incomparable
+    # descriptions (e.g. full cream versus skim) are conflicting evidence.
+    common = set.intersection(*all_choices)
+    if len(all_choices) > 1 and not any(choice == common for choice in all_choices):
+        return set()
+    return set.intersection(*choices)
 
 
 def strongest_match(name, candidates, preferred_size=None, preferred_type=None, *, store=None):
@@ -377,6 +391,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         # not inside the name text.
         return name_words(c["name"]) | name_words(c.get("brand") or "")
     scored = {}
+    exact_sizes = set()
     for candidate in candidates:
         if required_brand and normalized_name(candidate.get("brand") or "") != required_brand:
             continue
@@ -387,7 +402,7 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         if not words <= other:
             continue
         if type_words and not type_words <= other:
-            if remembered or not other <= words | default_type:
+            if not remembered and not other <= words | default_type:
                 continue
         # Unqualified cola means the regular line, including Classic titles.
         if words & {'cola', 'pepsi'} and not words & {'diet', 'zero', 'max', 'no', 'free'}:
@@ -433,11 +448,19 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                 if min(similarities) < .75:
                     continue
                 score += 1 + sum(similarities) / len(similarities)
+                if len(similarities) == len(preferred_size) and min(similarities) == 1:
+                    exact_sizes.add(str(candidate["store_item_id"]))
         scored[str(candidate["store_item_id"])] = (score, candidate)
     ranked = sorted(scored.values(), key=lambda pair: pair[0], reverse=True)
     if not ranked or ranked[0][0] < .5:
         return None
     tied = [pair for pair in ranked if ranked[0][0] - pair[0] < .15]
+    if len(tied) > 1 and exact_sizes:
+        exact = [pair for pair in tied if str(pair[1]["store_item_id"]) in exact_sizes]
+        if exact:
+            tied = exact
+        if len(tied) == 1:
+            return tied[0][1]
     if len(tied) > 1:
         # Several real products tie -- usually different flavour/variant
         # lines of the same thing ("Pepsi Max", "Pepsi Vanilla") that all
@@ -447,17 +470,6 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
         # actually typed ("Pork Chops" vs "Pork Loin Chops") is a real
         # gap, not just a plainer name, and must stay a toss-up.
         if all(words <= candidate_words(pair[1]) for pair in tied):
-            if generic_type:
-                overlaps = [(type_overlap(pair[1]), pair) for pair in tied]
-                best = max(overlap for overlap, _ in overlaps)
-                if best:
-                    tied = [pair for overlap, pair in overlaps if overlap == best]
-                    if len(tied) == 1:
-                        return tied[0][1]
-                else:
-                    # A type absent from this store is no reason to guess
-                    # another one or fall back from a remembered choice.
-                    return None
             # Container words are packaging, not flavours. Embedded pack
             # sizes have already disappeared from the same comparison.
             def extra_words(pair):
@@ -483,6 +495,54 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None, 
                            for other in tied):
                         multipack = -1
                 return premium, multipack, len(extra)
+            priority = min(extra_words(pair)[:2] for pair in tied)
+            tied = [pair for pair in tied if extra_words(pair)[:2] == priority]
+            # Title length cannot decide between distinct unrequested types.
+            # Compare residual descriptions after removing owned brand words
+            # and packaging; only a shared type or a true plain subset wins.
+            def variant_words(pair):
+                c = pair[1]
+                extra = name_words(c['name']) - words - name_words(c.get('brand') or '') - remembered
+                extra -= {'can', 'bottle', 'single', 'pack', 'squeeze', 'fresh', 'classic', 'original', 'regular'}
+                category = GENERIC_EQUIVALENTS.get(name.casefold().strip())
+                category_words = name_words(' '.join(category or ()))
+                if category_words and category_words <= name_words(c['name']):
+                    extra -= category_words
+                if default_type <= extra and default_type:
+                    extra -= default_type | {'whole'}
+                if words & {'cola', 'pepsi'}:
+                    extra -= {'classic', 'original', 'regular', 'taste', 'soft', 'drink', 'soda', 'cola'}
+                return extra
+            variants = [variant_words(pair) for pair in tied]
+            plain = [pair for pair, variant in zip(tied, variants)
+                     if all(variant <= other for other in variants)]
+            if not plain and remembered:
+                plain = [pair for pair in tied if remembered <= candidate_words(pair[1])]
+            if not plain:
+                return None
+            if (len(plain) == 1 and len(tied) > 1 and not required_brand
+                    and not default_type and not remembered):
+                candidate = plain[0][1]
+                labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
+                # An unspecified brand's short title is not a confirmed
+                # category default when other real variants are present.
+                if (candidate.get('brand') and normalized_name(candidate['brand']) not in labels
+                        and not variant_words(plain[0])):
+                    return None
+            tied = plain
+            if len(tied) == 1:
+                return tied[0][1]
+            if generic_type or remembered:
+                overlaps = [(type_overlap(pair[1]), pair) for pair in tied]
+                best = max(overlap for overlap, _ in overlaps)
+                if best:
+                    tied = [pair for overlap, pair in overlaps if overlap == best]
+                    if len(tied) == 1:
+                        return tied[0][1]
+                else:
+                    # A type absent from this store is no reason to guess
+                    # another one or fall back from a remembered choice.
+                    return None
             by_extra = sorted(tied, key=extra_words)
             fewest_extra = extra_words(by_extra[0])
             plainest = [pair for pair in by_extra if extra_words(pair) == fewest_extra]

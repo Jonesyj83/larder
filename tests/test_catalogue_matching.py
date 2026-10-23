@@ -43,9 +43,12 @@ class CatalogueMatching(unittest.TestCase):
                 ('334960','Grana Padano Grated Cheese 150g','EMPORIUM SELECTION','150 g'),
                 ('399737','Long-life Grated Parmesan Cheese 100g','REMANO','100 g');
         """)
-        # Woolworths titles its house line "shredded"; that's the same
-        # product a "grated cheese" query is after.
-        self.assertEqual(self.match('woolworths', 'grated cheese')['brand'], 'Woolworths')
+        # Retrieval must include shredded house lines, but Parmesan and
+        # tasty cheese are distinct choices; ownership cannot settle that.
+        candidates = pricing.search('woolworths', 'grated cheese', conn=self.db)
+        self.assertIn('85587', [c['store_item_id'] for c in candidates])
+        self.assertIsNone(self.match('woolworths', 'grated cheese'))
+        self.assertEqual(self.match('woolworths', 'grated parmesan cheese')['store_item_id'], '85587')
         self.assertIsNone(self.match('aldi', 'grated cheese'))
 
     def test_ranked_brand_search_and_single_can(self):
