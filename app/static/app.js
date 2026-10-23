@@ -314,6 +314,12 @@ function buildHistoryChart(history) {
 
 function storePricing(page) {
   return Object.defineProperties(page, Object.getOwnPropertyDescriptors({
+    historyItem: null, historyTrigger: null,
+    openHistory(i, trigger) {
+      this.historyTrigger = trigger; this.historyItem = i;
+      this.$nextTick(() => this.$refs.historyClose.focus());
+    },
+    closeHistory() { this.historyItem = null; this.historyTrigger?.focus(); },
     checkedText(at) {
       if (!at) return 'Not checked yet';
       const days = daysUntil(at.slice(0, 10));

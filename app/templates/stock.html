@@ -65,6 +65,14 @@
         </div>
         <div class="stock-details" x-show="open == s.product_id" x-cloak>
           <template x-if="prices">
+            <div class="shop-trend">
+              <button type="button" class="history-trigger" x-show="s.historyChart" :aria-label="'Expand price history for ' + s.name" @click="openHistory(s, $el)">
+              <svg class="price-history-chart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + s.name" x-effect="drawHistory($el, s.historyChart)"></svg>
+              </button>
+              <span class="trend-label muted" x-show="!s.historyChart" x-text="s.pricingError || 'No price history yet'"></span>
+            </div>
+          </template>
+          <template x-if="prices">
             <div class="store-chips" :title="s.pricingError">
               <template x-for="store in enabledStores" :key="store.store">
                 <div class="store-chip-cell" :class="s.picker && s.picker.store === store.store ? 'picker-open' : ''">
@@ -85,7 +93,6 @@
                             <del class="muted small" x-show="storeLink(s, store.store).latest_check?.on_special && storeLink(s, store.store).latest_check?.was_price != null" x-text="priceText(storeLink(s, store.store).latest_check?.was_price)"></del>
                           </p>
                           <p class="muted small" x-text="checkedText(storeLink(s, store.store).latest_check?.checked_at)"></p>
-                          <svg class="price-history-chart" x-show="s.historyChart" viewBox="0 0 560 210" role="img" :aria-label="'Price history for ' + s.name" x-effect="drawHistory($el, s.historyChart)"></svg>
                           <button type="button" class="small" @click="s.picker.mode = 'search'">Change match</button>
                           <button type="button" class="small" @click="s.picker = null">Close</button>
                         </div>
@@ -150,6 +157,16 @@
     </template>
     <span class="muted" x-show="!history.length">Nothing yet.</span>
   </div>
+
+  <template x-if="historyItem">
+    <div class="modal-bg" @click.self="closeHistory()" @keydown.escape.window="closeHistory()">
+      <div class="modal history-modal" role="dialog" aria-modal="true" aria-labelledby="stock-history-title" @keydown.tab.prevent="$refs.historyClose.focus()">
+        <div class="row"><b id="stock-history-title" class="grow" x-text="'Price history — ' + historyItem.label"></b><button type="button" x-ref="historyClose" @click="closeHistory()">Close</button></div>
+        <svg class="price-history-chart" viewBox="0 0 960 420" role="img" :aria-label="'Price history for ' + historyItem.label" x-effect="drawHistory($el, historyItem.historyChart)"></svg>
+        <div class="row"><template x-for="series in historyItem.historyChart.stores" :key="series.store"><span :style="{color: series.colour}" x-text="series.name"></span></template><span class="muted" x-show="historyItem.historyChart.purchases.length">● Your purchases</span></div>
+      </div>
+    </div>
+  </template>
 
   <template x-if="adding">
     <div class="modal-bg" @click.self="adding = false">

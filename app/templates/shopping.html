@@ -162,7 +162,7 @@
 function shoppingPage() {
   return storePricing({
     drawHistory, quantityHint: null,
-    suggestions: [], suggestionsOpen: false, suggestionVersion: 0, historyItem: null, historyTrigger: null,
+    suggestions: [], suggestionsOpen: false, suggestionVersion: 0,
     liveSuggestions: [], suggestionStore: '', suggestionMessage: '', suggestionCache: {},
     liveSearchCount: 0, lastLiveSearch: 0, liveSearchBusy: false, suggestionTimer: null, adding: false,
     dismissSuggestions() {
@@ -215,11 +215,6 @@ function shoppingPage() {
         this.suggestionsOpen = true;
       } finally { this.liveSearchBusy = false; }
     },
-    openHistory(i, trigger) {
-      this.historyTrigger = trigger; this.historyItem = i;
-      this.$nextTick(() => this.$refs.historyClose.focus());
-    },
-    closeHistory() { this.historyItem = null; this.historyTrigger?.focus(); },
     lists: [], list_id: null, loadVersion: 0, stores: [], items: [], products: [], text: '', amount: 1,
     async init() {
       this.products = await api('/api/products');
