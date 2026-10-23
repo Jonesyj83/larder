@@ -1,0 +1,5349 @@
+{
+  "catalogue": {
+    "coles": {
+      "4545717": {
+        "store_item_id": "4545717",
+        "name": "Golden Crunch Frozen Potato Hash Browns",
+        "brand": "Birds Eye",
+        "size": "800g"
+      },
+      "5052500": {
+        "store_item_id": "5052500",
+        "name": "Golden Crunch Potato Gems Bite Size Hash Brown",
+        "brand": "Birds Eye",
+        "size": "900g"
+      },
+      "1044624": {
+        "store_item_id": "1044624",
+        "name": "Golden Crunch Thin & Crispy Frozen Potato Chips",
+        "brand": "Birds Eye",
+        "size": "900g"
+      },
+      "1713316": {
+        "store_item_id": "1713316",
+        "name": "Golden Crunch Crinkle Cut Frozen Potato Chips",
+        "brand": "Birds Eye",
+        "size": "2Kg"
+      },
+      "5052522": {
+        "store_item_id": "5052522",
+        "name": "Golden Crunch Crinkle Cut Frozen Potato Chips",
+        "brand": "Birds Eye",
+        "size": "900g"
+      },
+      "1616637": {
+        "store_item_id": "1616637",
+        "name": "2 Minute Beef Flavour Noodles 12 Pack",
+        "brand": "Maggi",
+        "size": "888g"
+      },
+      "5366983": {
+        "store_item_id": "5366983",
+        "name": "2 Minute Instant Noodles Beef Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "370g"
+      },
+      "1616626": {
+        "store_item_id": "1616626",
+        "name": "2 Minute Instant Noodles Chicken Flavour 12 Pack",
+        "brand": "Maggi",
+        "size": "864g"
+      },
+      "5366972": {
+        "store_item_id": "5366972",
+        "name": "2 Minute Instant Noodles Chicken Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "360g"
+      },
+      "7560965": {
+        "store_item_id": "7560965",
+        "name": "2 Minute Instant Noodles Oriental Flavour 5 Pack",
+        "brand": "Maggi",
+        "size": "370g"
+      },
+      "8109273": {
+        "store_item_id": "8109273",
+        "name": "Instant Noodles Cup Beef Flavour",
+        "brand": "Maggi",
+        "size": "58g"
+      },
+      "8100950": {
+        "store_item_id": "8100950",
+        "name": "Instant Noodles Cups Chicken Flavour 4 Pack",
+        "brand": "Maggi",
+        "size": "240g"
+      },
+      "8109284": {
+        "store_item_id": "8109284",
+        "name": "Instant Noodles Cup Chicken Flavour",
+        "brand": "Maggi",
+        "size": "60g"
+      },
+      "5445570": {
+        "store_item_id": "5445570",
+        "name": "Duds",
+        "brand": "Milk",
+        "size": "141g"
+      },
+      "5357053": {
+        "store_item_id": "5357053",
+        "name": "Soy Milk",
+        "brand": "Bonsoy",
+        "size": "1L"
+      },
+      "6501188": {
+        "store_item_id": "6501188",
+        "name": "Oat Milk",
+        "brand": "Milklab",
+        "size": "250mL"
+      },
+      "7493518": {
+        "store_item_id": "7493518",
+        "name": "Oat Milk",
+        "brand": "Milklab",
+        "size": "1L"
+      },
+      "1079800": {
+        "store_item_id": "1079800",
+        "name": "Skim Milk",
+        "brand": "Coles",
+        "size": "2L"
+      },
+      "1911604": {
+        "store_item_id": "1911604",
+        "name": "Light Milk",
+        "brand": "Devondale",
+        "size": "2L"
+      },
+      "9759944": {
+        "store_item_id": "9759944",
+        "name": "Light Milk",
+        "brand": "a2 Milk",
+        "size": "2L"
+      },
+      "8419281": {
+        "store_item_id": "8419281",
+        "name": "Milk Frother",
+        "brand": "Coles",
+        "size": "1 Each"
+      },
+      "439693": {
+        "store_item_id": "439693",
+        "name": "Full Cream Milk",
+        "brand": "Coles",
+        "size": "2L"
+      },
+      "1913790": {
+        "store_item_id": "1913790",
+        "name": "Full Cream Milk",
+        "brand": "Devondale",
+        "size": "2L"
+      },
+      "4201140": {
+        "store_item_id": "4201140",
+        "name": "Full Cream Milk",
+        "brand": "Geelong",
+        "size": "2L"
+      },
+      "4201172": {
+        "store_item_id": "4201172",
+        "name": "Lite White Milk",
+        "brand": "Geelong",
+        "size": "2L"
+      },
+      "5477930": {
+        "store_item_id": "5477930",
+        "name": "Full Cream Milk",
+        "brand": "Pura",
+        "size": "2L"
+      },
+      "9760091": {
+        "store_item_id": "9760091",
+        "name": "Full Cream Milk",
+        "brand": "a2 Milk",
+        "size": "2L"
+      },
+      "425043": {
+        "store_item_id": "425043",
+        "name": "Rev Low Fat Milk",
+        "brand": "Pauls",
+        "size": "2L"
+      },
+      "5410316": {
+        "store_item_id": "5410316",
+        "name": "Light Start Milk",
+        "brand": "Pura",
+        "size": "2L"
+      },
+      "1156640": {
+        "store_item_id": "1156640",
+        "name": "High Protein Milk",
+        "brand": "Dairy Farmers",
+        "size": "2L"
+      },
+      "9321138": {
+        "store_item_id": "9321138",
+        "name": "Fresh Low Fat Milk",
+        "brand": "Great Ocean Road",
+        "size": "2L"
+      },
+      "3752206": {
+        "store_item_id": "3752206",
+        "name": "Milk Powder Container",
+        "brand": "CUB",
+        "size": "1 each"
+      },
+      "8379529": {
+        "store_item_id": "8379529",
+        "name": "Lite Reduced Fat Milk",
+        "brand": "Coles",
+        "size": "2L"
+      },
+      "9321070": {
+        "store_item_id": "9321070",
+        "name": "Fresh Full Cream Milk",
+        "brand": "Great Ocean Road",
+        "size": "2L"
+      },
+      "4201117": {
+        "store_item_id": "4201117",
+        "name": "Jersey Full Cream Milk",
+        "brand": "Gippsland",
+        "size": "2L"
+      },
+      "1784711": {
+        "store_item_id": "1784711",
+        "name": "Light Lactose Free Milk",
+        "brand": "Coles",
+        "size": "2L"
+      },
+      "5458243": {
+        "store_item_id": "5458243",
+        "name": "Lactose Free Light Milk",
+        "brand": "a2 Milk",
+        "size": "2L"
+      },
+      "13090": {
+        "store_item_id": "13090",
+        "name": "Chocolate Flavoured Milk",
+        "brand": "Oak",
+        "size": "2L"
+      },
+      "1071070": {
+        "store_item_id": "1071070",
+        "name": "Plus Protein Low Fat Milk",
+        "brand": "Pauls",
+        "size": "2L"
+      },
+      "5018070": {
+        "store_item_id": "5018070",
+        "name": "Chocolate Flavoured Milk",
+        "brand": "Big M",
+        "size": "2L"
+      },
+      "9321230": {
+        "store_item_id": "9321230",
+        "name": "Chocolate Flavoured Milk",
+        "brand": "Great Ocean Road",
+        "size": "2L"
+      },
+      "5459938": {
+        "store_item_id": "5459938",
+        "name": "Strawberry Flavoured Milk",
+        "brand": "Big M",
+        "size": "2L"
+      },
+      "5467233": {
+        "store_item_id": "5467233",
+        "name": "Strawberry Flavoured Milk",
+        "brand": "Oak",
+        "size": "2L"
+      },
+      "1897605": {
+        "store_item_id": "1897605",
+        "name": "Burger Cheese Slices",
+        "brand": "American Melt Swiss",
+        "size": "224g"
+      },
+      "8792988": {
+        "store_item_id": "8792988",
+        "name": "Cheese Burger Slices",
+        "brand": "Bega",
+        "size": "250g"
+      },
+      "1897591": {
+        "store_item_id": "1897591",
+        "name": "Extra Thick Burger Slices",
+        "brand": "American Melt Cheese",
+        "size": "224g"
+      },
+      "1978140": {
+        "store_item_id": "1978140",
+        "name": "Cheese Slices 84 Pack",
+        "brand": "Coles Simply",
+        "size": "1Kg"
+      },
+      "1462511": {
+        "store_item_id": "1462511",
+        "name": "Edam Cheese Slices",
+        "brand": "Coles",
+        "size": "200g"
+      },
+      "4405536": {
+        "store_item_id": "4405536",
+        "name": "Cafe Classics Caramel Latte Coffee Sachets",
+        "brand": "Moccona",
+        "size": "10 Pack"
+      },
+      "4405591": {
+        "store_item_id": "4405591",
+        "name": "Cafe Classics Caramel Latte Coffee Sachets",
+        "brand": "Moccona",
+        "size": "30 Pack"
+      },
+      "1049399": {
+        "store_item_id": "1049399",
+        "name": "99% Sugar Free Caramel Latte Coffee Sachets",
+        "brand": "Moccona",
+        "size": "10 Pack"
+      },
+      "1049490": {
+        "store_item_id": "1049490",
+        "name": "Caramel Latte Coffee Sachets",
+        "brand": "Vittoria",
+        "size": "8 Pack"
+      },
+      "1513077": {
+        "store_item_id": "1513077",
+        "name": "Caramel Latte Coffee Sachets",
+        "brand": "Nescafe",
+        "size": "78 Pack"
+      },
+      "318214": {
+        "store_item_id": "318214",
+        "name": "Whole Black Pepper",
+        "brand": "Hoyts",
+        "size": "100g"
+      },
+      "3339232": {
+        "store_item_id": "3339232",
+        "name": "Whole Black Pepper",
+        "brand": "Pattu",
+        "size": "200g"
+      },
+      "3631711": {
+        "store_item_id": "3631711",
+        "name": "Black Pepper Sauce",
+        "brand": "Lee Kum Kee",
+        "size": "350g"
+      },
+      "333207": {
+        "store_item_id": "333207",
+        "name": "Ground Black Pepper",
+        "brand": "Saxa",
+        "size": "50g"
+      },
+      "2677830": {
+        "store_item_id": "2677830",
+        "name": "Ground Black Pepper",
+        "brand": "Coles",
+        "size": "50g"
+      },
+      "4419687": {
+        "store_item_id": "4419687",
+        "name": "Whole Black Pepper Grinder",
+        "brand": "Coles",
+        "size": "50g"
+      },
+      "4661649": {
+        "store_item_id": "4661649",
+        "name": "Water 12x600ml",
+        "brand": "Coles",
+        "size": "12 Pack"
+      },
+      "5710783": {
+        "store_item_id": "5710783",
+        "name": "Water 1.5l",
+        "brand": "Fiji",
+        "size": "1.5L"
+      },
+      "3083456": {
+        "store_item_id": "3083456",
+        "name": "Rose Water",
+        "brand": "Aoun",
+        "size": "500mL"
+      },
+      "3594375": {
+        "store_item_id": "3594375",
+        "name": "Rose Water",
+        "brand": "Cortas",
+        "size": "500mL"
+      },
+      "5180329": {
+        "store_item_id": "5180329",
+        "name": "Soda Water",
+        "brand": "Coles",
+        "size": "1.25L"
+      },
+      "1049526": {
+        "store_item_id": "1049526",
+        "name": "Alkaline Water 12x600ml",
+        "brand": "Alka Power",
+        "size": "12 Pack"
+      },
+      "1199686": {
+        "store_item_id": "1199686",
+        "name": "Mixers Soda Water Soft Drink 10x375ml",
+        "brand": "Schweppes",
+        "size": "10 Pack"
+      },
+      "2577279": {
+        "store_item_id": "2577279",
+        "name": "Lightly Sparkling Spring Water 12x500ml",
+        "brand": "Coles",
+        "size": "12 Pack"
+      },
+      "6274552": {
+        "store_item_id": "6274552",
+        "name": "Sparkling Water Passionfruit Pineapple 10x375ml",
+        "brand": "Schweppes",
+        "size": "10 Pack"
+      },
+      "1310364": {
+        "store_item_id": "1310364",
+        "name": "Soft Drink 375ml",
+        "brand": "Pepsi",
+        "size": "10 Pack"
+      },
+      "3914851": {
+        "store_item_id": "3914851",
+        "name": "Pepsi Flavour Mix",
+        "brand": "Sodastream",
+        "size": "440mL"
+      },
+      "3914920": {
+        "store_item_id": "3914920",
+        "name": "Pepsi Max Flavour",
+        "brand": "Sodastream",
+        "size": "440mL"
+      },
+      "1310309": {
+        "store_item_id": "1310309",
+        "name": "Soft Drink Cola Bottle",
+        "brand": "Pepsi",
+        "size": "1.25L"
+      },
+      "1864898": {
+        "store_item_id": "1864898",
+        "name": "Soft Drink Cola Bottle",
+        "brand": "Pepsi",
+        "size": "2L"
+      },
+      "1864934": {
+        "store_item_id": "1864934",
+        "name": "Max Soft Drink No Sugar Bottle",
+        "brand": "Pepsi",
+        "size": "2L"
+      }
+    },
+    "iga": {
+      "63671": {
+        "store_item_id": "63671",
+        "name": "Capilano Manuka Honey",
+        "brand": "Capilano",
+        "size": "340 g"
+      },
+      "170000000664": {
+        "store_item_id": "170000000664",
+        "name": "B Honey Australian Pure Honey",
+        "brand": "B Honey",
+        "size": "450 g"
+      },
+      "351396": {
+        "store_item_id": "351396",
+        "name": "Capilano Honey Twist & Squeeze",
+        "brand": "Capilano",
+        "size": "220 g"
+      },
+      "578820": {
+        "store_item_id": "578820",
+        "name": "Capilano 340G Round Chilli Honey Squeeze",
+        "brand": "Capilano",
+        "size": "340 g"
+      },
+      "20000002460": {
+        "store_item_id": "20000002460",
+        "name": "Pura Pure Cream",
+        "brand": "Pura",
+        "size": "600 g"
+      },
+      "40796": {
+        "store_item_id": "40796",
+        "name": "Maggi 2 Minute Instant Beef Noodles",
+        "brand": "MAGGI",
+        "size": "5"
+      },
+      "409754": {
+        "store_item_id": "409754",
+        "name": "Maggi 2 Minute Instant Value Pack Noodles Beef",
+        "brand": "MAGGI",
+        "size": "12"
+      },
+      "40819": {
+        "store_item_id": "40819",
+        "name": "Maggi 2 Minute Instant Noodles Chicken",
+        "brand": "MAGGI",
+        "size": "360 g"
+      },
+      "40788": {
+        "store_item_id": "40788",
+        "name": "Maggi 2 Minute Instant Noodles Oriental",
+        "brand": "MAGGI",
+        "size": "5"
+      },
+      "81784": {
+        "store_item_id": "81784",
+        "name": "Maggi 2 Minute Instant Cup Noodle Chicken",
+        "brand": "MAGGI",
+        "size": "60 g"
+      },
+      "80060086": {
+        "store_item_id": "80060086",
+        "name": "Green Beans",
+        "brand": "",
+        "size": "250 g"
+      },
+      "667145": {
+        "store_item_id": "667145",
+        "name": "Edgell Sliced Green Beans",
+        "brand": "Edgell",
+        "size": "410 g"
+      },
+      "180000005054": {
+        "store_item_id": "180000005054",
+        "name": "Birds Eye Deli Garlic Butter Style Green Beans",
+        "brand": "Birds Eye",
+        "size": "600 g"
+      },
+      "80060093": {
+        "store_item_id": "80060093",
+        "name": "Green Pears",
+        "brand": "",
+        "size": "210 g"
+      },
+      "80060012": {
+        "store_item_id": "80060012",
+        "name": "Green Capsicum",
+        "brand": "",
+        "size": "220 g"
+      },
+      "80060141": {
+        "store_item_id": "80060141",
+        "name": "Premium Potatoes",
+        "brand": "",
+        "size": "250 g"
+      },
+      "80060059": {
+        "store_item_id": "80060059",
+        "name": "Gold Sweet Potatoes",
+        "brand": "",
+        "size": "350 g"
+      },
+      "80060058": {
+        "store_item_id": "80060058",
+        "name": "Red Washed Potatoes",
+        "brand": "",
+        "size": "170 g"
+      },
+      "1800000067851": {
+        "store_item_id": "1800000067851",
+        "name": "Smith's Potato Chips Salt",
+        "brand": "Smith's",
+        "size": "105 g"
+      },
+      "190000004740": {
+        "store_item_id": "190000004740",
+        "name": "Birds Eye Mashed Potato",
+        "brand": "Birds Eye",
+        "size": "800 g"
+      },
+      "828513": {
+        "store_item_id": "828513",
+        "name": "BFree Wrap Sweet Potato Wrap",
+        "brand": "BFree",
+        "size": "210 g"
+      },
+      "110698": {
+        "store_item_id": "110698",
+        "name": "Balfours Frozen Potato Pie",
+        "brand": "Balfours",
+        "size": "2"
+      },
+      "465695": {
+        "store_item_id": "465695",
+        "name": "Local Kitchen Creamy Potato",
+        "brand": "Local Kitchen",
+        "size": "250 g"
+      },
+      "170000003161": {
+        "store_item_id": "170000003161",
+        "name": "Mrs Mac's Potato Top Beef Pie",
+        "brand": "Mrs Mac's",
+        "size": "190 g"
+      },
+      "832931": {
+        "store_item_id": "832931",
+        "name": "Food Guru Plastic Potato Peelers",
+        "brand": "Food Guru",
+        "size": "4"
+      },
+      "1800000079860": {
+        "store_item_id": "1800000079860",
+        "name": "Red Rock Deli Potato Chips Sea Salt",
+        "brand": "Red Rock Deli",
+        "size": "290 g"
+      },
+      "349624": {
+        "store_item_id": "349624",
+        "name": "Smith's Crinkle Cut Variety Potato Chips",
+        "brand": "Smith's",
+        "size": "20"
+      },
+      "349959": {
+        "store_item_id": "349959",
+        "name": "Red Rock Deli Style Potato Chips Selection",
+        "brand": "Red Rock Deli",
+        "size": "10"
+      },
+      "20000002205": {
+        "store_item_id": "20000002205",
+        "name": "Capel Butter Salted",
+        "brand": "Capel Butter",
+        "size": "500 g"
+      },
+      "190000004312": {
+        "store_item_id": "190000004312",
+        "name": "Capriccio Butter Beans",
+        "brand": "Capriccio",
+        "size": "400 g"
+      },
+      "190000004584": {
+        "store_item_id": "190000004584",
+        "name": "Reese's Peanut Butter Cups",
+        "brand": "Reese's",
+        "size": "42 g"
+      },
+      "1800000080993": {
+        "store_item_id": "1800000080993",
+        "name": "Pie Face Butter Chicken Pies",
+        "brand": "",
+        "size": "390 g"
+      },
+      "190000011720": {
+        "store_item_id": "190000011720",
+        "name": "Black & Gold Salted Butter",
+        "brand": "Black & Gold",
+        "size": "500 g"
+      },
+      "885256": {
+        "store_item_id": "885256",
+        "name": "Bega Peanut Butter Smooth",
+        "brand": "Bega",
+        "size": "470 g"
+      },
+      "31904": {
+        "store_item_id": "31904",
+        "name": "Bega Smooth Peanut Butter",
+        "brand": "Bega",
+        "size": "375 g"
+      },
+      "222513": {
+        "store_item_id": "222513",
+        "name": "Devondale Unsalted Butter",
+        "brand": "Devondale",
+        "size": "500 g"
+      },
+      "617904": {
+        "store_item_id": "617904",
+        "name": "Dove Body Bar Shea Butter",
+        "brand": "Dove",
+        "size": "2"
+      },
+      "31920": {
+        "store_item_id": "31920",
+        "name": "Bega Peanut Butter Crunchy",
+        "brand": "Bega",
+        "size": "375 g"
+      },
+      "885340": {
+        "store_item_id": "885340",
+        "name": "Bega Peanut Butter Crunchy",
+        "brand": "Bega",
+        "size": "470 g"
+      },
+      "190000011718": {
+        "store_item_id": "190000011718",
+        "name": "Black & Gold Unsalted Butter",
+        "brand": "Black & Gold",
+        "size": "500 g"
+      },
+      "429709": {
+        "store_item_id": "429709",
+        "name": "Lite n' Easy Butter Chicken",
+        "brand": "Lite n' Easy",
+        "size": "410 g"
+      },
+      "20000006644": {
+        "store_item_id": "20000006644",
+        "name": "Butter Menthol Honey Centre",
+        "brand": "BUTTER MENTHOL",
+        "size": "3"
+      },
+      "848738": {
+        "store_item_id": "848738",
+        "name": "Mayver's Smooth Peanut Butter",
+        "brand": "Mayver's",
+        "size": "375 g"
+      },
+      "849213": {
+        "store_item_id": "849213",
+        "name": "Mayver's Crunchy Peanut Butter",
+        "brand": "Mayver's",
+        "size": "375 g"
+      },
+      "109121": {
+        "store_item_id": "109121",
+        "name": "Sara Lee Butter Chocolate Cake",
+        "brand": "Sara Lee",
+        "size": "350 g"
+      },
+      "1800000068279": {
+        "store_item_id": "1800000068279",
+        "name": "Community Co Peanut Butter Smooth",
+        "brand": "Community Co",
+        "size": "500 g"
+      },
+      "195229": {
+        "store_item_id": "195229",
+        "name": "Devondale Dairy Soft Butter Blend",
+        "brand": "Devondale",
+        "size": "500 g"
+      },
+      "198201": {
+        "store_item_id": "198201",
+        "name": "Devondale Extra Soft Butter Blend",
+        "brand": "Devondale",
+        "size": "500 g"
+      },
+      "744829": {
+        "store_item_id": "744829",
+        "name": "Toscano Traditional Butter Waffles",
+        "brand": "Toscano",
+        "size": "4"
+      },
+      "1800000068278": {
+        "store_item_id": "1800000068278",
+        "name": "Community Co Peanut Butter Crunchy",
+        "brand": "Community Co",
+        "size": "500 g"
+      },
+      "180000017165": {
+        "store_item_id": "180000017165",
+        "name": "Forty Thieves Crunchy Peanut Butter",
+        "brand": "",
+        "size": "375 g"
+      },
+      "102836": {
+        "store_item_id": "102836",
+        "name": "Western Star Original Butter Block",
+        "brand": "Western Star",
+        "size": "500 g"
+      },
+      "3812": {
+        "store_item_id": "3812",
+        "name": "Allen's Butter-Menthol Throat Lozenge",
+        "brand": "BUTTER MENTHOL",
+        "size": "3"
+      },
+      "666995": {
+        "store_item_id": "666995",
+        "name": "Skippy Creamy Peanut Butter Regular",
+        "brand": "Skippy",
+        "size": "462 g"
+      },
+      "338856": {
+        "store_item_id": "338856",
+        "name": "Bega Simply Nuts Smooth Peanut Butter",
+        "brand": "Bega",
+        "size": "325 g"
+      },
+      "451138": {
+        "store_item_id": "451138",
+        "name": "Green's Gluten Free Golden Butter Cake",
+        "brand": "Green's",
+        "size": "470 g"
+      },
+      "83613": {
+        "store_item_id": "83613",
+        "name": "Vicks Vapodrops Lozenges Butter Menthol",
+        "brand": "Vicks",
+        "size": "24"
+      },
+      "177404": {
+        "store_item_id": "177404",
+        "name": "McCain Healthy Choice Butter Chicken",
+        "brand": "McCain",
+        "size": "300 g"
+      },
+      "390468": {
+        "store_item_id": "390468",
+        "name": "Kan Tong Butter Chicken Cooking Sauce",
+        "brand": "KAN TONG",
+        "size": "485 g"
+      },
+      "173117": {
+        "store_item_id": "173117",
+        "name": "Arnott's Farmbake Cookies Butter Shortbread",
+        "brand": "Arnott's",
+        "size": "310 g"
+      },
+      "319894": {
+        "store_item_id": "319894",
+        "name": "Green's Traditional Golden Butter Cake Mix",
+        "brand": "Green's",
+        "size": "440 g"
+      },
+      "849352": {
+        "store_item_id": "849352",
+        "name": "Mayver's Smunchy Protein Plus Peanut Butter",
+        "brand": "Mayver's",
+        "size": "375 g"
+      },
+      "422074": {
+        "store_item_id": "422074",
+        "name": "Sharwood's Simmer Sauce For Butter Chicken",
+        "brand": "Sharwood's",
+        "size": "420 g"
+      },
+      "667014": {
+        "store_item_id": "667014",
+        "name": "Skippy Peanut Butter Regular Super Chunk",
+        "brand": "Skippy",
+        "size": "462 g"
+      },
+      "1800000074143": {
+        "store_item_id": "1800000074143",
+        "name": "Forty Thieves Peanut Butter Not Too Smooth",
+        "brand": "Forty Thieves",
+        "size": "375 g"
+      },
+      "114532": {
+        "store_item_id": "114532",
+        "name": "INGHAM'S Crumbed Chicken Kiev Garlic Butter",
+        "brand": "Ingham's",
+        "size": "350 g"
+      },
+      "1800000073099": {
+        "store_item_id": "1800000073099",
+        "name": "SUPERCOAT Baked Biscuits Peanut Butter & Oats",
+        "brand": "SUPERCOAT",
+        "size": "400 g"
+      },
+      "20000006824": {
+        "store_item_id": "20000006824",
+        "name": "Chicken Tonight Indian Butter Chicken Simmer Sauce",
+        "brand": "Chicken Tonight",
+        "size": "495 g"
+      },
+      "300167": {
+        "store_item_id": "300167",
+        "name": "Passage To India Simmer Sauce Butter Chicken",
+        "brand": "Passage To India",
+        "size": "375 g"
+      },
+      "171267": {
+        "store_item_id": "171267",
+        "name": "Mainland Buttersoft Salted Spreadable Butter",
+        "brand": "Mainland",
+        "size": "375 g"
+      },
+      "160000012859": {
+        "store_item_id": "160000012859",
+        "name": "Lean Cuisine Indian Butter Chicken With Rice",
+        "brand": "Lean Cuisine",
+        "size": "375 g"
+      },
+      "190000001842": {
+        "store_item_id": "190000001842",
+        "name": "Health Lab Peanut Butter Choc Nut Butter Filled Balls",
+        "brand": "Health Lab",
+        "size": "3"
+      },
+      "423321": {
+        "store_item_id": "423321",
+        "name": "Poppin Microwave Popcorn Triple Butter Flavour",
+        "brand": "Poppin",
+        "size": "4"
+      },
+      "38985": {
+        "store_item_id": "38985",
+        "name": "Nestl\u00e9 Butter-Menthol Liquid Centres Honey & Lemon",
+        "brand": "BUTTER MENTHOL",
+        "size": "10"
+      },
+      "380497": {
+        "store_item_id": "380497",
+        "name": "Bega Peanut Butter Crunch No Added Sugar Or Salt",
+        "brand": "Bega",
+        "size": "325 g"
+      },
+      "380489": {
+        "store_item_id": "380489",
+        "name": "Bega Peanut Butter Smooth No Added Sugar Or Salt",
+        "brand": "Bega",
+        "size": "325 g"
+      },
+      "568325": {
+        "store_item_id": "568325",
+        "name": "My Muscle Chef Butter Chicken With Saffron Pilaf",
+        "brand": "My Muscle Chef",
+        "size": "360 g"
+      },
+      "147844": {
+        "store_item_id": "147844",
+        "name": "Nuttelex Original Plant-Based Butter Alternative",
+        "brand": "Nuttelex",
+        "size": "500 g"
+      },
+      "195091": {
+        "store_item_id": "195091",
+        "name": "Western Star Chef's Choice Unsalted Cultured Butter",
+        "brand": "Western Star",
+        "size": "500 g"
+      },
+      "168222": {
+        "store_item_id": "168222",
+        "name": "Mainland Buttersoft Salt Reduced Spreadable Butter",
+        "brand": "Mainland",
+        "size": "375 g"
+      },
+      "160000001190": {
+        "store_item_id": "160000001190",
+        "name": "Masters Milk",
+        "brand": "Masters",
+        "size": "1 l"
+      },
+      "882614": {
+        "store_item_id": "882614",
+        "name": "A2 Light Milk",
+        "brand": "A2",
+        "size": "2 l"
+      },
+      "17285": {
+        "store_item_id": "17285",
+        "name": "Devondale Milk",
+        "brand": "Devondale",
+        "size": "2 l"
+      },
+      "496099": {
+        "store_item_id": "496099",
+        "name": "Bonsoy Soy Milk",
+        "brand": "Bonsoy",
+        "size": "1 l"
+      },
+      "381113": {
+        "store_item_id": "381113",
+        "name": "TCC Coconut Milk",
+        "brand": "TCC",
+        "size": "400 ml"
+      },
+      "970543": {
+        "store_item_id": "970543",
+        "name": "Brownes Hi-Lo Milk",
+        "brand": "Brownes",
+        "size": "1 l"
+      },
+      "970496": {
+        "store_item_id": "970496",
+        "name": "Brownes Skim Milk",
+        "brand": "Brownes",
+        "size": "1 l"
+      },
+      "86098": {
+        "store_item_id": "86098",
+        "name": "Black & Gold Skim Milk",
+        "brand": "Black & Gold",
+        "size": "1 l"
+      },
+      "160000018202": {
+        "store_item_id": "160000018202",
+        "name": "Vitasoy Oat Milk UHT",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "190240": {
+        "store_item_id": "190240",
+        "name": "Hunt and Brew Milk Creamy",
+        "brand": "Hunt and Brew",
+        "size": "1 l"
+      },
+      "934848": {
+        "store_item_id": "934848",
+        "name": "Community Co Soy Milk",
+        "brand": "Community Co",
+        "size": "1 l"
+      },
+      "2743": {
+        "store_item_id": "2743",
+        "name": "So Good Lite Soy Milk",
+        "brand": "So Good",
+        "size": "1 l"
+      },
+      "27808": {
+        "store_item_id": "27808",
+        "name": "Vitasoy Rice Milk Uht",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "986722": {
+        "store_item_id": "986722",
+        "name": "Harvey Fresh Skim Milk",
+        "brand": "Harvey Fresh",
+        "size": "1 l"
+      },
+      "180000003838": {
+        "store_item_id": "180000003838",
+        "name": "Vitasoy Calci Plus Milk",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "970917": {
+        "store_item_id": "970917",
+        "name": "Brownes Calcium Plus Milk",
+        "brand": "Brownes",
+        "size": "1 l"
+      },
+      "366024": {
+        "store_item_id": "366024",
+        "name": "Country Dairy Milk Hilo",
+        "brand": "Country Dairy",
+        "size": "1 l"
+      },
+      "680305": {
+        "store_item_id": "680305",
+        "name": "Black & Gold Low Fat Milk",
+        "brand": "Black & Gold",
+        "size": "1 l"
+      },
+      "995946": {
+        "store_item_id": "995946",
+        "name": "Brownes Lactose Free Milk",
+        "brand": "Brownes",
+        "size": "1 l"
+      },
+      "425195": {
+        "store_item_id": "425195",
+        "name": "So Good Regular Soy Milk",
+        "brand": "So Good",
+        "size": "1 l"
+      },
+      "180000003409": {
+        "store_item_id": "180000003409",
+        "name": "Vitasoy Original Soy Milk",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "192242": {
+        "store_item_id": "192242",
+        "name": "Hunt and Brew Milk Lactose Free",
+        "brand": "Hunt and Brew",
+        "size": "1 l"
+      },
+      "190000004206": {
+        "store_item_id": "190000004206",
+        "name": "Masters Mocha Flavoured Milk",
+        "brand": "Masters",
+        "size": "750 ml"
+      },
+      "873518": {
+        "store_item_id": "873518",
+        "name": "Cadbury Dairy Milk Sharepack",
+        "brand": "Cadbury",
+        "size": "12"
+      },
+      "986730": {
+        "store_item_id": "986730",
+        "name": "Harvey Fresh Full Cream Milk",
+        "brand": "Harvey Fresh",
+        "size": "1 l"
+      },
+      "1800000068753": {
+        "store_item_id": "1800000068753",
+        "name": "Hunt And Brew Extra Protein Milk",
+        "brand": "Hunt And Brew",
+        "size": "1 l"
+      },
+      "33333": {
+        "store_item_id": "33333",
+        "name": "Devondale Moo Chocolate Milk",
+        "brand": "Devondale",
+        "size": "6"
+      },
+      "355293": {
+        "store_item_id": "355293",
+        "name": "Vitasoy Unsweetened Oat Milk",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "970991": {
+        "store_item_id": "970991",
+        "name": "Brownes Full Cream Milk Carton",
+        "brand": "Brownes",
+        "size": "1 l"
+      },
+      "397622": {
+        "store_item_id": "397622",
+        "name": "Brownes Lactose Free Hi-Lo Milk",
+        "brand": "Brownes",
+        "size": "1 l"
+      },
+      "20000001437": {
+        "store_item_id": "20000001437",
+        "name": "Alternative Dairy Almond Milk",
+        "brand": "Alternative Dairy",
+        "size": "1 l"
+      },
+      "148638": {
+        "store_item_id": "148638",
+        "name": "Devondale Moo Strawberry Milk",
+        "brand": "Devondale",
+        "size": "6"
+      },
+      "402278": {
+        "store_item_id": "402278",
+        "name": "Devondale Skim Long Life Milk",
+        "brand": "Devondale",
+        "size": "6"
+      },
+      "54596": {
+        "store_item_id": "54596",
+        "name": "Devondale Skim Long Life Milk",
+        "brand": "Devondale",
+        "size": "1 l"
+      },
+      "180000005501": {
+        "store_item_id": "180000005501",
+        "name": "Vitasoy Home Barista Oat Milk",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "456353": {
+        "store_item_id": "456353",
+        "name": "Harvey Fresh Milk Lactose Free",
+        "brand": "Harvey Fresh",
+        "size": "1 l"
+      },
+      "86080": {
+        "store_item_id": "86080",
+        "name": "Black & Gold Uht Dairy Full Milk",
+        "brand": "Black & Gold",
+        "size": "1 l"
+      },
+      "986154": {
+        "store_item_id": "986154",
+        "name": "Harvey Fresh Lactose Free Milk",
+        "brand": "Harvey Fresh",
+        "size": "1 l"
+      },
+      "160000001219": {
+        "store_item_id": "160000001219",
+        "name": "Masters Chocolate Flavoured Milk",
+        "brand": "Masters",
+        "size": "750 ml"
+      },
+      "160000001191": {
+        "store_item_id": "160000001191",
+        "name": "Masters Spearmint Flavoured Milk",
+        "brand": "Masters",
+        "size": "750 ml"
+      },
+      "160000001205": {
+        "store_item_id": "160000001205",
+        "name": "Masters Strawberry Flavoured Milk",
+        "brand": "Masters",
+        "size": "750 ml"
+      },
+      "180000005500": {
+        "store_item_id": "180000005500",
+        "name": "Vitasoy Home Barista Almond Milk",
+        "brand": "Vitasoy",
+        "size": "1 l"
+      },
+      "452184": {
+        "store_item_id": "452184",
+        "name": "Australia's Own Kid's Milk Strawberry",
+        "brand": "Australia's Own",
+        "size": "6"
+      },
+      "331383": {
+        "store_item_id": "331383",
+        "name": "Australia's Own Organic Almond Milk",
+        "brand": "Australia's Own",
+        "size": "1 l"
+      },
+      "1800000069920": {
+        "store_item_id": "1800000069920",
+        "name": "Community Co Unsweetened Oat Milk",
+        "brand": "Community Co",
+        "size": "1 l"
+      },
+      "20000004208": {
+        "store_item_id": "20000004208",
+        "name": "The Alternative Dairy Co. Oat Milk",
+        "brand": "The Alternative Dairy Co.",
+        "size": "1 l"
+      },
+      "315510": {
+        "store_item_id": "315510",
+        "name": "Devondale Semi Skim Long Life Milk",
+        "brand": "Devondale",
+        "size": "1 l"
+      },
+      "34083": {
+        "store_item_id": "34083",
+        "name": "So Good Long Life Regular Soy Milk",
+        "brand": "So Good",
+        "size": "3"
+      },
+      "873495": {
+        "store_item_id": "873495",
+        "name": "Cadbury Dairy Milk Freddo Sharepack",
+        "brand": "Cadbury",
+        "size": "12"
+      },
+      "402260": {
+        "store_item_id": "402260",
+        "name": "Devondale Full Cream Long Life Milk",
+        "brand": "Devondale",
+        "size": "6"
+      },
+      "934851": {
+        "store_item_id": "934851",
+        "name": "Community Co Unsweetened Almond Milk",
+        "brand": "Community Co",
+        "size": "1 l"
+      },
+      "180000003458": {
+        "store_item_id": "180000003458",
+        "name": "Liddells Lactose Free Full Cream Milk",
+        "brand": "Liddells",
+        "size": "1 l"
+      },
+      "180000000560": {
+        "store_item_id": "180000000560",
+        "name": "Harvey Fresh Cappuccino Flavoured Milk",
+        "brand": "Harvey Fresh",
+        "size": "1 l"
+      },
+      "934864": {
+        "store_item_id": "934864",
+        "name": "Community Co Lactose Free Low Fat Milk",
+        "brand": "Community Co",
+        "size": "1 l"
+      },
+      "1800000070452": {
+        "store_item_id": "1800000070452",
+        "name": "Devondale Moo Chocolate Flavoured Milk",
+        "brand": "Devondale",
+        "size": "6"
+      },
+      "1800000070453": {
+        "store_item_id": "1800000070453",
+        "name": "Devondale Moo Strawberry Flavoured Milk",
+        "brand": "Devondale",
+        "size": "6"
+      },
+      "180000004581": {
+        "store_item_id": "180000004581",
+        "name": "Liddells Lactose Free Long Life Skim Milk",
+        "brand": "Liddells",
+        "size": "1 l"
+      },
+      "933266": {
+        "store_item_id": "933266",
+        "name": "Community Co Lactose Free Full Cream Milk",
+        "brand": "Community Co",
+        "size": "1 l"
+      },
+      "160000003286": {
+        "store_item_id": "160000003286",
+        "name": "So Good Long Life No Added Sugar Oat Milk",
+        "brand": "So Good",
+        "size": "1 l"
+      },
+      "371105": {
+        "store_item_id": "371105",
+        "name": "So Good Long Life Unsweetened Almond Milk",
+        "brand": "So Good",
+        "size": "1 l"
+      },
+      "20000007307": {
+        "store_item_id": "20000007307",
+        "name": "Cadbury Dairy Milk Crunchie Ice Cream Bars",
+        "brand": "Cadbury",
+        "size": "4"
+      },
+      "20000006962": {
+        "store_item_id": "20000006962",
+        "name": "Australia's Own Chocolate Flavoured Kids Milk",
+        "brand": "Australia's Own",
+        "size": "6"
+      },
+      "20000001059": {
+        "store_item_id": "20000001059",
+        "name": "Moccona Coffee Sachets Latte",
+        "brand": "Moccona",
+        "size": "10"
+      },
+      "20000000149": {
+        "store_item_id": "20000000149",
+        "name": "Moccona Coffee Sachets Double Shot Latte",
+        "brand": "Moccona",
+        "size": "10"
+      },
+      "349412": {
+        "store_item_id": "349412",
+        "name": "Nescafe Coffee Mixer Sachets Caramel Latte",
+        "brand": "Nescafe",
+        "size": "10"
+      },
+      "180000007062": {
+        "store_item_id": "180000007062",
+        "name": "Moccona Protein Caramel Latte",
+        "brand": "Moccona",
+        "size": "168 g"
+      },
+      "398319": {
+        "store_item_id": "398319",
+        "name": "Moccona Cafe Classic Latte Sachets",
+        "brand": "Moccona",
+        "size": "10"
+      },
+      "160000018129": {
+        "store_item_id": "160000018129",
+        "name": "Coca Cola Cherry Can",
+        "brand": "Coca Cola",
+        "size": "330 ml"
+      },
+      "793661": {
+        "store_item_id": "793661",
+        "name": "Diet Coca-Cola Soft Drink Can",
+        "brand": "Coca-Cola",
+        "size": "375 ml"
+      },
+      "20000004784": {
+        "store_item_id": "20000004784",
+        "name": "Coca-Cola Classic Soft Drink Can",
+        "brand": "Coca-Cola",
+        "size": "375 ml"
+      },
+      "180000006327": {
+        "store_item_id": "180000006327",
+        "name": "Coca-Cola Zero Sugar Vanilla Cans",
+        "brand": "Coca-Cola",
+        "size": "10"
+      },
+      "190000003878": {
+        "store_item_id": "190000003878",
+        "name": "Diet Coca-Cola Soft Drink Bottle",
+        "brand": "Coca-Cola",
+        "size": "600 ml"
+      },
+      "52170": {
+        "store_item_id": "52170",
+        "name": "Diet Coca-Cola Soft Drink Bottle",
+        "brand": "Coca-Cola",
+        "size": "2 l"
+      },
+      "14570": {
+        "store_item_id": "14570",
+        "name": "Coca-Cola Classic Soft Drink Bottle",
+        "brand": "Coca-Cola",
+        "size": "2 l"
+      },
+      "932126": {
+        "store_item_id": "932126",
+        "name": "Coca-Cola Vanilla Soft Drink Bottle",
+        "brand": "Coca-Cola",
+        "size": "2 l"
+      },
+      "921743": {
+        "store_item_id": "921743",
+        "name": "Coca-Cola Zero Sugar Soft Drink Bottle",
+        "brand": "Coca-Cola",
+        "size": "2 l"
+      },
+      "681212": {
+        "store_item_id": "681212",
+        "name": "Diet Coca-Cola Soft Drink Multipack Cans",
+        "brand": "Coca-Cola",
+        "size": "24"
+      },
+      "382216": {
+        "store_item_id": "382216",
+        "name": "Coca-Cola Classic Soft Drink Multipack Cans",
+        "brand": "Coca-Cola",
+        "size": "10"
+      },
+      "681220": {
+        "store_item_id": "681220",
+        "name": "Coca-Cola Classic Soft Drink Multipack Cans",
+        "brand": "Coca-Cola",
+        "size": "24"
+      },
+      "848694": {
+        "store_item_id": "848694",
+        "name": "Coca-Cola Zero Sugar Soft Drink Multipack Cans",
+        "brand": "Coca-Cola",
+        "size": "10"
+      },
+      "848733": {
+        "store_item_id": "848733",
+        "name": "Coca-Cola Zero Sugar Soft Drink Multipack Cans",
+        "brand": "Coca-Cola",
+        "size": "24"
+      },
+      "674451": {
+        "store_item_id": "674451",
+        "name": "Coca-Cola Classic Soft Drink Multipack Mini Cans",
+        "brand": "Coca-Cola",
+        "size": "6"
+      },
+      "180000000437": {
+        "store_item_id": "180000000437",
+        "name": "Coca-Cola Zero Sugar Soft Drink Multipack Bottles",
+        "brand": "Coca-Cola",
+        "size": "12"
+      },
+      "20000006065": {
+        "store_item_id": "20000006065",
+        "name": "Coca-Cola Zero Sugar Soft Drink Multipack Bottles",
+        "brand": "Coca Cola",
+        "size": "12"
+      },
+      "215456": {
+        "store_item_id": "215456",
+        "name": "Coca-Cola Classic Soft Drink Multipack Glass Bottles",
+        "brand": "Coca-Cola",
+        "size": "4"
+      },
+      "310303": {
+        "store_item_id": "310303",
+        "name": "Coca-Cola Classic Soft Drink Multipack Mini Bottles",
+        "brand": "Coca-Cola",
+        "size": "12"
+      },
+      "674485": {
+        "store_item_id": "674485",
+        "name": "Coca-Cola Zero Sugar Soft Drink Multipack Mini Cans",
+        "brand": "Coca-Cola",
+        "size": "6"
+      },
+      "215464": {
+        "store_item_id": "215464",
+        "name": "Coca-Cola Zero Sugar Soft Drink Multipack Glass Bottles",
+        "brand": "Coca-Cola",
+        "size": "4"
+      },
+      "1800000075210": {
+        "store_item_id": "1800000075210",
+        "name": "Pepsi Max",
+        "brand": "Pepsi",
+        "size": "2 l"
+      },
+      "14279": {
+        "store_item_id": "14279",
+        "name": "Pepsi Soda Bottle",
+        "brand": "Pepsi",
+        "size": "1.25 l"
+      },
+      "1800000067772": {
+        "store_item_id": "1800000067772",
+        "name": "Pepsi Cola Soft Drink",
+        "brand": "Pepsi",
+        "size": "250 ml"
+      },
+      "1800000067778": {
+        "store_item_id": "1800000067778",
+        "name": "Pepsi Cola Soft Drink",
+        "brand": "Pepsi",
+        "size": "1.25 l"
+      },
+      "409351": {
+        "store_item_id": "409351",
+        "name": "Pepsi Max Soda Bottle",
+        "brand": "Pepsi",
+        "size": "600 ml"
+      },
+      "593781": {
+        "store_item_id": "593781",
+        "name": "Pepsi Max No Sugar Soda Cans",
+        "brand": "Pepsi",
+        "size": "10"
+      },
+      "634605": {
+        "store_item_id": "634605",
+        "name": "Pepsi Max No Sugar Soda Cans",
+        "brand": "Pepsi",
+        "size": "24"
+      },
+      "328416": {
+        "store_item_id": "328416",
+        "name": "Pepsi Max No Sugar Soda Bottle",
+        "brand": "Pepsi",
+        "size": "2 l"
+      }
+    },
+    "woolworths": {
+      "6030584": {
+        "store_item_id": "6030584",
+        "name": "Capilano Pure Honey",
+        "brand": "Capilano",
+        "size": "1kg"
+      },
+      "33642": {
+        "store_item_id": "33642",
+        "name": "Capilano 100% Pure Australian Honey Jar",
+        "brand": "Capilano",
+        "size": "500g"
+      },
+      "680476": {
+        "store_item_id": "680476",
+        "name": "Capilano 100% Pure Australian Honey Pail",
+        "brand": "Capilano",
+        "size": "1kg"
+      },
+      "262206": {
+        "store_item_id": "262206",
+        "name": "Capilano 100% Pure Australian Honey Squeeze",
+        "brand": "Capilano",
+        "size": "500g"
+      },
+      "954138": {
+        "store_item_id": "954138",
+        "name": "Capilano 100% Pure Australian Honey Squeeze",
+        "brand": "Capilano",
+        "size": "340g"
+      },
+      "224190": {
+        "store_item_id": "224190",
+        "name": "Heinz Big N Chunky Bacon Steak Potato Soup",
+        "brand": "Heinz",
+        "size": "535g"
+      },
+      "224195": {
+        "store_item_id": "224195",
+        "name": "Heinz Big N Chunky Peppered Steak Soup Tinned Ready Meals",
+        "brand": "Heinz",
+        "size": "535g"
+      },
+      "224203": {
+        "store_item_id": "224203",
+        "name": "Heinz Big N Chunky Beef Stockpot Soup",
+        "brand": "Heinz",
+        "size": "535g"
+      },
+      "167628": {
+        "store_item_id": "167628",
+        "name": "Heinz Big N Chunky Chicken & Corn Soup Tinned Ready Meals",
+        "brand": "Heinz",
+        "size": "535g"
+      },
+      "750407": {
+        "store_item_id": "750407",
+        "name": "Heinz Big N Chunky Mexican Chilli Beef Soup Ready Meals",
+        "brand": "Heinz",
+        "size": "520g"
+      },
+      "224906": {
+        "store_item_id": "224906",
+        "name": "Maggi Beef Flavour Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "58g"
+      },
+      "343896": {
+        "store_item_id": "343896",
+        "name": "Maggi 2 Minute Beef Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "370g 5 pack"
+      },
+      "343900": {
+        "store_item_id": "343900",
+        "name": "Maggi 2 Minute Beef Flavour Instant Noodles",
+        "brand": "Maggi",
+        "size": "888g 12 pack"
+      },
+      "224905": {
+        "store_item_id": "224905",
+        "name": "Maggi Chicken Flavour Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "60g"
+      },
+      "224909": {
+        "store_item_id": "224909",
+        "name": "Maggi Oriental Flavour Cup Instant Noodles",
+        "brand": "Maggi",
+        "size": "60g"
+      },
+      "258476": {
+        "store_item_id": "258476",
+        "name": "Woolworths Tomato Paste",
+        "brand": "Woolworths",
+        "size": "415g"
+      },
+      "748896": {
+        "store_item_id": "748896",
+        "name": "Woolworths Tomato Paste Sachet",
+        "brand": "Woolworths",
+        "size": "4 pack"
+      },
+      "34004": {
+        "store_item_id": "34004",
+        "name": "Woolworths Essentials Tomato Paste",
+        "brand": "Woolworths Essentials",
+        "size": "500g"
+      },
+      "90260": {
+        "store_item_id": "90260",
+        "name": "Woolworths Essentials Tomato Paste",
+        "brand": "Woolworths Essentials",
+        "size": "170g"
+      },
+      "1122098967": {
+        "store_item_id": "1122098967",
+        "name": "Global Organics Tomato Paste Organic (Tube) 200g",
+        "brand": "",
+        "size": ""
+      },
+      "85045": {
+        "store_item_id": "85045",
+        "name": "Leggo's Australian Grown Tomato Paste No Added Salt",
+        "brand": "Leggo's",
+        "size": "500g"
+      },
+      "732354": {
+        "store_item_id": "732354",
+        "name": "Ardmona Rich & Thick Diced Tomatos with Paste Mixed Herbs",
+        "brand": "Ardmona",
+        "size": "410g"
+      },
+      "38640": {
+        "store_item_id": "38640",
+        "name": "Leggo's Australian Grown Tomato Paste Triple Concentrate",
+        "brand": "Leggo's",
+        "size": "500g"
+      },
+      "226836": {
+        "store_item_id": "226836",
+        "name": "Ardmona Rich & Thick Diced Tomatoes with Paste Basil & Garlic",
+        "brand": "Ardmona",
+        "size": "410g"
+      },
+      "259592": {
+        "store_item_id": "259592",
+        "name": "Leggo's Australian Grown Tomato Paste Triple Concentrate Squeeze",
+        "brand": "Leggo's",
+        "size": "400g"
+      },
+      "48650": {
+        "store_item_id": "48650",
+        "name": "Woolworths Salted Butter",
+        "brand": "Woolworths",
+        "size": "500g"
+      },
+      "847873": {
+        "store_item_id": "847873",
+        "name": "Woolworths Lettuce Butter",
+        "brand": "Woolworths",
+        "size": "170g"
+      },
+      "66921": {
+        "store_item_id": "66921",
+        "name": "Woolworths Butter Croissant",
+        "brand": "Woolworths",
+        "size": "10 pack"
+      },
+      "6006276": {
+        "store_item_id": "6006276",
+        "name": "La Gina Butter Beans",
+        "brand": "La Gina",
+        "size": "400g"
+      },
+      "6039974": {
+        "store_item_id": "6039974",
+        "name": "Woolworths Bread & Butter Pickles",
+        "brand": "Woolworths",
+        "size": "500g"
+      },
+      "96804": {
+        "store_item_id": "96804",
+        "name": "Noya Almond Nut Butter",
+        "brand": "Noya",
+        "size": "250g"
+      },
+      "223868": {
+        "store_item_id": "223868",
+        "name": "Lurpak Butter Unsalted Butter",
+        "brand": "Lurpak",
+        "size": "250g"
+      },
+      "712233": {
+        "store_item_id": "712233",
+        "name": "Westgold Salted Butter Butter",
+        "brand": "Westgold",
+        "size": "250g"
+      },
+      "48649": {
+        "store_item_id": "48649",
+        "name": "Woolworths Essentials Salted Butter",
+        "brand": "Woolworths Essentials",
+        "size": "250g"
+      },
+      "68978": {
+        "store_item_id": "68978",
+        "name": "Woolworths Australian Butter Salted",
+        "brand": "Woolworths",
+        "size": "250g"
+      },
+      "714989": {
+        "store_item_id": "714989",
+        "name": "Westgold Unsalted Butter Butter",
+        "brand": "Westgold",
+        "size": "250g"
+      },
+      "6078088": {
+        "store_item_id": "6078088",
+        "name": "Woolworths Salted Butter Spreadable",
+        "brand": "Woolworths",
+        "size": "250g"
+      },
+      "38920": {
+        "store_item_id": "38920",
+        "name": "Bega Peanut Butter Smooth",
+        "brand": "Bega",
+        "size": "200g"
+      },
+      "16677": {
+        "store_item_id": "16677",
+        "name": "Fix & Fogg Everything Butter",
+        "brand": "Fix & Fogg",
+        "size": "275g"
+      },
+      "46731": {
+        "store_item_id": "46731",
+        "name": "Bega Peanut Butter Crunchy",
+        "brand": "Bega",
+        "size": "200g"
+      },
+      "68977": {
+        "store_item_id": "68977",
+        "name": "Woolworths Australian Butter Unsalted",
+        "brand": "Woolworths",
+        "size": "250g"
+      },
+      "367791": {
+        "store_item_id": "367791",
+        "name": "Macro Organic Salted Butter",
+        "brand": "Macro",
+        "size": "250g"
+      },
+      "75645": {
+        "store_item_id": "75645",
+        "name": "Devondale Butter Block Salted Butter",
+        "brand": "Devondale",
+        "size": "250g"
+      },
+      "223867": {
+        "store_item_id": "223867",
+        "name": "Lurpak Butter Slightly Salted Butter",
+        "brand": "Lurpak",
+        "size": "250g"
+      },
+      "39361": {
+        "store_item_id": "39361",
+        "name": "MasterFoods Lemon Butter Spread",
+        "brand": "MasterFoods",
+        "size": "280g"
+      },
+      "6056976": {
+        "store_item_id": "6056976",
+        "name": "Gui Gui Mini Butter Slime Assorted",
+        "brand": "Gui Gui",
+        "size": "each"
+      },
+      "1127786653": {
+        "store_item_id": "1127786653",
+        "name": "Gui Gui Mini Slime Keychain - Butter Slime",
+        "brand": "",
+        "size": ""
+      },
+      "652560": {
+        "store_item_id": "652560",
+        "name": "Devondale Butter Block Unsalted Butter",
+        "brand": "Devondale",
+        "size": "250g"
+      },
+      "48025": {
+        "store_item_id": "48025",
+        "name": "Western Star Salted Butter Block Butter Block",
+        "brand": "Western Star",
+        "size": "250g"
+      },
+      "174742": {
+        "store_item_id": "174742",
+        "name": "Patak's Butter Chicken Curry Paste Paste",
+        "brand": "Patak's",
+        "size": "312g"
+      },
+      "1113621015": {
+        "store_item_id": "1113621015",
+        "name": "Premium Butter Roller- Commercial",
+        "brand": "",
+        "size": "1EA"
+      },
+      "6076385": {
+        "store_item_id": "6076385",
+        "name": "Woolworths Raw Prawns With Chilli Lime Butter",
+        "brand": "Woolworths",
+        "size": "220g"
+      },
+      "117693": {
+        "store_item_id": "117693",
+        "name": "Health Lab Peanut Butter Envy Balls",
+        "brand": "Health Lab",
+        "size": "200g"
+      },
+      "1120124060": {
+        "store_item_id": "1120124060",
+        "name": "Power Super Foods Cacao Gold Butter 250 g",
+        "brand": "Power Super Foods",
+        "size": ""
+      },
+      "1126252395": {
+        "store_item_id": "1126252395",
+        "name": "Happy Bubs Butter Smooth Brush Blue",
+        "brand": "Happy Bubs",
+        "size": ""
+      },
+      "1110806959": {
+        "store_item_id": "1110806959",
+        "name": "SNICKERS HI PROTEIN BARS PEANUT BUTTER",
+        "brand": "Factory Direct Nutrition",
+        "size": ""
+      },
+      "171391": {
+        "store_item_id": "171391",
+        "name": "Gillette Pure Butter Smooth Shave Gel",
+        "brand": "Gillette",
+        "size": "195g"
+      },
+      "182406": {
+        "store_item_id": "182406",
+        "name": "Sheep Dog Peanut Butter Whisky Bottle",
+        "brand": "Sheep Dog",
+        "size": "50mL x 1 Bottle"
+      },
+      "272721": {
+        "store_item_id": "272721",
+        "name": "Bow Wow Peamutt Butter Roll Dog Treat",
+        "brand": "Bow Wow",
+        "size": "each"
+      },
+      "1113382259": {
+        "store_item_id": "1113382259",
+        "name": "Bread and Butter Jumbo Tree Cookie Cutter",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1129283965": {
+        "store_item_id": "1129283965",
+        "name": "Trail Butter - Big Squeeze - Variety Pack",
+        "brand": "",
+        "size": ""
+      },
+      "1132554302": {
+        "store_item_id": "1132554302",
+        "name": "Clif Energy Bar Crunchy Peanut Butter",
+        "brand": "Clif",
+        "size": ""
+      },
+      "34107": {
+        "store_item_id": "34107",
+        "name": "Edgell Sliced Mushrooms In Butter Sauce",
+        "brand": "Edgell",
+        "size": "220g"
+      },
+      "899791": {
+        "store_item_id": "899791",
+        "name": "Mainland Organic Spreadable Butter Tub Spreadable Butter",
+        "brand": "Mainland",
+        "size": "250g"
+      },
+      "452266": {
+        "store_item_id": "452266",
+        "name": "The Spice Tailor Classic Butter Chicken",
+        "brand": "The Spice Tailor",
+        "size": "300g"
+      },
+      "1124162127": {
+        "store_item_id": "1124162127",
+        "name": "Ecology Signature Butter Dish with Tray",
+        "brand": "Ecology",
+        "size": "1EA"
+      },
+      "1125271677": {
+        "store_item_id": "1125271677",
+        "name": "Hardcore Carnivore Hot Honey Butter Mix",
+        "brand": "Hardcore Carnivore",
+        "size": ""
+      },
+      "1129840569": {
+        "store_item_id": "1129840569",
+        "name": "Gui Gui Slime Single Fruit Glow Pack - Butter",
+        "brand": "",
+        "size": ""
+      },
+      "96010": {
+        "store_item_id": "96010",
+        "name": "Noya Abc Almond Brazil & Cashew Nut Butter",
+        "brand": "Noya",
+        "size": "250g"
+      },
+      "223865": {
+        "store_item_id": "223865",
+        "name": "Lurpak Butter Spreadable Slightly Salted",
+        "brand": "Lurpak",
+        "size": "250g"
+      },
+      "6086929": {
+        "store_item_id": "6086929",
+        "name": "Passage To India Butter Chicken Meal Kit",
+        "brand": "Passage To India",
+        "size": "255g"
+      },
+      "6040705": {
+        "store_item_id": "6040705",
+        "name": "Woolworths Cheese Burger Slices",
+        "brand": "Woolworths",
+        "size": "250g"
+      },
+      "166326": {
+        "store_item_id": "166326",
+        "name": "Cheer Aussie Jack Burger Cheese Slices",
+        "brand": "Cheer",
+        "size": "16 pack"
+      },
+      "681781": {
+        "store_item_id": "681781",
+        "name": "Dairyworks Cheddar Cheese Burger Slices",
+        "brand": "Dairyworks",
+        "size": "200g"
+      },
+      "348705": {
+        "store_item_id": "348705",
+        "name": "Woolworths Swiss Cheese Slices",
+        "brand": "Woolworths",
+        "size": "200g"
+      },
+      "224941": {
+        "store_item_id": "224941",
+        "name": "Woolworths Tasty Cheese Slices",
+        "brand": "Woolworths",
+        "size": "500g"
+      },
+      "175028": {
+        "store_item_id": "175028",
+        "name": "Moccona Coffee Sachets Caramel Latte",
+        "brand": "Moccona",
+        "size": "10 pack"
+      },
+      "176950": {
+        "store_item_id": "176950",
+        "name": "Moccona Coffee Sachets Caramel Latte",
+        "brand": "Moccona",
+        "size": "30 pack"
+      },
+      "6020610": {
+        "store_item_id": "6020610",
+        "name": "Moccona Coffee Sachets 99% Sugar Free Caramel Latte",
+        "brand": "Moccona",
+        "size": "10 pack"
+      },
+      "174480": {
+        "store_item_id": "174480",
+        "name": "Moccona Coffee Sachets Latte",
+        "brand": "Moccona",
+        "size": "10 pack"
+      },
+      "174717": {
+        "store_item_id": "174717",
+        "name": "Moccona Coffee Sachets Latte",
+        "brand": "Moccona",
+        "size": "30 pack"
+      },
+      "1124857091": {
+        "store_item_id": "1124857091",
+        "name": "Suds Pedal Bin 3L - Black",
+        "brand": "Salt & Pepper",
+        "size": ""
+      },
+      "94618": {
+        "store_item_id": "94618",
+        "name": "Hoyt's Pepper Black Whole",
+        "brand": "Hoyt's",
+        "size": "100g"
+      },
+      "260635": {
+        "store_item_id": "260635",
+        "name": "Ritz Black Pepper Crackers",
+        "brand": "Ritz",
+        "size": "227g"
+      },
+      "75194": {
+        "store_item_id": "75194",
+        "name": "McKenzie's Ground Black Pepper Ground",
+        "brand": "McKenzie's",
+        "size": "100g"
+      },
+      "6010713": {
+        "store_item_id": "6010713",
+        "name": "McKenzie's Ground Black Pepper",
+        "brand": "McKenzie's",
+        "size": "50g"
+      },
+      "334639": {
+        "store_item_id": "334639",
+        "name": "Woolworths Pepper Grinder Black Peppercorn",
+        "brand": "Woolworths",
+        "size": "50g"
+      },
+      "1111165157": {
+        "store_item_id": "1111165157",
+        "name": "Twin Pack Electric Salt & Pepper Grinder Mills Shakers Black",
+        "brand": "Splendid",
+        "size": "1EA"
+      },
+      "1111165187": {
+        "store_item_id": "1111165187",
+        "name": "Twin Pack Electric Salt & Pepper Grinder Mills Shakers Black",
+        "brand": "Splendid",
+        "size": "1EA"
+      },
+      "1122270619": {
+        "store_item_id": "1122270619",
+        "name": "Nature's Help Organic Turmeric with Black Pepper and Ginger 120 Capsules",
+        "brand": "Nature'S Help",
+        "size": "120EA"
+      },
+      "1125468077": {
+        "store_item_id": "1125468077",
+        "name": "2PCS Black ABS Electric Salt & Pepper Grinder Set Rechargeable Mills with Charging Base",
+        "brand": "",
+        "size": "1EA"
+      },
+      "799637": {
+        "store_item_id": "799637",
+        "name": "Woolworths Soda Water",
+        "brand": "Woolworths",
+        "size": "1.25L"
+      },
+      "756045": {
+        "store_item_id": "756045",
+        "name": "Woolworths Tonic Water",
+        "brand": "Woolworths",
+        "size": "1.25L"
+      },
+      "892117": {
+        "store_item_id": "892117",
+        "name": "Woolworths Spring Water",
+        "brand": "Woolworths",
+        "size": "4L"
+      },
+      "756049": {
+        "store_item_id": "756049",
+        "name": "Woolworths Diet Tonic Water",
+        "brand": "Woolworths",
+        "size": "1.25L"
+      },
+      "38724": {
+        "store_item_id": "38724",
+        "name": "Pureau Pure Water",
+        "brand": "Pureau",
+        "size": "5L"
+      },
+      "770183": {
+        "store_item_id": "770183",
+        "name": "Woolworths Spring Water Bottles",
+        "brand": "Woolworths",
+        "size": "600mL x 12 pack"
+      },
+      "1122945837": {
+        "store_item_id": "1122945837",
+        "name": "Lychee Coconut Water 500ml x 12",
+        "brand": "",
+        "size": ""
+      },
+      "1123487699": {
+        "store_item_id": "1123487699",
+        "name": "Solar Water Fountain",
+        "brand": "",
+        "size": ""
+      },
+      "1124745129": {
+        "store_item_id": "1124745129",
+        "name": "Fire Plane Water Toy",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1120762727": {
+        "store_item_id": "1120762727",
+        "name": "Water Wise Starter Set",
+        "brand": "Hoselink",
+        "size": "1EA"
+      },
+      "1124346575": {
+        "store_item_id": "1124346575",
+        "name": "Spyra Go Water Gun Red",
+        "brand": "Spyra",
+        "size": "1EA"
+      },
+      "1124346573": {
+        "store_item_id": "1124346573",
+        "name": "Spyra Go Water Gun Blue",
+        "brand": "Spyra",
+        "size": "1EA"
+      },
+      "1122945823": {
+        "store_item_id": "1122945823",
+        "name": "Strawberry Coconut Water 500ml x 12",
+        "brand": "",
+        "size": ""
+      },
+      "1124241059": {
+        "store_item_id": "1124241059",
+        "name": "Spyra Three Water Gun Red",
+        "brand": "Spyra",
+        "size": "1EA"
+      },
+      "231414": {
+        "store_item_id": "231414",
+        "name": "Mount Franklin Still Water",
+        "brand": "Mount Franklin",
+        "size": "500mL x 12 pack"
+      },
+      "1111986745": {
+        "store_item_id": "1111986745",
+        "name": "API Water Softening Pillow",
+        "brand": "API",
+        "size": "1EA"
+      },
+      "1127846247": {
+        "store_item_id": "1127846247",
+        "name": "Electric Water Gun Blaster",
+        "brand": "",
+        "size": ""
+      },
+      "1129302731": {
+        "store_item_id": "1129302731",
+        "name": "Pusheen Sweets Water Bottle",
+        "brand": "Pusheen",
+        "size": ""
+      },
+      "1124264843": {
+        "store_item_id": "1124264843",
+        "name": "Boon Cogs Water Gears Bath Toy",
+        "brand": "Boon",
+        "size": "1EA"
+      },
+      "1126544273": {
+        "store_item_id": "1126544273",
+        "name": "Chicco Croc Sensory Water Pad",
+        "brand": "Chicco",
+        "size": ""
+      },
+      "1127917491": {
+        "store_item_id": "1127917491",
+        "name": "Cat Water Fountain Filters 6PCS",
+        "brand": "",
+        "size": ""
+      },
+      "1125024547": {
+        "store_item_id": "1125024547",
+        "name": "Tamagotchi Paradise (Blue Water)",
+        "brand": "Tamagotchi",
+        "size": "1EA"
+      },
+      "1128366481": {
+        "store_item_id": "1128366481",
+        "name": "Revolver Water Gun Toy For Kids",
+        "brand": "",
+        "size": ""
+      },
+      "1116241589": {
+        "store_item_id": "1116241589",
+        "name": "Wahu Mega Slide 7.5 Metres Water Slide",
+        "brand": "Wahu",
+        "size": "1EA"
+      },
+      "1130430199": {
+        "store_item_id": "1130430199",
+        "name": "MOVA WF10 Pro Pet Water Fountain",
+        "brand": "MOVA",
+        "size": ""
+      },
+      "1115660729": {
+        "store_item_id": "1115660729",
+        "name": "Wahu Mega Double Water Slide 7.5m",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1115775591": {
+        "store_item_id": "1115775591",
+        "name": "Buddy & Barney - Bath Time Water Flutes",
+        "brand": "Buddy & Barney",
+        "size": "1EA"
+      },
+      "1118975569": {
+        "store_item_id": "1118975569",
+        "name": "Piksters HydroPik Pro Water Flosser",
+        "brand": "Piksters",
+        "size": ""
+      },
+      "1120752945": {
+        "store_item_id": "1120752945",
+        "name": "Curash Water Wipes 6X80 New formula",
+        "brand": "Curash",
+        "size": ""
+      },
+      "1122691821": {
+        "store_item_id": "1122691821",
+        "name": "Curash Simply Water Wipes 640 Count",
+        "brand": "Curash",
+        "size": ""
+      },
+      "1124069087": {
+        "store_item_id": "1124069087",
+        "name": "Curash Simply Water Wipes 640 Count",
+        "brand": "Curash",
+        "size": ""
+      },
+      "6005926": {
+        "store_item_id": "6005926",
+        "name": "Piksters Hydropik Mini Water Flosser",
+        "brand": "Piksters",
+        "size": "each"
+      },
+      "1121901741": {
+        "store_item_id": "1121901741",
+        "name": "BabyLove 99% Water Baby Wipes 6 x 80's",
+        "brand": "BabyLove",
+        "size": ""
+      },
+      "1122623299": {
+        "store_item_id": "1122623299",
+        "name": "Mideer Water Gun Bath Toy - Plane 18M+",
+        "brand": "Mideer",
+        "size": "1EA"
+      },
+      "1125272379": {
+        "store_item_id": "1125272379",
+        "name": "5 in 1 Water Aquarium Cleaning Tool",
+        "brand": "",
+        "size": ""
+      },
+      "1116201503": {
+        "store_item_id": "1116201503",
+        "name": "Hanging Toiletry Bag Water Resistant",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1116328351": {
+        "store_item_id": "1116328351",
+        "name": "Liquifly Deluxe Water Powered Rocket",
+        "brand": "Heebie Jeebies",
+        "size": "1EA"
+      },
+      "1118975575": {
+        "store_item_id": "1118975575",
+        "name": "Piksters HydroPik Ultra Water Flosser",
+        "brand": "Piksters",
+        "size": "1EA"
+      },
+      "1119597851": {
+        "store_item_id": "1119597851",
+        "name": "Art Water Feature Water Fountain MZ14448GA",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1121994835": {
+        "store_item_id": "1121994835",
+        "name": "Ordo Hydro Sonic+ Water Flosser (White)",
+        "brand": "Ordo",
+        "size": "1EA"
+      },
+      "1123982895": {
+        "store_item_id": "1123982895",
+        "name": "3 WATER SLIDING MATS WITH HANDLES - PACK",
+        "brand": "Crocpad",
+        "size": "1EA"
+      },
+      "1124514631": {
+        "store_item_id": "1124514631",
+        "name": "Panasonic Cordless Water Flosser - Blue",
+        "brand": "Panasonic",
+        "size": "1EA"
+      },
+      "218915": {
+        "store_item_id": "218915",
+        "name": "Woolworths Peas & Carrots",
+        "brand": "Woolworths",
+        "size": "420g"
+      },
+      "143989": {
+        "store_item_id": "143989",
+        "name": "Woolworths Carrot Cake",
+        "brand": "Woolworths",
+        "size": "1.5kg"
+      },
+      "742824": {
+        "store_item_id": "742824",
+        "name": "Woolworths Baby Carrots",
+        "brand": "Woolworths",
+        "size": "500g"
+      },
+      "135344": {
+        "store_item_id": "135344",
+        "name": "Carrot Fresh",
+        "brand": "",
+        "size": "each"
+      },
+      "79928": {
+        "store_item_id": "79928",
+        "name": "Woolworths Carrot Corn & Beans",
+        "brand": "Woolworths",
+        "size": "350g"
+      },
+      "94250": {
+        "store_item_id": "94250",
+        "name": "Edgell Peas & Carrots Peas & Carrots",
+        "brand": "Edgell",
+        "size": "420g"
+      },
+      "218900": {
+        "store_item_id": "218900",
+        "name": "Woolworths Whole Baby Carrots Baby",
+        "brand": "Woolworths",
+        "size": "410g"
+      },
+      "135334": {
+        "store_item_id": "135334",
+        "name": "Woolworths Carrot Dutch Bunch",
+        "brand": "Woolworths",
+        "size": "each"
+      },
+      "921672": {
+        "store_item_id": "921672",
+        "name": "Woolworths Carrot & Walnut Loaf",
+        "brand": "Woolworths",
+        "size": "540g"
+      },
+      "96708": {
+        "store_item_id": "96708",
+        "name": "Sara Lee Carrot Cake",
+        "brand": "Sara Lee",
+        "size": "400g"
+      },
+      "117381": {
+        "store_item_id": "117381",
+        "name": "Macro Organic Carrots",
+        "brand": "Macro",
+        "size": "750g"
+      },
+      "288440": {
+        "store_item_id": "288440",
+        "name": "The Odd Bunch Carrots",
+        "brand": "The Odd Bunch",
+        "size": "1.5kg"
+      },
+      "921080": {
+        "store_item_id": "921080",
+        "name": "Just Veg. Carrot Sticks",
+        "brand": "Just Veg.",
+        "size": "300g"
+      },
+      "921142": {
+        "store_item_id": "921142",
+        "name": "Just Veg. Carrot Shred",
+        "brand": "Just Veg.",
+        "size": "300g"
+      },
+      "345414": {
+        "store_item_id": "345414",
+        "name": "Edgell Peas Corn & Carrots Corn & Carrots",
+        "brand": "Edgell",
+        "size": "420g"
+      },
+      "103358": {
+        "store_item_id": "103358",
+        "name": "Woolworths Traditional Carrot Cake",
+        "brand": "Woolworths",
+        "size": "450g"
+      },
+      "135369": {
+        "store_item_id": "135369",
+        "name": "Woolworths Australian Grown Carrots",
+        "brand": "Woolworths",
+        "size": "1kg"
+      },
+      "694123": {
+        "store_item_id": "694123",
+        "name": "Macro Lentil Bites Carrot",
+        "brand": "Macro",
+        "size": "6 pack"
+      },
+      "6006814": {
+        "store_item_id": "6006814",
+        "name": "McCain Frozen Peas & Carrots",
+        "brand": "McCain",
+        "size": "2kg"
+      },
+      "85794": {
+        "store_item_id": "85794",
+        "name": "Woolworths Snackable Snacking Carrot",
+        "brand": "Woolworths",
+        "size": "250g"
+      },
+      "1124693827": {
+        "store_item_id": "1124693827",
+        "name": "Orbee-Tuff Carrot Chew Toy",
+        "brand": "",
+        "size": "1EA"
+      },
+      "528836": {
+        "store_item_id": "528836",
+        "name": "Macro Purple Carrot Organic",
+        "brand": "Macro",
+        "size": "500g"
+      },
+      "1113634487": {
+        "store_item_id": "1113634487",
+        "name": "Zippy Burrow - Bunny 'n Carrot",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1122089137": {
+        "store_item_id": "1122089137",
+        "name": "Biotta Organic Carrot Juice 500ml",
+        "brand": "",
+        "size": ""
+      },
+      "918790": {
+        "store_item_id": "918790",
+        "name": "Macro Organic Peas Corn & Carrots",
+        "brand": "Macro",
+        "size": "420g"
+      },
+      "255445": {
+        "store_item_id": "255445",
+        "name": "Birds Eye Frozen Carrot Peas & Corn",
+        "brand": "Birds Eye",
+        "size": "1kg"
+      },
+      "317566": {
+        "store_item_id": "317566",
+        "name": "Woolworths Mixed Leaf With Beetroot & Carrot",
+        "brand": "Woolworths",
+        "size": "180g"
+      },
+      "289348": {
+        "store_item_id": "289348",
+        "name": "Bell Farms Frozen Carrots Peas & Corn",
+        "brand": "Bell Farms",
+        "size": "1kg"
+      },
+      "447762": {
+        "store_item_id": "447762",
+        "name": "Woolworths Mixed Leaf With Carrot Salad Mix",
+        "brand": "Woolworths",
+        "size": "300g"
+      },
+      "571899": {
+        "store_item_id": "571899",
+        "name": "Woolworths Honey Sea Salt Carrots & Broccolini",
+        "brand": "Woolworths",
+        "size": "180g"
+      },
+      "653793": {
+        "store_item_id": "653793",
+        "name": "Woolworths Carrot Sultana & Walnut Loaf Slices 500g",
+        "brand": "Woolworths",
+        "size": "5 pack"
+      },
+      "6094670": {
+        "store_item_id": "6094670",
+        "name": "The Happy Baker Iced Carrot Cake",
+        "brand": "The Happy Baker",
+        "size": "350g"
+      },
+      "67291": {
+        "store_item_id": "67291",
+        "name": "Green's Cake Mix Traditional Carrot",
+        "brand": "Green's",
+        "size": "470g"
+      },
+      "158938": {
+        "store_item_id": "158938",
+        "name": "Woolworths Washed & Ready To Cook Carrot Sticks",
+        "brand": "Woolworths",
+        "size": "150g"
+      },
+      "176477": {
+        "store_item_id": "176477",
+        "name": "Little Bellies Organic Carrot Puffs",
+        "brand": "Little Bellies",
+        "size": "35g"
+      },
+      "768562": {
+        "store_item_id": "768562",
+        "name": "Woolworths Frozen Australian Julienne Carrots",
+        "brand": "Woolworths",
+        "size": "500g"
+      },
+      "768569": {
+        "store_item_id": "768569",
+        "name": "Woolworths Frozen Australian Carrots Peas & Corn",
+        "brand": "Woolworths",
+        "size": "1kg"
+      },
+      "790107": {
+        "store_item_id": "790107",
+        "name": "Little Bellies Organic Carrot Puffs",
+        "brand": "Little Bellies",
+        "size": "12g"
+      },
+      "1099925251": {
+        "store_item_id": "1099925251",
+        "name": "Nibbler Healthy Bar Banana & Carrot 90g x 12",
+        "brand": "Nibbler",
+        "size": ""
+      },
+      "905271": {
+        "store_item_id": "905271",
+        "name": "Only Organic Rice Cakes Carrot & Apple",
+        "brand": "Only Organic",
+        "size": "35g"
+      },
+      "164942": {
+        "store_item_id": "164942",
+        "name": "Noshu 95% Sugar Free Iced Carrot Cakes 180g",
+        "brand": "Noshu",
+        "size": "4 pack"
+      },
+      "1126329201": {
+        "store_item_id": "1126329201",
+        "name": "FuzzYard Reindeer Carrot Juice and Carrot Dog Toy 2 Pack",
+        "brand": "Fuzzyard",
+        "size": ""
+      },
+      "72892": {
+        "store_item_id": "72892",
+        "name": "Woolworths Free From Gluten Iced Carrot Cake Slices",
+        "brand": "Woolworths",
+        "size": "4 pack"
+      },
+      "6054728": {
+        "store_item_id": "6054728",
+        "name": "Woolworths Potatoes, Carrots & Beans With Garlic Herb Butter",
+        "brand": "Woolworths",
+        "size": "325g"
+      },
+      "6082295": {
+        "store_item_id": "6082295",
+        "name": "Little Bellies Mini Pick Up Sticks Carrot 7m+",
+        "brand": "Little Bellies",
+        "size": "4 pack"
+      },
+      "1129871433": {
+        "store_item_id": "1129871433",
+        "name": "2 Pack Carrot Dog Rope Chew Toy Orange for Puppies and Dogs",
+        "brand": "",
+        "size": ""
+      },
+      "217969": {
+        "store_item_id": "217969",
+        "name": "Birds Eye Frozen Carrot Cauliflower & Broccoli",
+        "brand": "Birds Eye",
+        "size": "1kg"
+      },
+      "223742": {
+        "store_item_id": "223742",
+        "name": "Tasti Fruit + Vege Wholefood Balls Mango & Carrot",
+        "brand": "Tasti",
+        "size": "18 pack"
+      },
+      "583617": {
+        "store_item_id": "583617",
+        "name": "Woolworths Carrots, Broccoli & Cauliflower With Herb Butter",
+        "brand": "Woolworths",
+        "size": "200g"
+      },
+      "634312": {
+        "store_item_id": "634312",
+        "name": "Baby Mum-Mum Organiic Rice Rusks Blueberry & Carrot",
+        "brand": "Baby Mum-Mum",
+        "size": "18 pack"
+      },
+      "784642": {
+        "store_item_id": "784642",
+        "name": "Nudie Nothing But Carrot Orange Apple & Ginger",
+        "brand": "Nudie",
+        "size": "2L"
+      },
+      "54233": {
+        "store_item_id": "54233",
+        "name": "McCain Frozen Mixed Vegetables Peas Corn & Carrot",
+        "brand": "McCain",
+        "size": "500g"
+      },
+      "176319": {
+        "store_item_id": "176319",
+        "name": "Little Bellies Organic Pumpkin & Carrot Softcorn",
+        "brand": "Little Bellies",
+        "size": "8g"
+      },
+      "322789": {
+        "store_item_id": "322789",
+        "name": "McCain Frozen Mixed Vegetables Peas Corn & Carrot",
+        "brand": "McCain",
+        "size": "2kg"
+      },
+      "1118911912": {
+        "store_item_id": "1118911912",
+        "name": "Happy Baby Superfood Puffs 60g / Sweet Potato & Carrot",
+        "brand": "",
+        "size": ""
+      },
+      "634313": {
+        "store_item_id": "634313",
+        "name": "Baby Mum-Mum Organic Rice Rusk Sweet Potato & Carrot",
+        "brand": "Baby Mum-Mum",
+        "size": "36g x 18 pack"
+      },
+      "710425": {
+        "store_item_id": "710425",
+        "name": "Only Organic 8 Months+ Carrot Red Lentils & Cheddar",
+        "brand": "Only Organic",
+        "size": "120g"
+      },
+      "322796": {
+        "store_item_id": "322796",
+        "name": "Birds Eye Steamfresh Frozen Carrots Broccoli & Corn",
+        "brand": "Birds Eye",
+        "size": "750g"
+      },
+      "6058587": {
+        "store_item_id": "6058587",
+        "name": "Birds Eye Steamfresh Frozen Beans Carrot & Broccoli",
+        "brand": "Birds Eye",
+        "size": "450g"
+      },
+      "1122716917": {
+        "store_item_id": "1122716917",
+        "name": "Holle Veggie Bunny - Carrot & Sweet Potato with Peas 90g",
+        "brand": "Holle",
+        "size": "90G"
+      },
+      "1118911908": {
+        "store_item_id": "1118911908",
+        "name": "Happy Baby Superfood Puffs 60g / Purple Carrot & Blueberry",
+        "brand": "",
+        "size": ""
+      },
+      "1129871431": {
+        "store_item_id": "1129871431",
+        "name": "3 Pack Carrot Cotton Interactive Dog Chew Toy for Puppies and Dogs",
+        "brand": "",
+        "size": ""
+      },
+      "190802": {
+        "store_item_id": "190802",
+        "name": "Nudie Antioxidant Carrot Turmeric Orange Apple & Lime",
+        "brand": "Nudie",
+        "size": "1L"
+      },
+      "782979": {
+        "store_item_id": "782979",
+        "name": "Birds Eye Snap Frozen Baby Beans Carrot Corn & Broccoli",
+        "brand": "Birds Eye",
+        "size": "1kg"
+      },
+      "1102592583": {
+        "store_item_id": "1102592583",
+        "name": "Zippy Paws Interactive Burrow Dog Toy - Bunny 'n Carrot",
+        "brand": "Zippy Paws",
+        "size": "1EA"
+      },
+      "409952": {
+        "store_item_id": "409952",
+        "name": "Woolworths Washed & Ready To Cook Carrot Broccoli & Cauliflower Mix",
+        "brand": "Woolworths",
+        "size": "750g"
+      },
+      "669654": {
+        "store_item_id": "669654",
+        "name": "Macro Organic Baby Food Sweet Potato Carrot & Zucchini",
+        "brand": "Macro Organic",
+        "size": "120g"
+      },
+      "190178": {
+        "store_item_id": "190178",
+        "name": "Nudie Immunity Hit Beetroot Carrot Orange Pear & Ginger",
+        "brand": "Nudie",
+        "size": "1L"
+      },
+      "247686": {
+        "store_item_id": "247686",
+        "name": "VIP Adult Chilled Fresh Dog Food Beef & Carrot Meatballs",
+        "brand": "VIP",
+        "size": "1kg"
+      },
+      "180752": {
+        "store_item_id": "180752",
+        "name": "Birds Eye Steamfresh Frozen Carrot Cauliflower & Broccoli",
+        "brand": "Birds Eye",
+        "size": "750g"
+      },
+      "782975": {
+        "store_item_id": "782975",
+        "name": "Birds Eye Steamfresh Frozen Carrot Cauliflower & Broccoli",
+        "brand": "Birds Eye",
+        "size": "450g"
+      },
+      "6006914": {
+        "store_item_id": "6006914",
+        "name": "Birds Eye Frozen Australian Carrot Cauliflower & Broccoli",
+        "brand": "Birds Eye",
+        "size": "2kg"
+      },
+      "1129871619": {
+        "store_item_id": "1129871619",
+        "name": "3 Pack Carrot Cotton Rope Interactive Dog Rope Chew Toy for Puppies and Dogs",
+        "brand": "",
+        "size": ""
+      },
+      "117518": {
+        "store_item_id": "117518",
+        "name": "Birds Eye Frozen Veggie Rice Carrot Cauliflower & Broccoli",
+        "brand": "Birds Eye",
+        "size": "500g"
+      },
+      "713592": {
+        "store_item_id": "713592",
+        "name": "Macro Organic Baby Food Pumpkin Potato Carrot & Sweetcorn",
+        "brand": "Macro Organic",
+        "size": "120g"
+      },
+      "6029059": {
+        "store_item_id": "6029059",
+        "name": "Prime Pantry Chilled Dog Food Roll Beef With Peas & Carrot",
+        "brand": "Prime Pantry",
+        "size": "1.7kg"
+      },
+      "6056302": {
+        "store_item_id": "6056302",
+        "name": "Ultimates Indulge Wet Dog Food Duck With Carrot & Brown Rice",
+        "brand": "Ultimates Indulge",
+        "size": "100g x 6 pack"
+      },
+      "1125365329": {
+        "store_item_id": "1125365329",
+        "name": "Nevenka Montessori Toys Carrot Harvest Learning Shape Game",
+        "brand": "Nevenka",
+        "size": "1EA"
+      },
+      "6057744": {
+        "store_item_id": "6057744",
+        "name": "Birds Eye Steamfresh Frozen Baby Potato Carrots Broccoli & Peas",
+        "brand": "Birds Eye",
+        "size": "400g"
+      },
+      "1125909455": {
+        "store_item_id": "1125909455",
+        "name": "3pcs Carrot Dog Bite Rope Pet Dog Toys Safe Durable Braided Bite Dog Chew Toys",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1127311723": {
+        "store_item_id": "1127311723",
+        "name": "HOLALA Cartoon Bath Toy Water Pump with Shower Head-Carrot",
+        "brand": "",
+        "size": ""
+      },
+      "1129451541": {
+        "store_item_id": "1129451541",
+        "name": "ESTONE 3pc Root Vegetable Cleaning Brush for Potatoes Carrots",
+        "brand": "",
+        "size": ""
+      },
+      "359587": {
+        "store_item_id": "359587",
+        "name": "My Dog Puppy Chicken With Rice Carrot & Spinach Wet Food Tray",
+        "brand": "My Dog",
+        "size": "100g"
+      },
+      "63892": {
+        "store_item_id": "63892",
+        "name": "Rafferty's Garden Baby Food Pouch Chickpea Corn & Carrot 8+ Months",
+        "brand": "Rafferty's Garden",
+        "size": "120g"
+      },
+      "6055319": {
+        "store_item_id": "6055319",
+        "name": "Supercoat Baked Biscuits Dog Treats With Chicken Carrot & Parsley",
+        "brand": "Supercoat",
+        "size": "400g"
+      },
+      "6057972": {
+        "store_item_id": "6057972",
+        "name": "Birds Eye Steamfresh Frozen Broccoli Carrots & Cauliflower Cheese",
+        "brand": "Birds Eye",
+        "size": "400g"
+      },
+      "6058507": {
+        "store_item_id": "6058507",
+        "name": "Birds Eye Deli Frozen Roast Veggies Potato Pumpkin Carrot & Onion",
+        "brand": "Birds Eye",
+        "size": "600g"
+      },
+      "1121598591": {
+        "store_item_id": "1121598591",
+        "name": "Tender Leaf Toys Counting Carrots Wooden Stacker Kids/Children Toy 18m+",
+        "brand": "Tender Leaf",
+        "size": "1EA"
+      },
+      "1127304789": {
+        "store_item_id": "1127304789",
+        "name": "HOLALA Montessori Toys for Kids Carrot Harvest Learning Shape Game",
+        "brand": "",
+        "size": ""
+      },
+      "291187": {
+        "store_item_id": "291187",
+        "name": "Rafferty's Garden Baby Food Pouch Sweet Potato Carrot & Apple 4+ Months",
+        "brand": "Rafferty's Garden",
+        "size": "120g"
+      },
+      "513258": {
+        "store_item_id": "513258",
+        "name": "Nature's Gift Adult Chilled Fresh Dog Food Roll With Beef Peas Carrots",
+        "brand": "Nature's Gift",
+        "size": "200g"
+      },
+      "1102533083": {
+        "store_item_id": "1102533083",
+        "name": "Rope Chew Carrot Veggie Chew Size Small 13.5cm Small Animal Dental Chew by Pet One",
+        "brand": "Pet One",
+        "size": "1EA"
+      },
+      "1127632755": {
+        "store_item_id": "1127632755",
+        "name": "Mr Fothergill's Chantenay Red Carrot Seeds - Sweet Stump-Rooted Variety",
+        "brand": "",
+        "size": ""
+      },
+      "1125258061": {
+        "store_item_id": "1125258061",
+        "name": "Nevenka 2 Pcs Vegetable Brushes Bendable Quick Cleaning Potato Carrots",
+        "brand": "Nevenka",
+        "size": "1EA"
+      },
+      "1131252339": {
+        "store_item_id": "1131252339",
+        "name": "34cm Giant Carrot Squishy Fidget Squeezy Stress Relief Sensory Toy Fun",
+        "brand": "",
+        "size": ""
+      },
+      "1122139603": {
+        "store_item_id": "1122139603",
+        "name": "Carrot Cat Scratching Post Vertical Climbing Frame Interactive Toy for Cats",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1116302631": {
+        "store_item_id": "1116302631",
+        "name": "2x Rosewood 21cm Corn Leaf Play Carrot & Corn Hamster/Rabbit Pet Toy Jumbo GRN",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1127305157": {
+        "store_item_id": "1127305157",
+        "name": "HOLALA Cartoon Bath Toy Rechargeable Water Pump with Shower Head-Carrot",
+        "brand": "",
+        "size": ""
+      },
+      "103548": {
+        "store_item_id": "103548",
+        "name": "Simply Wholesome Pantry Instant Nourish Bowl Quinoa With Peas Carrot & Corn",
+        "brand": "Simply Wholesome Pantry",
+        "size": "220g"
+      },
+      "1115231205": {
+        "store_item_id": "1115231205",
+        "name": "2Pcs Multifunctional Carrot Wash Brush Insulation Bottle Pacifier Cleaning Brush",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1116302579": {
+        "store_item_id": "1116302579",
+        "name": "3x 6Pk Rosewood Woodies Play Wood Carrot Chew/Gnaw Hamster Pet Toy Orange/Green",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1131751701": {
+        "store_item_id": "1131751701",
+        "name": "Deal365 Baby Cell Phone Toddler Carrot Shape Phone Toys with Light and Sound Kids Gift",
+        "brand": "",
+        "size": ""
+      },
+      "1116299955": {
+        "store_item_id": "1116299955",
+        "name": "Rosewood 2-in-1 Carrot Beehive Ferret/Hamster Pet Bed/Lounge Peach Assorted",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1116300051": {
+        "store_item_id": "1116300051",
+        "name": "Rosewood Polyester Carrot Soft Plush Ferret/Rat/Rabbit Hooded Pet Bed Peach",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1115563199": {
+        "store_item_id": "1115563199",
+        "name": "2x Lepets 13.5cm Frost Rabbit & Carrot Ceramic Cat Pet Food/Meal Bowl Container",
+        "brand": "Lepets",
+        "size": "1EA"
+      },
+      "1116302595": {
+        "store_item_id": "1116302595",
+        "name": "3x Rosewood Banana Leaf Chew/Gnaw Carrot Stuffer Hmasters/Gerbils Pet Toy NTRL",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1128471359": {
+        "store_item_id": "1128471359",
+        "name": "Carrot Cat Scratching Post 15.74in - Durable Sisal, Stable Base, Interactive Toy",
+        "brand": "Premium",
+        "size": ""
+      },
+      "1116302231": {
+        "store_item_id": "1116302231",
+        "name": "2x Rosewood 12cm Carrot Toy 'n' Treat Holder Hamster Pet Gnaw/Chew Activity NTRL",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1116302361": {
+        "store_item_id": "1116302361",
+        "name": "2x Rosewood 25x15cm Carrot Play Patch Rabbit Pet Chew/Scratch Activity Toy Red",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1116302629": {
+        "store_item_id": "1116302629",
+        "name": "3x 6Pc Rosewood Wooden Mini Sisal Carrots Guinea Pig Pet Activity Toy Red/Black",
+        "brand": "Rosewood",
+        "size": "1EA"
+      },
+      "1127528959": {
+        "store_item_id": "1127528959",
+        "name": "Mr Fothergill's Manchester Table Carrot Seeds - Long Cylindrical Rich-Coloured Roots",
+        "brand": "",
+        "size": ""
+      },
+      "1125224795": {
+        "store_item_id": "1125224795",
+        "name": "P&P Soft Felt Cat Cave Bed Semi Enclosed Scratching House Cozy Warm Carrot Design Au",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1109012979": {
+        "store_item_id": "1109012979",
+        "name": "5 X Grow Bags 5 Gallon Potato Bags Fabric Planting Pots Heavy Duty Nonwoven Container for Sweet Potato Carrot Onion",
+        "brand": "",
+        "size": "1EA"
+      },
+      "1130939675": {
+        "store_item_id": "1130939675",
+        "name": "5.8 inch Squeaky Plush Dog Toy, Carrot Shaped Chew Resistant Interactive, Durable Sounding Training Accessory for Puppy Indoor Play Bite Exercise",
+        "brand": "AUSTARZ",
+        "size": ""
+      },
+      "807385": {
+        "store_item_id": "807385",
+        "name": "Woolworths Lite Milk Lite Milk",
+        "brand": "Woolworths",
+        "size": "2L"
+      },
+      "807386": {
+        "store_item_id": "807386",
+        "name": "Woolworths Lite Milk Lite Milk",
+        "brand": "Woolworths",
+        "size": "3L"
+      },
+      "888114": {
+        "store_item_id": "888114",
+        "name": "Woolworths Lite Milk",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "888136": {
+        "store_item_id": "888136",
+        "name": "Woolworths Skim Milk",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "208066": {
+        "store_item_id": "208066",
+        "name": "a2 Milk Light Milk",
+        "brand": "a2",
+        "size": "2L"
+      },
+      "216867": {
+        "store_item_id": "216867",
+        "name": "a2 Milk Light Milk",
+        "brand": "a2",
+        "size": "1L"
+      },
+      "269103": {
+        "store_item_id": "269103",
+        "name": "J*st Milk Oat",
+        "brand": "J*st Milk",
+        "size": "1L"
+      },
+      "6076742": {
+        "store_item_id": "6076742",
+        "name": "Chocomel Milk",
+        "brand": "Chocomel",
+        "size": "1L"
+      },
+      "657076": {
+        "store_item_id": "657076",
+        "name": "a2 Milk No Fat Milk",
+        "brand": "a2",
+        "size": "1L"
+      },
+      "888113": {
+        "store_item_id": "888113",
+        "name": "Woolworths Full Cream Milk",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "266670": {
+        "store_item_id": "266670",
+        "name": "J*st Milk Almond",
+        "brand": "J*st Milk",
+        "size": "1L"
+      },
+      "6029662": {
+        "store_item_id": "6029662",
+        "name": "MINT Milk Frother",
+        "brand": "MINT",
+        "size": "each"
+      },
+      "136787": {
+        "store_item_id": "136787",
+        "name": "Caprilac Goat Milk",
+        "brand": "Caprilac",
+        "size": "1L"
+      },
+      "216872": {
+        "store_item_id": "216872",
+        "name": "a2 Milk Full Cream Milk",
+        "brand": "a2",
+        "size": "1L"
+      },
+      "263453": {
+        "store_item_id": "263453",
+        "name": "Oat Milk Goodness OMG",
+        "brand": "Oat Milk Goodness",
+        "size": "1L"
+      },
+      "298630": {
+        "store_item_id": "298630",
+        "name": "Pura Full Cream Milk Milk",
+        "brand": "Pura",
+        "size": "1L"
+      },
+      "46995": {
+        "store_item_id": "46995",
+        "name": "Pauls Rev Low Fat Milk",
+        "brand": "Pauls",
+        "size": "1L"
+      },
+      "298631": {
+        "store_item_id": "298631",
+        "name": "Pura Light Start Milk Milk",
+        "brand": "Pura",
+        "size": "1L"
+      },
+      "117056": {
+        "store_item_id": "117056",
+        "name": "Pets Own Dog & Puppy Milk",
+        "brand": "Pets Own",
+        "size": "1L"
+      },
+      "779130": {
+        "store_item_id": "779130",
+        "name": "Woolworths Soy Long Life Milk UHT",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "6018763": {
+        "store_item_id": "6018763",
+        "name": "Woolworths Skim Long Life Milk UHT",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "6020526": {
+        "store_item_id": "6020526",
+        "name": "L'Or Barista Milk Frother",
+        "brand": "L'Or",
+        "size": "each"
+      },
+      "216825": {
+        "store_item_id": "216825",
+        "name": "Vitasoy So Milky Soy Milk",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "153587": {
+        "store_item_id": "153587",
+        "name": "Vitasoy Calci Plus Soy Milk",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "6081186": {
+        "store_item_id": "6081186",
+        "name": "MILKLAB Soy Long Life Milk",
+        "brand": "MILKLAB",
+        "size": "1L"
+      },
+      "1121881503": {
+        "store_item_id": "1121881503",
+        "name": "Milk Chocolate Dessert Box",
+        "brand": "Edible Blooms",
+        "size": "1EA"
+      },
+      "216826": {
+        "store_item_id": "216826",
+        "name": "Vitasoy Soy Milky Lite Soy Milk",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "908852": {
+        "store_item_id": "908852",
+        "name": "Mandole Orchard Almond Milk",
+        "brand": "Mandole Orchard",
+        "size": "1L"
+      },
+      "6052296": {
+        "store_item_id": "6052296",
+        "name": "Vitasoy Oat Milk Iced Latte",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "1099926643": {
+        "store_item_id": "1099926643",
+        "name": "Womb Cat Milk 215gm (AWCM215)",
+        "brand": "Wombaroo",
+        "size": ""
+      },
+      "1127127409": {
+        "store_item_id": "1127127409",
+        "name": "Baccarat Milk Frother Black",
+        "brand": "Baccarat",
+        "size": ""
+      },
+      "387164": {
+        "store_item_id": "387164",
+        "name": "Vitasoy Oat Milk Unsweetened",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "696482": {
+        "store_item_id": "696482",
+        "name": "Woolworths Free From Lactose Light Milk",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "6027152": {
+        "store_item_id": "6027152",
+        "name": "Oak Chocolate Flavoured Milk",
+        "brand": "Oak",
+        "size": "750mL"
+      },
+      "56731": {
+        "store_item_id": "56731",
+        "name": "Bonsoy Soy Long Life Milk UHT",
+        "brand": "Bonsoy",
+        "size": "1L"
+      },
+      "365569": {
+        "store_item_id": "365569",
+        "name": "Macro Organic Full Cream Milk",
+        "brand": "Macro",
+        "size": "1L"
+      },
+      "710014": {
+        "store_item_id": "710014",
+        "name": "So Good Almond Long Life Milk",
+        "brand": "So Good",
+        "size": "1L"
+      },
+      "6018705": {
+        "store_item_id": "6018705",
+        "name": "Woolworths Full Cream Long Life Milk UHT",
+        "brand": "Woolworths",
+        "size": "1L"
+      },
+      "6026953": {
+        "store_item_id": "6026953",
+        "name": "Oak Strawberry Flavoured Milk",
+        "brand": "Oak",
+        "size": "750mL"
+      },
+      "6052065": {
+        "store_item_id": "6052065",
+        "name": "Vitasoy Oat Milk Choc Brownie",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "1128323349": {
+        "store_item_id": "1128323349",
+        "name": "NYX Jumbo Eye Pencil 604 Milk",
+        "brand": "NYX",
+        "size": ""
+      },
+      "330251": {
+        "store_item_id": "330251",
+        "name": "Dairy Farmers Heart Active Milk",
+        "brand": "Dairy Farmers",
+        "size": "1L"
+      },
+      "404980": {
+        "store_item_id": "404980",
+        "name": "Farmhouse Gold Full Cream Milk Milk",
+        "brand": "Farmhouse Gold",
+        "size": "750mL"
+      },
+      "481072": {
+        "store_item_id": "481072",
+        "name": "Baxter's Wet Dog Food Puppy Milk Milk",
+        "brand": "Baxter's",
+        "size": "1L"
+      },
+      "1130934015": {
+        "store_item_id": "1130934015",
+        "name": "Peppa Pig CC Milk Drink 125ml x 4 Bottles",
+        "brand": "Peppa Pig",
+        "size": ""
+      },
+      "16307": {
+        "store_item_id": "16307",
+        "name": "So Good Lite Soy Long Life Milk",
+        "brand": "So Good",
+        "size": "1L"
+      },
+      "204747": {
+        "store_item_id": "204747",
+        "name": "Pauls Smarter White Low Fat Milk",
+        "brand": "Pauls",
+        "size": "1L"
+      },
+      "206055": {
+        "store_item_id": "206055",
+        "name": "Inside Out Unsweetened Oat Milk",
+        "brand": "Inside Out",
+        "size": "1L"
+      },
+      "209424": {
+        "store_item_id": "209424",
+        "name": "Vitasoy Rice Long Life Milk UHT",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "248009": {
+        "store_item_id": "248009",
+        "name": "a2 Milk Lactose Free Full Cream",
+        "brand": "a2",
+        "size": "1L"
+      },
+      "758604": {
+        "store_item_id": "758604",
+        "name": "Vitasoy Almond Milk Unsweetened Almond Milk",
+        "brand": "Vitasoy",
+        "size": "1L"
+      },
+      "1099557769": {
+        "store_item_id": "1099557769",
+        "name": "Schweppes 600Ml Pepsi 24 Pack",
+        "brand": "Schweppes",
+        "size": "14400ML"
+      },
+      "1112891881": {
+        "store_item_id": "1112891881",
+        "name": "Schweppes 375Ml Pepsi 30 Pack",
+        "brand": "Schweppes",
+        "size": "900ML"
+      },
+      "1122848987": {
+        "store_item_id": "1122848987",
+        "name": "Schweppes 300Ml Pepsi 24 Pack",
+        "brand": "Schweppes",
+        "size": "7200ML"
+      },
+      "1099557771": {
+        "store_item_id": "1099557771",
+        "name": "Schweppes 600Ml Pepsi Max 24 Pack",
+        "brand": "Schweppes",
+        "size": "14400ML"
+      },
+      "1112891873": {
+        "store_item_id": "1112891873",
+        "name": "Schweppes 375Ml Pepsi Max 30 Pack",
+        "brand": "Schweppes",
+        "size": "9000ML"
+      },
+      "6081720": {
+        "store_item_id": "6081720",
+        "name": "Pepsi Soft Drink Bottle",
+        "brand": "Pepsi",
+        "size": "2L"
+      },
+      "6081408": {
+        "store_item_id": "6081408",
+        "name": "Pepsi Max Soft Drink Bottle",
+        "brand": "Pepsi",
+        "size": "2L"
+      },
+      "309843": {
+        "store_item_id": "309843",
+        "name": "Pepsi Max Sodastream Soda Mix Vanilla",
+        "brand": "Pepsi",
+        "size": "each"
+      },
+      "208064": {
+        "store_item_id": "208064",
+        "name": "a2 Milk Full Cream Milk",
+        "brand": "a2",
+        "size": "2L"
+      },
+      "3170": {
+        "store_item_id": "3170",
+        "name": "Big M Chocolate Milk",
+        "brand": "Big M",
+        "size": "2L"
+      },
+      "62636": {
+        "store_item_id": "62636",
+        "name": "Pura Full Cream Milk Milk",
+        "brand": "Pura",
+        "size": "2L"
+      },
+      "41408": {
+        "store_item_id": "41408",
+        "name": "Pauls Rev Low Fat Milk",
+        "brand": "Pauls",
+        "size": "2L"
+      },
+      "52542": {
+        "store_item_id": "52542",
+        "name": "Pura Light Start Milk Milk",
+        "brand": "Pura",
+        "size": "2L"
+      },
+      "79015": {
+        "store_item_id": "79015",
+        "name": "Big M Strawberry Milk Strawberry",
+        "brand": "Big M",
+        "size": "2L"
+      },
+      "807383": {
+        "store_item_id": "807383",
+        "name": "Woolworths Whole Milk Full Cream Milk",
+        "brand": "Woolworths",
+        "size": "2L"
+      },
+      "18361": {
+        "store_item_id": "18361",
+        "name": "Pauls Skinny No Fat Milk Milk",
+        "brand": "Pauls",
+        "size": "2L"
+      },
+      "240183": {
+        "store_item_id": "240183",
+        "name": "a2 Milk Lactose Free Light",
+        "brand": "a2",
+        "size": "2L"
+      },
+      "681620": {
+        "store_item_id": "681620",
+        "name": "Gippsland Jersey Light Milk",
+        "brand": "Gippsland Jersey",
+        "size": "2L"
+      },
+      "6051652": {
+        "store_item_id": "6051652",
+        "name": "Woolworths Free From Lactose Milk Lite",
+        "brand": "Woolworths",
+        "size": "2L"
+      },
+      "10384": {
+        "store_item_id": "10384",
+        "name": "Oak Chocolate Flavoured Milk",
+        "brand": "Oak",
+        "size": "2L"
+      },
+      "513469": {
+        "store_item_id": "513469",
+        "name": "Pauls Plus+ Protein Low Fat Milk",
+        "brand": "Pauls",
+        "size": "2L"
+      },
+      "405010": {
+        "store_item_id": "405010",
+        "name": "Farmhouse Gold Full Cream Milk Full Cream Milk",
+        "brand": "Farmhouse Gold",
+        "size": "1.5L"
+      },
+      "204746": {
+        "store_item_id": "204746",
+        "name": "Pauls Smarter White Low Fat Milk",
+        "brand": "Pauls",
+        "size": "2L"
+      },
+      "239521": {
+        "store_item_id": "239521",
+        "name": "a2 Milk Lactose Free Full Cream",
+        "brand": "a2",
+        "size": "2L"
+      }
+    },
+    "aldi": {
+      "000000000000672361": {
+        "store_item_id": "000000000000672361",
+        "name": "Potato Bake 800g",
+        "brand": "MARKET FARE",
+        "size": "800 g"
+      },
+      "000000000000367023": {
+        "store_item_id": "000000000000367023",
+        "name": "Potato Jewels 1kg",
+        "brand": "SEASONS PRIDE",
+        "size": "1 kg"
+      },
+      "000000000000620533": {
+        "store_item_id": "000000000000620533",
+        "name": "Potato Wedges 750g",
+        "brand": "SEASONS PRIDE",
+        "size": "750 g"
+      },
+      "000000000000405268": {
+        "store_item_id": "000000000000405268",
+        "name": "Potato Salad 250g",
+        "brand": "THE FRESH SALAD CO",
+        "size": "250 g"
+      },
+      "000000000000534032": {
+        "store_item_id": "000000000000534032",
+        "name": "Potato Salad 800g",
+        "brand": "THE FRESH SALAD CO",
+        "size": "800 g"
+      },
+      "000000000000371064": {
+        "store_item_id": "000000000000371064",
+        "name": "Potato Gratin 400g",
+        "brand": "SEASONS PRIDE",
+        "size": "400 g"
+      },
+      "000000000000561561": {
+        "store_item_id": "000000000000561561",
+        "name": "Mashed Potato 400g",
+        "brand": "",
+        "size": "400 g"
+      },
+      "000000000000380144": {
+        "store_item_id": "000000000000380144",
+        "name": "Microwave Potatoes 500g",
+        "brand": "",
+        "size": "500 g"
+      },
+      "000000000000380080": {
+        "store_item_id": "000000000000380080",
+        "name": "Gold Sweet Potatoes per kg",
+        "brand": "",
+        "size": ""
+      },
+      "000000000000735660": {
+        "store_item_id": "000000000000735660",
+        "name": "Rosemary & Garlic Roast Potatoes 600g",
+        "brand": "FESTIVE SELECTION",
+        "size": "600 g"
+      },
+      "000000000000371066": {
+        "store_item_id": "000000000000371066",
+        "name": "Potato Gratin Spinach & Ricotta 400g",
+        "brand": "SEASONS PRIDE",
+        "size": "400 g"
+      },
+      "000000000000675007": {
+        "store_item_id": "000000000000675007",
+        "name": "Mini Potato Cakes / Scallops / Fritters 500g",
+        "brand": "BESPOKE FOODS",
+        "size": "500 g"
+      },
+      "000000000000673130": {
+        "store_item_id": "000000000000673130",
+        "name": "Potato Egg and Homestyle Bacon Salad 500g",
+        "brand": "THE FRESH SALAD CO",
+        "size": "500 g"
+      },
+      "000000000000554673": {
+        "store_item_id": "000000000000554673",
+        "name": "Milk Buns 4 Pack 300g",
+        "brand": "BAKERS LIFE",
+        "size": "300 g"
+      },
+      "000000000000399309": {
+        "store_item_id": "000000000000399309",
+        "name": "Oat Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000399905": {
+        "store_item_id": "000000000000399905",
+        "name": "Soy Milk 1L",
+        "brand": "BONSOY",
+        "size": "1 l"
+      },
+      "000000000000398691": {
+        "store_item_id": "000000000000398691",
+        "name": "Light Milk 2L",
+        "brand": "FARMDALE",
+        "size": "2 l"
+      },
+      "000000000000405205": {
+        "store_item_id": "000000000000405205",
+        "name": "Light Milk 3L",
+        "brand": "FARMDALE",
+        "size": "3 l"
+      },
+      "000000000000759535": {
+        "store_item_id": "000000000000759535",
+        "name": "Light Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000545135": {
+        "store_item_id": "000000000000545135",
+        "name": "Milk Frother",
+        "brand": "EXPRESSI",
+        "size": ""
+      },
+      "000000000000405299": {
+        "store_item_id": "000000000000405299",
+        "name": "Soy Light Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000759184": {
+        "store_item_id": "000000000000759184",
+        "name": "Full Cream Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000398444": {
+        "store_item_id": "000000000000398444",
+        "name": "Regular Soy Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000403625": {
+        "store_item_id": "000000000000403625",
+        "name": "Barista Oat Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000399681": {
+        "store_item_id": "000000000000399681",
+        "name": "Lactose Free Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000400653": {
+        "store_item_id": "000000000000400653",
+        "name": "Heart Active Milk 1L",
+        "brand": "HEART ACTIVE",
+        "size": "1 l"
+      },
+      "000000000000400741": {
+        "store_item_id": "000000000000400741",
+        "name": "Long Life Skim Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000402031": {
+        "store_item_id": "000000000000402031",
+        "name": "Barista Almond Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000399059": {
+        "store_item_id": "000000000000399059",
+        "name": "Original Almond Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000399483": {
+        "store_item_id": "000000000000399483",
+        "name": "Long Life Light Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000607981": {
+        "store_item_id": "000000000000607981",
+        "name": "Organic Coconut Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000665480001": {
+        "store_item_id": "000000000665480001",
+        "name": "Body Wash Milk & Honey 1L",
+        "brand": "JULIET",
+        "size": "1 l"
+      },
+      "000000000000399060": {
+        "store_item_id": "000000000000399060",
+        "name": "Unsweetened Almond Milk 1L",
+        "brand": "INNER GOODNESS",
+        "size": "1 l"
+      },
+      "000000000000400743": {
+        "store_item_id": "000000000000400743",
+        "name": "Long Life Full Cream Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000399184": {
+        "store_item_id": "000000000000399184",
+        "name": "Moo Box - Chocolate Flavoured Milk 6 Pack 200ml",
+        "brand": "FARMDALE",
+        "size": "1.2 l"
+      },
+      "000000000000399096": {
+        "store_item_id": "000000000000399096",
+        "name": "Lactose Free Light Long Life Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000405052": {
+        "store_item_id": "000000000000405052",
+        "name": "Full Cream Lactose Free Long Life Milk 1L",
+        "brand": "FARMDALE",
+        "size": "1 l"
+      },
+      "000000000000525868": {
+        "store_item_id": "000000000000525868",
+        "name": "Mini Soft Drinks 24 Pack 250mL",
+        "brand": "COCA-COLA",
+        "size": "24 x 250 ml"
+      },
+      "000000000000773481": {
+        "store_item_id": "000000000000773481",
+        "name": "Coke Classic 18x375ml",
+        "brand": "COCA-COLA",
+        "size": "18 x 375 ml"
+      },
+      "000000000000365326": {
+        "store_item_id": "000000000000365326",
+        "name": "Coke Coca Cola Soft Drink 600ml",
+        "brand": "COCA-COLA",
+        "size": "600 ml"
+      },
+      "000000000000366926": {
+        "store_item_id": "000000000000366926",
+        "name": "Coke Coca Cola Zero Sugar 600ml",
+        "brand": "COCA-COLA",
+        "size": "600 ml"
+      },
+      "000000000000773435": {
+        "store_item_id": "000000000000773435",
+        "name": "Coke Zero Sugar 18x375ml",
+        "brand": "COCA-COLA",
+        "size": "18 x 375 ml"
+      },
+      "000000000000770123": {
+        "store_item_id": "000000000000770123",
+        "name": "Coke Classic Soft Drink 2L",
+        "brand": "COCA-COLA",
+        "size": "2 l"
+      },
+      "000000000000769283": {
+        "store_item_id": "000000000000769283",
+        "name": "Coke Zero Sugar Soft Drink 2L",
+        "brand": "COCA-COLA",
+        "size": "2 l"
+      },
+      "000000000000367148": {
+        "store_item_id": "000000000000367148",
+        "name": "Pepsi Max 2L",
+        "brand": "PEPSI MAX",
+        "size": "2 l"
+      },
+      "000000000000525871": {
+        "store_item_id": "000000000000525871",
+        "name": "Pepsi Max 30x375ml",
+        "brand": "PEPSI MAX",
+        "size": "11.25 l"
+      },
+      "000000000000365357": {
+        "store_item_id": "000000000000365357",
+        "name": "No Sugar Cola Soft Drink 600ml",
+        "brand": "PEPSI MAX",
+        "size": "600 ml"
+      }
+    }
+  },
+  "cases": [
+    {
+      "query": "Birds Eye Golden Crunch Hash Browns",
+      "store": "coles",
+      "linked_id": "4545717",
+      "preferred_size": {
+        "mass": 800.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4545717",
+          "store_name": "Golden Crunch Frozen Potato Hash Browns",
+          "brand": "Birds Eye"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "138023",
+          "store_name": "Birds Eye Golden Crunch Hash Browns",
+          "brand": "Birds Eye"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "228797",
+          "store_name": "Birds Eye Golden Crunch Hash Browns",
+          "brand": "Birds Eye"
+        }
+      ],
+      "expected_id": "4545717",
+      "candidate_ids": [
+        "4545717",
+        "5052500",
+        "1044624",
+        "1713316",
+        "5052522"
+      ]
+    },
+    {
+      "query": "Capilano Pure Honey",
+      "store": "iga",
+      "linked_id": "63671",
+      "preferred_size": {
+        "mass": 340.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "iga",
+          "store_item_id": "63671",
+          "store_name": "Capilano Manuka Honey",
+          "brand": "Capilano"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6030584",
+          "store_name": "Capilano Pure Honey",
+          "brand": "Capilano"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "63671",
+        "170000000664",
+        "351396",
+        "578820",
+        "20000002460"
+      ]
+    },
+    {
+      "query": "Capilano Pure Honey",
+      "store": "woolworths",
+      "linked_id": "6030584",
+      "preferred_size": {
+        "mass": 1000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "iga",
+          "store_item_id": "63671",
+          "store_name": "Capilano Manuka Honey",
+          "brand": "Capilano"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6030584",
+          "store_name": "Capilano Pure Honey",
+          "brand": "Capilano"
+        }
+      ],
+      "expected_id": "6030584",
+      "candidate_ids": [
+        "6030584",
+        "33642",
+        "680476",
+        "262206",
+        "954138"
+      ]
+    },
+    {
+      "query": "Heinz Big'N Chunky Bacon, Steak, Potato",
+      "store": "woolworths",
+      "linked_id": "224190",
+      "preferred_size": {
+        "mass": 535.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4391125",
+          "store_name": "Big'n Chunky Soup Bacon Steak & Potato",
+          "brand": "Heinz"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "224190",
+          "store_name": "Heinz Big N Chunky Bacon Steak Potato Soup",
+          "brand": "Heinz"
+        }
+      ],
+      "expected_id": "224190",
+      "candidate_ids": [
+        "224190",
+        "224195",
+        "224203",
+        "167628",
+        "750407"
+      ]
+    },
+    {
+      "query": "Maggi 2 Minute Noodles Beef Flavour",
+      "store": "coles",
+      "linked_id": "1616637",
+      "preferred_size": {
+        "mass": 888.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "1616637",
+          "store_name": "2 Minute Beef Flavour Noodles 12 Pack",
+          "brand": "Maggi"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "40796",
+          "store_name": "Maggi 2 Minute Instant Beef Noodles",
+          "brand": "MAGGI"
+        }
+      ],
+      "expected_id": "1616637",
+      "candidate_ids": [
+        "1616637",
+        "5366983",
+        "1616626",
+        "5366972",
+        "7560965"
+      ]
+    },
+    {
+      "query": "Maggi 2 Minute Noodles Beef Flavour",
+      "store": "iga",
+      "linked_id": "40796",
+      "preferred_size": {},
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "1616637",
+          "store_name": "2 Minute Beef Flavour Noodles 12 Pack",
+          "brand": "Maggi"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "40796",
+          "store_name": "Maggi 2 Minute Instant Beef Noodles",
+          "brand": "MAGGI"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "40796",
+        "409754",
+        "40819",
+        "40788",
+        "81784"
+      ]
+    },
+    {
+      "query": "Maggi BEEF FLAVOUR NOODLES",
+      "store": "coles",
+      "linked_id": "1616637",
+      "preferred_size": {
+        "mass": 888.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "1616637",
+          "store_name": "2 Minute Beef Flavour Noodles 12 Pack",
+          "brand": "Maggi"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "224906",
+          "store_name": "Maggi Beef Flavour Cup Instant Noodles",
+          "brand": "Maggi"
+        }
+      ],
+      "expected_id": "1616637",
+      "candidate_ids": [
+        "1616637",
+        "8109273",
+        "5366983",
+        "8100950",
+        "8109284"
+      ]
+    },
+    {
+      "query": "Maggi BEEF FLAVOUR NOODLES",
+      "store": "woolworths",
+      "linked_id": "224906",
+      "preferred_size": {
+        "mass": 58.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "1616637",
+          "store_name": "2 Minute Beef Flavour Noodles 12 Pack",
+          "brand": "Maggi"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "224906",
+          "store_name": "Maggi Beef Flavour Cup Instant Noodles",
+          "brand": "Maggi"
+        }
+      ],
+      "expected_id": "224906",
+      "candidate_ids": [
+        "224906",
+        "343896",
+        "343900",
+        "224905",
+        "224909"
+      ]
+    },
+    {
+      "query": "Tomato paste",
+      "store": "woolworths",
+      "linked_id": "34004",
+      "preferred_size": {
+        "mass": 500.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000529666",
+          "store_name": "Organic Tomato Paste 200g",
+          "brand": "REMANO"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "20000002582",
+          "store_name": "Ciao Tomato Paste",
+          "brand": "Ciao"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "34004",
+          "store_name": "Woolworths Essentials Tomato Paste",
+          "brand": "Woolworths Essentials"
+        }
+      ],
+      "expected_id": "34004",
+      "candidate_ids": [
+        "258476",
+        "748896",
+        "34004",
+        "90260",
+        "1122098967",
+        "85045",
+        "732354",
+        "38640",
+        "226836",
+        "259592"
+      ]
+    },
+    {
+      "query": "Green beans",
+      "store": "iga",
+      "linked_id": "80060086",
+      "preferred_size": {
+        "mass": 250.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "iga",
+          "store_item_id": "80060086",
+          "store_name": "Green Beans",
+          "brand": ""
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "218869",
+          "store_name": "Woolworths Sliced Green Beans",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": "80060086",
+      "candidate_ids": [
+        "80060086",
+        "667145",
+        "180000005054",
+        "80060093",
+        "80060012"
+      ]
+    },
+    {
+      "query": "Potatoes",
+      "store": "aldi",
+      "linked_id": "000000000000380144",
+      "preferred_size": {
+        "mass": 500.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000380144",
+          "store_name": "Microwave Potatoes 500g",
+          "brand": ""
+        },
+        {
+          "store": "iga",
+          "store_item_id": "80060141",
+          "store_name": "Premium Potatoes",
+          "brand": ""
+        }
+      ],
+      "expected_id": "000000000000380144",
+      "candidate_ids": [
+        "000000000000672361",
+        "000000000000367023",
+        "000000000000620533",
+        "000000000000405268",
+        "000000000000534032",
+        "000000000000371064",
+        "000000000000561561",
+        "000000000000380144",
+        "000000000000380080",
+        "000000000000735660",
+        "000000000000371066",
+        "000000000000675007",
+        "000000000000673130"
+      ]
+    },
+    {
+      "query": "Potatoes",
+      "store": "iga",
+      "linked_id": "80060141",
+      "preferred_size": {
+        "mass": 250.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000380144",
+          "store_name": "Microwave Potatoes 500g",
+          "brand": ""
+        },
+        {
+          "store": "iga",
+          "store_item_id": "80060141",
+          "store_name": "Premium Potatoes",
+          "brand": ""
+        }
+      ],
+      "expected_id": "80060141",
+      "candidate_ids": [
+        "80060141",
+        "80060059",
+        "80060058",
+        "1800000067851",
+        "190000004740",
+        "828513",
+        "110698",
+        "465695",
+        "170000003161",
+        "832931",
+        "1800000079860",
+        "349624",
+        "349959"
+      ]
+    },
+    {
+      "query": "Butter",
+      "store": "iga",
+      "linked_id": "171267",
+      "preferred_size": {
+        "mass": 375.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "iga",
+          "store_item_id": "171267",
+          "store_name": "Mainland Buttersoft Salted Spreadable Butter",
+          "brand": "Mainland"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6078088",
+          "store_name": "Woolworths Salted Butter Spreadable",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": "171267",
+      "candidate_ids": [
+        "20000002205",
+        "190000004312",
+        "190000004584",
+        "1800000080993",
+        "190000011720",
+        "885256",
+        "31904",
+        "222513",
+        "617904",
+        "31920",
+        "885340",
+        "190000011718",
+        "429709",
+        "20000006644",
+        "848738",
+        "849213",
+        "109121",
+        "1800000068279",
+        "195229",
+        "198201",
+        "744829",
+        "1800000068278",
+        "180000017165",
+        "102836",
+        "3812",
+        "666995",
+        "338856",
+        "451138",
+        "83613",
+        "177404",
+        "390468",
+        "173117",
+        "319894",
+        "849352",
+        "422074",
+        "667014",
+        "1800000074143",
+        "114532",
+        "1800000073099",
+        "20000006824",
+        "300167",
+        "171267",
+        "160000012859",
+        "190000001842",
+        "423321",
+        "38985",
+        "380497",
+        "380489",
+        "568325",
+        "147844",
+        "195091",
+        "168222"
+      ]
+    },
+    {
+      "query": "Butter",
+      "store": "woolworths",
+      "linked_id": "6078088",
+      "preferred_size": {
+        "mass": 250.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "iga",
+          "store_item_id": "171267",
+          "store_name": "Mainland Buttersoft Salted Spreadable Butter",
+          "brand": "Mainland"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6078088",
+          "store_name": "Woolworths Salted Butter Spreadable",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": "6078088",
+      "candidate_ids": [
+        "48650",
+        "847873",
+        "66921",
+        "6006276",
+        "6039974",
+        "96804",
+        "223868",
+        "712233",
+        "48649",
+        "68978",
+        "714989",
+        "6078088",
+        "38920",
+        "16677",
+        "46731",
+        "68977",
+        "367791",
+        "75645",
+        "223867",
+        "39361",
+        "6056976",
+        "1127786653",
+        "652560",
+        "48025",
+        "174742",
+        "1113621015",
+        "6076385",
+        "117693",
+        "1120124060",
+        "1126252395",
+        "1110806959",
+        "171391",
+        "182406",
+        "272721",
+        "1113382259",
+        "1129283965",
+        "1132554302",
+        "34107",
+        "899791",
+        "452266",
+        "1124162127",
+        "1125271677",
+        "1129840569",
+        "96010",
+        "223865",
+        "6086929"
+      ]
+    },
+    {
+      "query": "Milk",
+      "store": "coles",
+      "linked_id": "1079800",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "1079800",
+          "store_name": "Skim Milk",
+          "brand": "Coles"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "160000001190",
+          "store_name": "Masters Milk",
+          "brand": "Masters"
+        }
+      ],
+      "expected_id": "439693",
+      "candidate_ids": [
+        "5445570",
+        "5357053",
+        "6501188",
+        "7493518",
+        "1079800",
+        "1911604",
+        "9759944",
+        "8419281",
+        "439693",
+        "1913790",
+        "4201140",
+        "4201172",
+        "5477930",
+        "9760091",
+        "425043",
+        "5410316",
+        "1156640",
+        "9321138",
+        "3752206",
+        "8379529",
+        "9321070",
+        "4201117",
+        "1784711",
+        "5458243",
+        "13090",
+        "1071070",
+        "5018070",
+        "9321230",
+        "5459938",
+        "5467233"
+      ]
+    },
+    {
+      "query": "Milk",
+      "store": "iga",
+      "linked_id": "160000001190",
+      "preferred_size": {
+        "volume": 1000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "1079800",
+          "store_name": "Skim Milk",
+          "brand": "Coles"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "160000001190",
+          "store_name": "Masters Milk",
+          "brand": "Masters"
+        }
+      ],
+      "expected_id": "970496",
+      "candidate_ids": [
+        "160000001190",
+        "882614",
+        "17285",
+        "496099",
+        "381113",
+        "970543",
+        "970496",
+        "86098",
+        "160000018202",
+        "190240",
+        "934848",
+        "2743",
+        "27808",
+        "986722",
+        "180000003838",
+        "970917",
+        "366024",
+        "680305",
+        "995946",
+        "425195",
+        "180000003409",
+        "192242",
+        "190000004206",
+        "873518",
+        "986730",
+        "1800000068753",
+        "33333",
+        "355293",
+        "970991",
+        "397622",
+        "20000001437",
+        "148638",
+        "402278",
+        "54596",
+        "180000005501",
+        "456353",
+        "86080",
+        "986154",
+        "160000001219",
+        "160000001191",
+        "160000001205",
+        "180000005500",
+        "452184",
+        "331383",
+        "1800000069920",
+        "20000004208",
+        "315510",
+        "34083",
+        "873495",
+        "402260",
+        "934851",
+        "180000003458",
+        "180000000560",
+        "934864",
+        "1800000070452",
+        "1800000070453",
+        "180000004581",
+        "933266",
+        "160000003286",
+        "371105",
+        "20000007307",
+        "20000006962"
+      ]
+    },
+    {
+      "query": "WW Burger Cheese Slices 250g",
+      "store": "coles",
+      "linked_id": "8792988",
+      "preferred_size": {
+        "mass": 250.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "8792988",
+          "store_name": "Cheese Burger Slices",
+          "brand": "Bega"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6040705",
+          "store_name": "Woolworths Cheese Burger Slices",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": "8792988",
+      "candidate_ids": [
+        "1897605",
+        "8792988",
+        "1897591",
+        "1978140",
+        "1462511"
+      ]
+    },
+    {
+      "query": "WW Burger Cheese Slices 250g",
+      "store": "woolworths",
+      "linked_id": "6040705",
+      "preferred_size": {
+        "mass": 250.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "8792988",
+          "store_name": "Cheese Burger Slices",
+          "brand": "Bega"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6040705",
+          "store_name": "Woolworths Cheese Burger Slices",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": "6040705",
+      "candidate_ids": [
+        "6040705",
+        "166326",
+        "681781",
+        "348705",
+        "224941"
+      ]
+    },
+    {
+      "query": "Moccona Caramel Latte Coffee Sach 10Pk",
+      "store": "coles",
+      "linked_id": "4405536",
+      "preferred_size": {
+        "count": 10.0
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4405536",
+          "store_name": "Cafe Classics Caramel Latte Coffee Sachets",
+          "brand": "Moccona"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "20000001059",
+          "store_name": "Moccona Coffee Sachets Latte",
+          "brand": "Moccona"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "175028",
+          "store_name": "Moccona Coffee Sachets Caramel Latte",
+          "brand": "Moccona"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "4405536",
+        "4405591",
+        "1049399",
+        "1049490",
+        "1513077"
+      ]
+    },
+    {
+      "query": "Moccona Caramel Latte Coffee Sach 10Pk",
+      "store": "iga",
+      "linked_id": "20000001059",
+      "preferred_size": {},
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4405536",
+          "store_name": "Cafe Classics Caramel Latte Coffee Sachets",
+          "brand": "Moccona"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "20000001059",
+          "store_name": "Moccona Coffee Sachets Latte",
+          "brand": "Moccona"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "175028",
+          "store_name": "Moccona Coffee Sachets Caramel Latte",
+          "brand": "Moccona"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "20000001059",
+        "20000000149",
+        "349412",
+        "180000007062",
+        "398319"
+      ]
+    },
+    {
+      "query": "Moccona Caramel Latte Coffee Sach 10Pk",
+      "store": "woolworths",
+      "linked_id": "175028",
+      "preferred_size": {
+        "count": 10.0
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4405536",
+          "store_name": "Cafe Classics Caramel Latte Coffee Sachets",
+          "brand": "Moccona"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "20000001059",
+          "store_name": "Moccona Coffee Sachets Latte",
+          "brand": "Moccona"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "175028",
+          "store_name": "Moccona Coffee Sachets Caramel Latte",
+          "brand": "Moccona"
+        }
+      ],
+      "expected_id": "175028",
+      "candidate_ids": [
+        "175028",
+        "176950",
+        "6020610",
+        "174480",
+        "174717"
+      ]
+    },
+    {
+      "query": "Pepper Black",
+      "store": "coles",
+      "linked_id": "2677830",
+      "preferred_size": {
+        "mass": 50.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "2677830",
+          "store_name": "Ground Black Pepper",
+          "brand": "Coles"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "334639",
+          "store_name": "Woolworths Pepper Grinder Black Peppercorn",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "318214",
+        "3339232",
+        "3631711",
+        "333207",
+        "2677830",
+        "4419687"
+      ]
+    },
+    {
+      "query": "Pepper Black",
+      "store": "woolworths",
+      "linked_id": "334639",
+      "preferred_size": {
+        "mass": 50.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "2677830",
+          "store_name": "Ground Black Pepper",
+          "brand": "Coles"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "334639",
+          "store_name": "Woolworths Pepper Grinder Black Peppercorn",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "1124857091",
+        "94618",
+        "260635",
+        "75194",
+        "6010713",
+        "334639",
+        "1111165157",
+        "1111165187",
+        "1122270619",
+        "1125468077"
+      ]
+    },
+    {
+      "query": "water",
+      "store": "coles",
+      "linked_id": "4661649",
+      "preferred_size": {
+        "count": 12.0
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4661649",
+          "store_name": "Water 12x600ml",
+          "brand": "Coles"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "770183",
+          "store_name": "Woolworths Spring Water Bottles",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": "4661649",
+      "candidate_ids": [
+        "4661649",
+        "5710783",
+        "3083456",
+        "3594375",
+        "5180329",
+        "1049526",
+        "1199686",
+        "2577279",
+        "6274552"
+      ]
+    },
+    {
+      "query": "water",
+      "store": "woolworths",
+      "linked_id": "770183",
+      "preferred_size": {
+        "count": 12.0,
+        "volume": 7200.0
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "4661649",
+          "store_name": "Water 12x600ml",
+          "brand": "Coles"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "770183",
+          "store_name": "Woolworths Spring Water Bottles",
+          "brand": "Woolworths"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "799637",
+        "756045",
+        "892117",
+        "756049",
+        "38724",
+        "770183",
+        "1122945837",
+        "1123487699",
+        "1124745129",
+        "1120762727",
+        "1124346575",
+        "1124346573",
+        "1122945823",
+        "1124241059",
+        "231414",
+        "1111986745",
+        "1127846247",
+        "1129302731",
+        "1124264843",
+        "1126544273",
+        "1127917491",
+        "1125024547",
+        "1128366481",
+        "1116241589",
+        "1130430199",
+        "1115660729",
+        "1115775591",
+        "1118975569",
+        "1120752945",
+        "1122691821",
+        "1124069087",
+        "6005926",
+        "1121901741",
+        "1122623299",
+        "1125272379",
+        "1116201503",
+        "1116328351",
+        "1118975575",
+        "1119597851",
+        "1121994835",
+        "1123982895",
+        "1124514631"
+      ]
+    },
+    {
+      "query": "carrot",
+      "store": "woolworths",
+      "linked_id": "135344",
+      "preferred_size": {},
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000380228",
+          "store_name": "Carrots 1kg",
+          "brand": ""
+        },
+        {
+          "store": "coles",
+          "store_item_id": "9006560",
+          "store_name": "Carrots",
+          "brand": "Coles"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "80060016",
+          "store_name": "Carrots",
+          "brand": ""
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "135344",
+          "store_name": "Carrot Fresh",
+          "brand": ""
+        }
+      ],
+      "expected_id": "135344",
+      "candidate_ids": [
+        "218915",
+        "143989",
+        "742824",
+        "135344",
+        "79928",
+        "94250",
+        "218900",
+        "135334",
+        "921672",
+        "96708",
+        "117381",
+        "288440",
+        "921080",
+        "921142",
+        "345414",
+        "103358",
+        "135369",
+        "694123",
+        "6006814",
+        "85794",
+        "1124693827",
+        "528836",
+        "1113634487",
+        "1122089137",
+        "918790",
+        "255445",
+        "317566",
+        "289348",
+        "447762",
+        "571899",
+        "653793",
+        "6094670",
+        "67291",
+        "158938",
+        "176477",
+        "768562",
+        "768569",
+        "790107",
+        "1099925251",
+        "905271",
+        "164942",
+        "1126329201",
+        "72892",
+        "6054728",
+        "6082295",
+        "1129871433",
+        "217969",
+        "223742",
+        "583617",
+        "634312",
+        "784642",
+        "54233",
+        "176319",
+        "322789",
+        "1118911912",
+        "634313",
+        "710425",
+        "322796",
+        "6058587",
+        "1122716917",
+        "1118911908",
+        "1129871431",
+        "190802",
+        "782979",
+        "1102592583",
+        "409952",
+        "669654",
+        "190178",
+        "247686",
+        "180752",
+        "782975",
+        "6006914",
+        "1129871619",
+        "117518",
+        "713592",
+        "6029059",
+        "6056302",
+        "1125365329",
+        "6057744",
+        "1125909455",
+        "1127311723",
+        "1129451541",
+        "359587",
+        "63892",
+        "6055319",
+        "6057972",
+        "6058507",
+        "1121598591",
+        "1127304789",
+        "291187",
+        "513258",
+        "1102533083",
+        "1127632755",
+        "1125258061",
+        "1131252339",
+        "1122139603",
+        "1116302631",
+        "1127305157",
+        "103548",
+        "1115231205",
+        "1116302579",
+        "1131751701",
+        "1116299955",
+        "1116300051",
+        "1115563199",
+        "1116302595",
+        "1128471359",
+        "1116302231",
+        "1116302361",
+        "1116302629",
+        "1127528959",
+        "1125224795",
+        "1109012979",
+        "1130939675"
+      ]
+    },
+    {
+      "query": "1l milk",
+      "store": "aldi",
+      "linked_id": "000000000000759184",
+      "preferred_size": {
+        "volume": 1000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000759184",
+          "store_name": "Full Cream Milk 1L",
+          "brand": "FARMDALE"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "216872",
+          "store_name": "a2 Milk Full Cream Milk",
+          "brand": "a2"
+        }
+      ],
+      "expected_id": "000000000000759184",
+      "candidate_ids": [
+        "000000000000554673",
+        "000000000000399309",
+        "000000000000399905",
+        "000000000000398691",
+        "000000000000405205",
+        "000000000000759535",
+        "000000000000545135",
+        "000000000000405299",
+        "000000000000759184",
+        "000000000000398444",
+        "000000000000403625",
+        "000000000000399681",
+        "000000000000400653",
+        "000000000000400741",
+        "000000000000402031",
+        "000000000000399059",
+        "000000000000399483",
+        "000000000000607981",
+        "000000000665480001",
+        "000000000000399060",
+        "000000000000400743",
+        "000000000000399184",
+        "000000000000399096",
+        "000000000000405052"
+      ]
+    },
+    {
+      "query": "1l milk",
+      "store": "woolworths",
+      "linked_id": "216872",
+      "preferred_size": {
+        "volume": 1000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000759184",
+          "store_name": "Full Cream Milk 1L",
+          "brand": "FARMDALE"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "216872",
+          "store_name": "a2 Milk Full Cream Milk",
+          "brand": "a2"
+        }
+      ],
+      "expected_id": "888113",
+      "candidate_ids": [
+        "807385",
+        "807386",
+        "888114",
+        "888136",
+        "208066",
+        "216867",
+        "269103",
+        "6076742",
+        "657076",
+        "888113",
+        "266670",
+        "6029662",
+        "136787",
+        "216872",
+        "263453",
+        "298630",
+        "46995",
+        "298631",
+        "117056",
+        "779130",
+        "6018763",
+        "6020526",
+        "216825",
+        "153587",
+        "6081186",
+        "1121881503",
+        "216826",
+        "908852",
+        "6052296",
+        "1099926643",
+        "1127127409",
+        "387164",
+        "696482",
+        "6027152",
+        "56731",
+        "365569",
+        "710014",
+        "6018705",
+        "6026953",
+        "6052065",
+        "1128323349",
+        "330251",
+        "404980",
+        "481072",
+        "1130934015",
+        "16307",
+        "204747",
+        "206055",
+        "209424",
+        "248009",
+        "758604"
+      ]
+    },
+    {
+      "query": "2l coke",
+      "store": "aldi",
+      "linked_id": "000000000000770123",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000770123",
+          "store_name": "Coke Classic Soft Drink 2L",
+          "brand": "COCA-COLA"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "921743",
+          "store_name": "Coca-Cola Zero Sugar Soft Drink Bottle",
+          "brand": "Coca-Cola"
+        }
+      ],
+      "expected_id": "000000000000770123",
+      "candidate_ids": [
+        "000000000000525868",
+        "000000000000773481",
+        "000000000000365326",
+        "000000000000366926",
+        "000000000000773435",
+        "000000000000770123",
+        "000000000000769283"
+      ]
+    },
+    {
+      "query": "2l coke",
+      "store": "iga",
+      "linked_id": "921743",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000770123",
+          "store_name": "Coke Classic Soft Drink 2L",
+          "brand": "COCA-COLA"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "921743",
+          "store_name": "Coca-Cola Zero Sugar Soft Drink Bottle",
+          "brand": "Coca-Cola"
+        }
+      ],
+      "expected_id": "14570",
+      "candidate_ids": [
+        "160000018129",
+        "793661",
+        "20000004784",
+        "180000006327",
+        "190000003878",
+        "52170",
+        "14570",
+        "932126",
+        "921743",
+        "681212",
+        "382216",
+        "681220",
+        "848694",
+        "848733",
+        "674451",
+        "180000000437",
+        "20000006065",
+        "215456",
+        "310303",
+        "674485",
+        "215464"
+      ]
+    },
+    {
+      "query": "2l pepsi",
+      "store": "aldi",
+      "linked_id": "000000000000367148",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000367148",
+          "store_name": "Pepsi Max 2L",
+          "brand": "PEPSI MAX"
+        },
+        {
+          "store": "coles",
+          "store_item_id": "1864898",
+          "store_name": "Soft Drink Cola Bottle",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "1800000075210",
+          "store_name": "Pepsi Max",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6081720",
+          "store_name": "Pepsi Soft Drink Bottle",
+          "brand": "Pepsi"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "000000000000367148",
+        "000000000000525871",
+        "000000000000365357"
+      ]
+    },
+    {
+      "query": "2l pepsi",
+      "store": "coles",
+      "linked_id": "1864898",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000367148",
+          "store_name": "Pepsi Max 2L",
+          "brand": "PEPSI MAX"
+        },
+        {
+          "store": "coles",
+          "store_item_id": "1864898",
+          "store_name": "Soft Drink Cola Bottle",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "1800000075210",
+          "store_name": "Pepsi Max",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6081720",
+          "store_name": "Pepsi Soft Drink Bottle",
+          "brand": "Pepsi"
+        }
+      ],
+      "expected_id": "1864898",
+      "candidate_ids": [
+        "1310364",
+        "3914851",
+        "3914920",
+        "1310309",
+        "1864898",
+        "1864934"
+      ]
+    },
+    {
+      "query": "2l pepsi",
+      "store": "iga",
+      "linked_id": "1800000075210",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000367148",
+          "store_name": "Pepsi Max 2L",
+          "brand": "PEPSI MAX"
+        },
+        {
+          "store": "coles",
+          "store_item_id": "1864898",
+          "store_name": "Soft Drink Cola Bottle",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "1800000075210",
+          "store_name": "Pepsi Max",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6081720",
+          "store_name": "Pepsi Soft Drink Bottle",
+          "brand": "Pepsi"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "1800000075210",
+        "14279",
+        "1800000067772",
+        "1800000067778",
+        "409351",
+        "593781",
+        "634605",
+        "328416"
+      ]
+    },
+    {
+      "query": "2l pepsi",
+      "store": "woolworths",
+      "linked_id": "6081720",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "aldi",
+          "store_item_id": "000000000000367148",
+          "store_name": "Pepsi Max 2L",
+          "brand": "PEPSI MAX"
+        },
+        {
+          "store": "coles",
+          "store_item_id": "1864898",
+          "store_name": "Soft Drink Cola Bottle",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "iga",
+          "store_item_id": "1800000075210",
+          "store_name": "Pepsi Max",
+          "brand": "Pepsi"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "6081720",
+          "store_name": "Pepsi Soft Drink Bottle",
+          "brand": "Pepsi"
+        }
+      ],
+      "expected_id": "6081720",
+      "candidate_ids": [
+        "1099557769",
+        "1112891881",
+        "1122848987",
+        "1099557771",
+        "1112891873",
+        "6081720",
+        "6081408",
+        "309843"
+      ]
+    },
+    {
+      "query": "2l milk",
+      "store": "woolworths",
+      "linked_id": "62636",
+      "preferred_size": {
+        "volume": 2000.0,
+        "count": 1
+      },
+      "history": [
+        {
+          "store": "coles",
+          "store_item_id": "439693",
+          "store_name": "Full Cream Milk",
+          "brand": "Coles"
+        },
+        {
+          "store": "woolworths",
+          "store_item_id": "62636",
+          "store_name": "Pura Full Cream Milk Milk",
+          "brand": "Pura"
+        }
+      ],
+      "expected_id": null,
+      "candidate_ids": [
+        "807385",
+        "807386",
+        "888114",
+        "888136",
+        "208066",
+        "6029662",
+        "208064",
+        "3170",
+        "62636",
+        "41408",
+        "52542",
+        "79015",
+        "807383",
+        "18361",
+        "6020526",
+        "240183",
+        "1121881503",
+        "681620",
+        "6051652",
+        "1099926643",
+        "1127127409",
+        "10384",
+        "513469",
+        "1128323349",
+        "405010",
+        "1130934015",
+        "204746",
+        "239521"
+      ]
+    }
+  ]
+}
