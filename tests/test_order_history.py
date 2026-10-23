@@ -102,6 +102,21 @@ class OrderHistory(unittest.TestCase):
         pricing.link_product(self.db, 1, 'coles', 'full', 'Full Cream Milk')
         self.assertEqual(pricing.type_preference(self.db, 1, 'aldi'), set())
 
+    def test_remembered_type_precedes_house_label(self):
+        self.db.execute("UPDATE products SET name='Milk' WHERE id=1")
+        self.db.execute("DELETE FROM product_store_links")
+        self.db.execute("DELETE FROM store_settings")
+        self.db.execute("INSERT INTO store_settings(store,enabled) VALUES('woolworths',1)")
+        pricing.link_product(self.db, 1, 'coles', 'skim', 'Skim Milk', size='1L')
+        home = dict(store_item_id='1', name='Woolworths Whole Milk Full Cream Milk',
+                    brand='Woolworths', size='1L')
+        skim = dict(store_item_id='2', name='Devondale Skim Milk', brand='Devondale', size='1L')
+        self.assertEqual(pricing.strongest_match('milk', [skim, home], store='woolworths'), home)
+        self.assertEqual(pricing.type_preference(self.db, 1, 'woolworths'), {'skim'})
+        result = pricing.auto_match(self.db, 1, 'Milk', search_fn=lambda *args: [home, skim])
+        self.assertEqual([r['store'] for r in result], ['woolworths'])
+        self.assertEqual(self.db.execute("SELECT store_item_id FROM product_store_links WHERE store='woolworths'").fetchone()[0], '2')
+
     def test_bought_records_before_deletion(self):
         item = self.add(2)
         shopping.bought(item['id'], shopping.BoughtIn(store='coles'), db=self.db, user={'id': None}, list_id=1)

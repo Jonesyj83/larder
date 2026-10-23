@@ -70,6 +70,15 @@ ALDI_CATEGORY_BRANDS = {
     ("mi", "goreng", "noodles"): "SIMPLEE",
 }
 
+# House labels confirmed in the stored ranges. Organic and dietary lines
+# are not plain defaults; Aldi's category labels are handled separately.
+HOME_BRANDS = {
+    "coles": ("Coles", "Coles Simply", "Coles Kitchen", "Coles Finest",
+              "Coles Bakery", "Coles Ultra", "Coles Asia", "Coles Made Easy", "Coles Deli"),
+    "woolworths": ("Woolworths", "Woolworths Essentials"),
+    "iga": ("Community Co", "Black & Gold", "G-FRESH"),
+}
+
 
 def _aldi_equivalent(query):
     # Match the longest named product after removing sizes. Keep all
@@ -296,7 +305,7 @@ def type_preference(db, product_id, store):
     return set.intersection(*choices) if choices else set()
 
 
-def strongest_match(name, candidates, preferred_size=None, preferred_type=None):
+def strongest_match(name, candidates, preferred_size=None, preferred_type=None, *, store=None):
     if candidates and all(c.get('_match_query') == candidates[0].get('_match_query') for c in candidates):
         name = candidates[0].get('_match_query') or name
     name = QUERY_CORRECTIONS.get(name.casefold().strip(), name)
@@ -456,6 +465,14 @@ def strongest_match(name, candidates, preferred_size=None, preferred_type=None):
                     comparison = by_size[-1] if explicit_single else by_size[1]
                     if total_size(comparison[1]) >= 4 * smallest > 0 and total_size(by_size[1][1]) > smallest:
                         return by_size[0][1]
+            # A house label only settles the remaining tie, never a named
+            # brand, a remembered type, or several house variants/sizes.
+            if len(words) == 1 and not required_brand:
+                labels = {normalized_name(label) for label in HOME_BRANDS.get(store, ())}
+                home = [pair for pair in plainest
+                        if normalized_name(pair[1].get('brand') or '') in labels]
+                if len(home) == 1:
+                    return home[0][1]
         # Full Cream still leaves brands and nearby sizes undecided.
         # Classic and Diet Coke can still tie at the same bottle size;
         # neither an alias nor a size claim identifies the intended type.
@@ -479,7 +496,7 @@ def auto_match(db, product_id, name, before_search=None, search_fn=None, exclude
             else:
                 candidates = search(setting["store"], name, setting["postcode"], conn=db)
             candidate = strongest_match(name, candidates, size_preference(db, product_id, setting["store"]),
-                                        type_preference(db, product_id, setting["store"]))
+                                        type_preference(db, product_id, setting["store"]), store=setting["store"])
             if candidate is None:
                 continue
             with db:
@@ -520,7 +537,7 @@ def auto_match_live(db, product_id, name, excluded_stores=()):
                 log.warning("Product lookup failed for %s", store, exc_info=exc)
                 continue
             candidate = strongest_match(name, candidates, size_preference(db, product_id, store),
-                                        type_preference(db, product_id, store))
+                                        type_preference(db, product_id, store), store=store)
             if candidate is None:
                 continue
             try:

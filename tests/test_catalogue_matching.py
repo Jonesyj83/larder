@@ -12,7 +12,39 @@ class CatalogueMatching(unittest.TestCase):
         self.db.executescript(database.SCHEMA)
 
     def match(self, store, query):
-        return pricing.strongest_match(query, pricing.search(store, query, conn=self.db))
+        return pricing.strongest_match(query, pricing.search(store, query, conn=self.db), store=store)
+
+    def test_home_brand_only_settles_one_remaining_category_choice(self):
+        home = dict(store_item_id='1', name='Woolworths Whole Milk Full Cream Milk',
+                    brand='Woolworths', size='1L')
+        named = dict(store_item_id='2', name='Devondale Full Cream Milk',
+                     brand='Devondale', size='1L')
+        candidates = [named, home]
+        self.assertIsNone(pricing.strongest_match('milk', candidates))
+        self.assertEqual(pricing.strongest_match('milk', candidates, store='woolworths'), home)
+        self.assertIsNone(pricing.strongest_match('milk', candidates, store='aldi'))
+        self.assertIsNone(pricing.strongest_match('milk', candidates +
+            [dict(home, store_item_id='3', size='2L')], store='woolworths'))
+        self.assertEqual(pricing.strongest_match('devondale milk', candidates,
+                         store='woolworths'), named)
+        self.assertIsNone(pricing.strongest_match('milk', candidates,
+                         preferred_type={'skim'}, store='woolworths'))
+        # A premium line is not the plain house label.
+        self.assertIsNone(pricing.strongest_match('milk', [named,
+            dict(home, brand='Macro', name='Macro Full Cream Milk')], store='woolworths'))
+
+    def test_grated_cheese_does_not_claim_shredded_house_lines(self):
+        self.db.executescript("""
+            INSERT INTO woolworths_catalogue(stockcode,name,brand,size) VALUES
+                (17497,'Dairyworks Tasty Cheese Grated','Dairyworks','500g'),
+                (6000143,'Bega Tasty Grated Cheese','Bega','250g'),
+                (85587,'Woolworths Shredded Parmesan Cheese','Woolworths','250g');
+            INSERT INTO aldi_catalogue(item_id,name,brand,size) VALUES
+                ('334960','Grana Padano Grated Cheese 150g','EMPORIUM SELECTION','150 g'),
+                ('399737','Long-life Grated Parmesan Cheese 100g','REMANO','100 g');
+        """)
+        self.assertIsNone(self.match('woolworths', 'grated cheese'))
+        self.assertIsNone(self.match('aldi', 'grated cheese'))
 
     def test_ranked_brand_search_and_single_can(self):
         self.db.executemany("INSERT INTO coles_catalogue(coles_id,name) VALUES(?,?)",
